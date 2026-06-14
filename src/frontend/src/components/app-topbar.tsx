@@ -42,7 +42,7 @@ export function AppTopbar() {
       )}
 
       <div className="ml-auto flex items-center gap-1.5">
-        <Button variant="ghost" size="icon" render={<Link href="/settings" />}>
+        <Button variant="ghost" size="icon" nativeButton={false} render={<Link href="/settings" />}>
           <Settings />
           <span className="sr-only">Settings</span>
         </Button>
