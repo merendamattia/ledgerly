@@ -187,7 +187,6 @@ model Category {
   id           String        @id @default(cuid())
   name         String
   kind         CategoryKind
-  color        String?
   createdAt    DateTime      @default(now())
   transactions Transaction[]
 

@@ -9,7 +9,7 @@ const prisma = new PrismaClient({ adapter });
 
 // Categories are created on demand (manually in Settings or via CSV import using
 // the file's own names), so no defaults are seeded.
-const DEFAULT_CATEGORIES: { name: string; kind: "INCOME" | "EXPENSE"; color: string }[] = [];
+const DEFAULT_CATEGORIES: { name: string; kind: "INCOME" | "EXPENSE" }[] = [];
 
 const CRON_JOBS: { key: string; name: string; description: string; schedule: string | null }[] = [
   {

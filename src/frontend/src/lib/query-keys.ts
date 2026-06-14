@@ -11,4 +11,9 @@ export const queryKeys = {
   holdings: ["holdings"] as const,
   cronJobs: ["cron", "jobs"] as const,
   cronRuns: ["cron", "runs"] as const,
+  databaseTables: ["database", "tables"] as const,
+  databaseTable: (
+    table: string,
+    params: { search?: string; limit: number; offset: number },
+  ) => ["database", "table", table, params] as const,
 };

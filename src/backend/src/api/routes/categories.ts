@@ -31,7 +31,6 @@ export const categoriesRoutes = new Hono<AppEnv>()
     const category = await categoryRepository.create({
       name,
       kind: input.kind,
-      color: input.color ?? null,
     });
     return c.json(category, 201);
   })

@@ -185,7 +185,7 @@ function CategoriesCard() {
   function submit(e: React.FormEvent) {
     e.preventDefault();
     create.mutate(
-      { name, kind, color: null },
+      { name, kind },
       {
         onSuccess: () => {
           toast.success("Category added");

@@ -40,7 +40,6 @@ export const updateAccountSchema = createAccountSchema.partial();
 export const createCategorySchema = z.object({
   name: z.string().trim().min(1).max(60),
   kind: categoryKindSchema,
-  color: z.string().trim().max(16).nullable().optional(),
 });
 
 export const updateCategorySchema = createCategorySchema.partial();

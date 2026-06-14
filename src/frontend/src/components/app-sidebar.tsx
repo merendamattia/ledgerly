@@ -9,6 +9,7 @@ import {
   Wallet,
   TrendingUp,
   Landmark,
+  Database,
   Settings,
   HelpCircle,
   LogOut,
@@ -126,6 +127,17 @@ export function AppSidebar() {
 
       <SidebarFooter>
         <SidebarMenu className="gap-1">
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              isActive={isActive(pathname, "/database")}
+              render={
+                <Link href="/database">
+                  <Database />
+                  <span>Database</span>
+                </Link>
+              }
+            />
+          </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton
               isActive={isActive(pathname, "/settings")}

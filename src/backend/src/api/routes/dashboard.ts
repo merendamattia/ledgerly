@@ -45,7 +45,7 @@ export const dashboardRoutes = new Hono<AppEnv>()
   // by-category breakdown charts on the transactions page).
   const categories = new Map<
     string,
-    { categoryId: string | null; name: string; color: string | null; income: number; expense: number }
+    { categoryId: string | null; name: string; income: number; expense: number }
   >();
   for (const t of rangeTx) {
     const key = t.category?.id ?? "__uncategorized__";
@@ -54,7 +54,6 @@ export const dashboardRoutes = new Hono<AppEnv>()
       {
         categoryId: t.category?.id ?? null,
         name: t.category?.name ?? "Uncategorized",
-        color: t.category?.color ?? null,
         income: 0,
         expense: 0,
       };
