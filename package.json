@@ -1,0 +1,15 @@
+{
+  "name": "ledgerly",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": ["src/backend", "src/frontend"],
+  "scripts": {
+    "dev": "bun run dev:backend & bun run dev:frontend & wait",
+    "build": "bun --filter '*' build",
+    "test": "bun --filter '*' test",
+    "dev:backend": "bun --filter ledgerly-backend dev",
+    "dev:frontend": "bun --filter ledgerly-frontend dev",
+    "db:migrate": "bun --filter ledgerly-backend db:migrate",
+    "db:seed": "bun --filter ledgerly-backend db:seed"
+  }
+}

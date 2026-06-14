@@ -1,0 +1,42 @@
+# Production compose for Coolify. Only backend + frontend.
+# Postgres and Redis are managed Coolify resources: set DATABASE_URL / REDIS_URL
+# in the Coolify env. The nightly job runs IN-PROCESS in the backend (croner),
+# so there is no scheduled task to configure on Coolify.
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: src/backend/Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL}          # public backend URL (https)
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      CRON_SECRET: ${CRON_SECRET}
+      FRONTEND_URL: ${FRONTEND_URL}                # public frontend URL (CORS)
+      PORT: 3001
+      # Optional overrides (defaults: enabled, "0 2 * * *", Europe/Rome):
+      CRON_ENABLED: ${CRON_ENABLED:-true}
+      CRON_SCHEDULE: ${CRON_SCHEDULE:-0 2 * * *}
+      CRON_TIMEZONE: ${CRON_TIMEZONE:-Europe/Rome}
+      COINGECKO_API_KEY: ${COINGECKO_API_KEY:-}
+    expose:
+      - "3001"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: src/frontend/Dockerfile
+      args:
+        # Baked into the browser bundle at build time -> public backend URL.
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      NODE_ENV: production
+    expose:
+      - "3000"

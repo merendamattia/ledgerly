@@ -1,0 +1,35 @@
+# Local development only. In production (Coolify), Postgres and Redis are managed resources.
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: ledgerly-postgres
+    environment:
+      POSTGRES_USER: ledgerly
+      POSTGRES_PASSWORD: ledgerly
+      POSTGRES_DB: ledgerly
+    ports:
+      - "5432:5432"
+    volumes:
+      - ledgerly_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ledgerly"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: ledgerly-redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - ledgerly_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  ledgerly_pg:
+  ledgerly_redis:

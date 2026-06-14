@@ -1,0 +1,256 @@
+// Ledgerly — data schema (the backend is the sole owner of the database).
+// Auth models (User/Session/Account/Verification) are managed by Better Auth.
+// The financial account is named `CashAccount` to avoid clashing with Better Auth's Account.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ----------------------------------------------------------------------------
+// Auth (Better Auth, Prisma adapter)
+// ----------------------------------------------------------------------------
+model User {
+  id            String    @id
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("verification")
+}
+
+// ----------------------------------------------------------------------------
+// Domain: net worth, investments, expenses
+// ----------------------------------------------------------------------------
+enum TickerType {
+  EQUITY
+  ETF
+  CRYPTO
+}
+
+enum CategoryKind {
+  INCOME
+  EXPENSE
+}
+
+enum TxDirection {
+  INCOME
+  EXPENSE
+}
+
+enum CronStatus {
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
+enum CronTrigger {
+  CRON
+  MANUAL
+}
+
+/// Singleton settings (a single row, id = "singleton").
+model Settings {
+  id           String   @id @default("singleton")
+  baseCurrency String   @default("EUR")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+/// Liquid account (bank, cash, ...).
+model CashAccount {
+  id           String        @id @default(cuid())
+  name         String
+  type         String        @default("BANK")
+  currency     String        @default("EUR")
+  balance      Decimal       @default(0) @db.Decimal(20, 2)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  holdings     Holding[]
+  transactions Transaction[]
+
+  @@map("cash_account")
+}
+
+/// Financial instrument metadata. One row per asset.
+model Ticker {
+  id          String         @id @default(cuid())
+  symbol      String         @unique
+  name        String
+  description String?
+  type        TickerType
+  currency    String         @default("USD")
+  provider    String
+  createdAt   DateTime       @default(now())
+  prices      PriceHistory[]
+  holdings    Holding[]
+
+  @@map("ticker")
+}
+
+/// All daily closing prices per ticker (filled by backfill + nightly cron).
+model PriceHistory {
+  id       String   @id @default(cuid())
+  tickerId String
+  ticker   Ticker   @relation(fields: [tickerId], references: [id], onDelete: Cascade)
+  date     DateTime @db.Date
+  close    Decimal  @db.Decimal(20, 8)
+
+  @@unique([tickerId, date])
+  @@index([tickerId])
+  @@map("price_history")
+}
+
+/// An investment position.
+model Holding {
+  id            String       @id @default(cuid())
+  tickerId      String
+  ticker        Ticker       @relation(fields: [tickerId], references: [id], onDelete: Restrict)
+  cashAccountId String?
+  cashAccount   CashAccount? @relation(fields: [cashAccountId], references: [id], onDelete: SetNull)
+  quantity      Decimal      @db.Decimal(28, 10)
+  avgCost       Decimal      @db.Decimal(20, 8)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([tickerId])
+  @@map("holding")
+}
+
+/// Historical FX rates (daily closes).
+model FxRate {
+  id    String   @id @default(cuid())
+  base  String
+  quote String
+  date  DateTime @db.Date
+  rate  Decimal  @db.Decimal(20, 8)
+
+  @@unique([base, quote, date])
+  @@index([base, quote])
+  @@map("fx_rate")
+}
+
+/// User-managed expense/income categories.
+model Category {
+  id           String        @id @default(cuid())
+  name         String
+  kind         CategoryKind
+  color        String?
+  createdAt    DateTime      @default(now())
+  transactions Transaction[]
+
+  @@map("category")
+}
+
+/// An expense/income movement (in base currency).
+model Transaction {
+  id            String       @id @default(cuid())
+  categoryId    String?
+  category      Category?    @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  cashAccountId String?
+  cashAccount   CashAccount? @relation(fields: [cashAccountId], references: [id], onDelete: SetNull)
+  date          DateTime     @db.Date
+  amount        Decimal      @db.Decimal(20, 2)
+  direction     TxDirection
+  note          String?
+  createdAt     DateTime     @default(now())
+
+  @@index([date])
+  @@index([categoryId])
+  @@map("transaction")
+}
+
+/// Daily net worth snapshot.
+model NetWorthSnapshot {
+  id         String   @id @default(cuid())
+  date       DateTime @unique @db.Date
+  totalValue Decimal  @db.Decimal(20, 2)
+  breakdown  Json
+  createdAt  DateTime @default(now())
+
+  @@map("net_worth_snapshot")
+}
+
+/// A cron job definition.
+model CronJob {
+  id          String    @id @default(cuid())
+  key         String    @unique
+  name        String
+  description String?
+  schedule    String?
+  enabled     Boolean   @default(true)
+  lastRunAt   DateTime?
+  createdAt   DateTime  @default(now())
+  runs        CronRun[]
+
+  @@map("cron_job")
+}
+
+/// Execution log for a cron job.
+model CronRun {
+  id             String      @id @default(cuid())
+  jobId          String
+  job            CronJob     @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  startedAt      DateTime    @default(now())
+  finishedAt     DateTime?
+  status         CronStatus  @default(RUNNING)
+  itemsProcessed Int         @default(0)
+  error          String?
+  triggeredBy    CronTrigger @default(CRON)
+
+  @@index([jobId])
+  @@index([startedAt])
+  @@map("cron_run")
+}
