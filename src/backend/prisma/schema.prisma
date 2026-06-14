@@ -191,6 +191,7 @@ model Category {
   createdAt    DateTime      @default(now())
   transactions Transaction[]
 
+  @@unique([kind, name])
   @@map("category")
 }
 

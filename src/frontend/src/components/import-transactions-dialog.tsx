@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Table, TableBody, TableHead, TableHeader, TableRow, TableCell } from "@/components/ui/table";
+import { DIRECTION_LABELS } from "@/lib/format";
 import { useParseImport, useCommitImport, type ImportRow } from "@/hooks/use-import";
 
 // One editable preview row. Memoized so editing a field only re-renders its own
@@ -42,6 +43,7 @@ const ImportRowEditor = memo(function ImportRowEditor({
       <TableCell>
         <Select
           value={row.direction}
+          items={DIRECTION_LABELS}
           onValueChange={(v) => onChange(index, { direction: (v ?? "EXPENSE") as ImportRow["direction"] })}
         >
           <SelectTrigger className="h-8 w-[110px]">

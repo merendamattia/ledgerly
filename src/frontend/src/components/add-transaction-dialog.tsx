@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/select";
 import { useCategories } from "@/hooks/use-categories";
 import { useCreateTransaction } from "@/hooks/use-expenses";
-import { todayISO } from "@/lib/format";
+import { todayISO, DIRECTION_LABELS } from "@/lib/format";
 
 // Shared "new transaction" dialog. Reused by the sidebar CTA and the
 // Transactions page. Pass a custom `trigger` or fall back to a default button.
@@ -83,6 +83,7 @@ export function AddTransactionDialog({ trigger }: { trigger?: ReactElement }) {
               <FieldLabel htmlFor="direction">Direction</FieldLabel>
               <Select
                 value={direction}
+                items={DIRECTION_LABELS}
                 onValueChange={(v) => {
                   setDirection((v ?? "EXPENSE") as typeof direction);
                   setCategoryId("");
@@ -99,7 +100,11 @@ export function AddTransactionDialog({ trigger }: { trigger?: ReactElement }) {
             </Field>
             <Field>
               <FieldLabel htmlFor="category">Category</FieldLabel>
-              <Select value={categoryId} onValueChange={(v) => setCategoryId(v ?? "")}>
+              <Select
+                value={categoryId}
+                items={categories.data?.map((c) => ({ value: c.id, label: c.name })) ?? []}
+                onValueChange={(v) => setCategoryId(v ?? "")}
+              >
                 <SelectTrigger id="category">
                   <SelectValue placeholder="Select a category" />
                 </SelectTrigger>

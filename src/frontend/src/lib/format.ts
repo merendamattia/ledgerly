@@ -12,6 +12,11 @@ export function formatNumber(value: number, maximumFractionDigits = 2): string {
   return new Intl.NumberFormat("en-US", { maximumFractionDigits }).format(value);
 }
 
+/** Hard-truncate a string to `max` characters, appending an ellipsis if cut. */
+export function truncate(value: string, max = 25): string {
+  return value.length > max ? `${value.slice(0, max).trimEnd()}…` : value;
+}
+
 export function formatPercent(value: number): string {
   const sign = value > 0 ? "+" : "";
   return `${sign}${value.toFixed(2)}%`;
@@ -65,6 +70,22 @@ export function monthsForRange(key: ChartRange): number {
       return 36;
   }
 }
+
+/**
+ * Human-readable labels for transaction direction. Selects must render these,
+ * never the raw INCOME/EXPENSE key. See "The Select Label Rule" in DESIGN.md.
+ */
+export const DIRECTION_LABELS: Record<string, string> = {
+  INCOME: "Income",
+  EXPENSE: "Expense",
+};
+
+/** Human-readable labels for investment asset types shown in selects. */
+export const TICKER_TYPE_LABELS: Record<string, string> = {
+  ETF: "ETF",
+  EQUITY: "Equity",
+  CRYPTO: "Crypto",
+};
 
 export type DatePreset = "this-month" | "last-month" | "this-year" | "all";
 

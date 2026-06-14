@@ -37,7 +37,7 @@ import {
   type Ticker,
 } from "@/hooks/use-investments";
 import { useDashboard, type DashboardData } from "@/hooks/use-dashboard";
-import { formatNumber, formatPercent } from "@/lib/format";
+import { formatNumber, formatPercent, TICKER_TYPE_LABELS } from "@/lib/format";
 
 type HoldingValuation = DashboardData["netWorth"]["holdings"][number];
 
@@ -89,7 +89,11 @@ function AddAssetDialog() {
             </Field>
             <Field>
               <FieldLabel htmlFor="type">Type</FieldLabel>
-              <Select value={type} onValueChange={(v) => setType((v ?? "ETF") as typeof type)}>
+              <Select
+                value={type}
+                items={TICKER_TYPE_LABELS}
+                onValueChange={(v) => setType((v ?? "ETF") as typeof type)}
+              >
                 <SelectTrigger id="type">
                   <SelectValue />
                 </SelectTrigger>
@@ -150,7 +154,11 @@ function AddHoldingDialog({ tickers }: { tickers: Ticker[] }) {
           <FieldGroup>
             <Field>
               <FieldLabel htmlFor="ticker">Asset</FieldLabel>
-              <Select value={tickerId} onValueChange={(v) => setTickerId(v ?? "")}>
+              <Select
+                value={tickerId}
+                items={tickers.map((t) => ({ value: t.id, label: `${t.symbol} — ${t.name}` }))}
+                onValueChange={(v) => setTickerId(v ?? "")}
+              >
                 <SelectTrigger id="ticker">
                   <SelectValue placeholder="Select an asset" />
                 </SelectTrigger>

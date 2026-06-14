@@ -9,6 +9,7 @@ import {
   Wallet,
   TrendingUp,
   Landmark,
+  Settings,
   HelpCircle,
   LogOut,
 } from "lucide-react";
@@ -125,6 +126,17 @@ export function AppSidebar() {
 
       <SidebarFooter>
         <SidebarMenu className="gap-1">
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              isActive={isActive(pathname, "/settings")}
+              render={
+                <Link href="/settings">
+                  <Settings />
+                  <span>Settings</span>
+                </Link>
+              }
+            />
+          </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton render={<Link href="#" />}>
               <HelpCircle />

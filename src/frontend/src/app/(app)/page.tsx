@@ -20,6 +20,7 @@ import { Sparkline } from "@/components/charts/sparkline";
 import { useDashboard, type DashboardData } from "@/hooks/use-dashboard";
 import { useSession } from "@/lib/auth-client";
 import { formatMoney, formatPercent } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 type RecentTx = DashboardData["recentTransactions"][number];
 
@@ -139,14 +140,23 @@ export default function DashboardPage() {
           <div className="flex flex-col gap-2">
             <div className="h-2 overflow-hidden rounded-full bg-muted">
               <div
-                className="h-full rounded-full bg-primary"
+                className={cn(
+                  "h-full rounded-full",
+                  savingsRate >= SAVINGS_GOAL ? "bg-accent-gold" : "bg-primary",
+                )}
                 style={{ width: `${Math.min(100, (savingsRate / SAVINGS_GOAL) * 100)}%` }}
               />
             </div>
-            <p className="text-xs text-muted-foreground">
-              Goal {SAVINGS_GOAL}%.{" "}
-              {savingsRate >= SAVINGS_GOAL ? "Goal reached, great work." : "Keep it up this month."}
-            </p>
+            {savingsRate >= SAVINGS_GOAL ? (
+              <p className="flex items-center gap-1.5 text-xs font-medium text-accent-gold-foreground">
+                <span className="size-2 rounded-full bg-accent-gold" />
+                Goal {SAVINGS_GOAL}% reached, great work.
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Goal {SAVINGS_GOAL}%. Keep it up this month.
+              </p>
+            )}
           </div>
         </StatCard>
       </div>
@@ -156,7 +166,7 @@ export default function DashboardPage() {
           <CardHeader>
             <CardTitle>Net worth trend</CardTitle>
             <CardAction>
-              <Select value={period} onValueChange={(v) => setPeriod(v ?? "180")}>
+              <Select value={period} items={PERIODS} onValueChange={(v) => setPeriod(v ?? "180")}>
                 <SelectTrigger className="h-8 w-[160px]">
                   <SelectValue />
                 </SelectTrigger>

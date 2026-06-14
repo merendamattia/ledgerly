@@ -12,8 +12,8 @@ import {
 import { formatMoney } from "@/lib/format";
 
 const chartConfig = {
-  income: { label: "Income", color: "var(--chart-2)" },
-  expense: { label: "Expense", color: "var(--chart-3)" },
+  income: { label: "Income", color: "var(--positive)" },
+  expense: { label: "Expense", color: "var(--negative)" },
 } satisfies ChartConfig;
 
 function compactMoney(value: number, currency: string): string {

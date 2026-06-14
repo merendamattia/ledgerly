@@ -31,12 +31,14 @@ export function DataTable<T>({
   getRowKey,
   isLoading,
   emptyState,
+  onRowClick,
 }: {
   columns: Column<T>[];
   data: T[] | undefined;
   getRowKey: (row: T) => string;
   isLoading?: boolean;
   emptyState?: ReactNode;
+  onRowClick?: (row: T) => void;
 }) {
   return (
     <Table>
@@ -70,7 +72,11 @@ export function DataTable<T>({
           </TableRow>
         ) : (
           data.map((row) => (
-            <TableRow key={getRowKey(row)}>
+            <TableRow
+              key={getRowKey(row)}
+              onClick={onRowClick ? () => onRowClick(row) : undefined}
+              className={cn(onRowClick && "cursor-pointer")}
+            >
               {columns.map((col, i) => (
                 <TableCell key={i} className={cn(col.align && alignClass[col.align], col.className)}>
                   {col.cell(row)}

@@ -33,48 +33,32 @@ function pickIcon(name?: string | null): LucideIcon {
   return Tag;
 }
 
-// Leading icon tile for a transaction row. Tints with the category color when
-// available, otherwise falls back to the muted token.
+// Leading icon tile for a transaction row. Neutral by design: categories carry
+// no color, the icon (chosen from the name) and label do the work.
 export function CategoryIcon({
   name,
-  color,
   className,
 }: {
   name?: string | null;
-  color?: string | null;
   className?: string;
 }) {
   return (
     <div
       className={cn(
-        "flex size-9 shrink-0 items-center justify-center rounded-full",
-        !color && "bg-muted text-muted-foreground",
+        "flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground",
         className,
       )}
-      style={color ? { backgroundColor: `${color}1f`, color } : undefined}
     >
       {createElement(pickIcon(name), { className: "size-4" })}
     </div>
   );
 }
 
-// Small pill showing the category name, tinted by the category color.
-export function CategoryBadge({
-  name,
-  color,
-}: {
-  name?: string | null;
-  color?: string | null;
-}) {
+// Small neutral pill showing the category name.
+export function CategoryBadge({ name }: { name?: string | null }) {
   if (!name) return <span className="text-muted-foreground">—</span>;
   return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
-        !color && "bg-secondary text-secondary-foreground",
-      )}
-      style={color ? { backgroundColor: `${color}1f`, color } : undefined}
-    >
+    <span className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-secondary-foreground">
       {name}
     </span>
   );

@@ -7,7 +7,6 @@ import { PageHeader } from "@/components/page-header";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
@@ -26,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { DIRECTION_LABELS } from "@/lib/format";
 import { useSettings, useUpdateSettings } from "@/hooks/use-settings";
 import {
   useCategories,
@@ -83,13 +83,12 @@ function BaseCurrencyCard() {
 function EditCategoryDialog({ category }: { category: Category }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(category.name);
-  const [color, setColor] = useState(category.color ?? "#64748b");
   const update = useUpdateCategory();
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     update.mutate(
-      { id: category.id, name, color },
+      { id: category.id, name },
       {
         onSuccess: () => {
           toast.success("Category updated");
@@ -103,7 +102,7 @@ function EditCategoryDialog({ category }: { category: Category }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
-        render={<Button variant="ghost" size="icon" className="size-4" />}
+        render={<Button variant="ghost" size="icon-sm" />}
         aria-label="Edit category"
       >
         <Pencil />
@@ -111,7 +110,7 @@ function EditCategoryDialog({ category }: { category: Category }) {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Edit category</DialogTitle>
-          <DialogDescription>Rename or recolour this category.</DialogDescription>
+          <DialogDescription>Rename this category.</DialogDescription>
         </DialogHeader>
         <form onSubmit={submit}>
           <FieldGroup>
@@ -122,16 +121,6 @@ function EditCategoryDialog({ category }: { category: Category }) {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="edit-cat-color">Color</FieldLabel>
-              <Input
-                id="edit-cat-color"
-                type="color"
-                value={color}
-                onChange={(e) => setColor(e.target.value)}
-                className="h-9 w-16 p-1"
               />
             </Field>
             <DialogFooter>
@@ -146,10 +135,50 @@ function EditCategoryDialog({ category }: { category: Category }) {
   );
 }
 
+function CategoryRow({ category }: { category: Category }) {
+  const del = useDeleteCategory();
+  return (
+    <div className="flex items-center justify-between gap-1 rounded-lg border bg-card px-3 py-2">
+      <span className="min-w-0 truncate text-sm font-medium">{category.name}</span>
+      <div className="flex shrink-0 items-center">
+        <EditCategoryDialog category={category} />
+        <ConfirmDialog
+          title="Delete category?"
+          description={`Remove "${category.name}". Existing transactions keep their data.`}
+          confirmLabel="Delete"
+          onConfirm={() =>
+            del.mutate(category.id, {
+              onSuccess: () => toast.success("Category deleted"),
+              onError: (e) => toast.error(e.message),
+            })
+          }
+          trigger={
+            <Button variant="ghost" size="icon-sm" aria-label="Delete">
+              <Trash2 />
+            </Button>
+          }
+        />
+      </div>
+    </div>
+  );
+}
+
+function CategoryList({ items }: { items: Category[] }) {
+  if (items.length === 0) {
+    return <p className="text-sm text-muted-foreground">No categories yet.</p>;
+  }
+  return (
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+      {items.map((c) => (
+        <CategoryRow key={c.id} category={c} />
+      ))}
+    </div>
+  );
+}
+
 function CategoriesCard() {
   const categories = useCategories();
   const create = useCreateCategory();
-  const del = useDeleteCategory();
   const [name, setName] = useState("");
   const [kind, setKind] = useState<"INCOME" | "EXPENSE">("EXPENSE");
 
@@ -167,41 +196,9 @@ function CategoriesCard() {
     );
   }
 
-  const expense = categories.data?.filter((c) => c.kind === "EXPENSE") ?? [];
-  const income = categories.data?.filter((c) => c.kind === "INCOME") ?? [];
-
-  function CategoryChip({ category }: { category: Category }) {
-    return (
-      <Badge
-        variant="secondary"
-        className="gap-1.5 py-1 pr-1"
-        style={
-          category.color
-            ? { backgroundColor: `${category.color}1f`, color: category.color }
-            : undefined
-        }
-      >
-        {category.name}
-        <EditCategoryDialog category={category} />
-        <ConfirmDialog
-          title="Delete category?"
-          description={`Remove "${category.name}". Existing transactions keep their data.`}
-          confirmLabel="Delete"
-          onConfirm={() =>
-            del.mutate(category.id, {
-              onSuccess: () => toast.success("Category deleted"),
-              onError: (e) => toast.error(e.message),
-            })
-          }
-          trigger={
-            <Button variant="ghost" size="icon" className="size-4">
-              <Trash2 />
-            </Button>
-          }
-        />
-      </Badge>
-    );
-  }
+  const byName = (a: Category, b: Category) => a.name.localeCompare(b.name);
+  const expense = (categories.data ?? []).filter((c) => c.kind === "EXPENSE").sort(byName);
+  const income = (categories.data ?? []).filter((c) => c.kind === "INCOME").sort(byName);
 
   return (
     <Card>
@@ -217,7 +214,11 @@ function CategoriesCard() {
           </Field>
           <Field className="w-40">
             <FieldLabel htmlFor="cat-kind">Kind</FieldLabel>
-            <Select value={kind} onValueChange={(v) => setKind((v ?? "EXPENSE") as typeof kind)}>
+            <Select
+              value={kind}
+              items={DIRECTION_LABELS}
+              onValueChange={(v) => setKind((v ?? "EXPENSE") as typeof kind)}
+            >
               <SelectTrigger id="cat-kind">
                 <SelectValue />
               </SelectTrigger>
@@ -233,21 +234,13 @@ function CategoriesCard() {
           </Button>
         </form>
 
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2.5">
           <span className="text-sm font-medium">Expense</span>
-          <div className="flex flex-wrap gap-2">
-            {expense.map((c) => (
-              <CategoryChip key={c.id} category={c} />
-            ))}
-          </div>
+          <CategoryList items={expense} />
         </div>
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2.5">
           <span className="text-sm font-medium">Income</span>
-          <div className="flex flex-wrap gap-2">
-            {income.map((c) => (
-              <CategoryChip key={c.id} category={c} />
-            ))}
-          </div>
+          <CategoryList items={income} />
         </div>
       </CardContent>
     </Card>

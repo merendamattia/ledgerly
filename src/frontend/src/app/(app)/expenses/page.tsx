@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Trash2, Upload, ArrowDownLeft, ArrowUpRight, Scale } from "lucide-react";
+import { Trash2, Upload, ArrowDownLeft, ArrowUpRight, Scale, Pencil } from "lucide-react";
 import { MoneyAmount } from "@/components/money-amount";
 import { DataTable, type Column } from "@/components/data-table";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -13,9 +13,18 @@ import { ImportTransactionsDialog } from "@/components/import-transactions-dialo
 import { CashFlowChart } from "@/components/charts/cashflow-chart";
 import { CashFlowLineChart } from "@/components/charts/cashflow-line-chart";
 import { IncomeExpensePie } from "@/components/charts/income-expense-pie";
+import { CategoryBarChart } from "@/components/charts/category-bar-chart";
+import { TransactionDetailDialog } from "@/components/transaction-detail-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
@@ -40,6 +49,8 @@ import {
   formatMoney,
   monthsForRange,
   dateRangePreset,
+  truncate,
+  DIRECTION_LABELS,
   type ChartRange,
   type DatePreset,
 } from "@/lib/format";
@@ -93,18 +104,34 @@ export default function ExpensesPage() {
   const [to, setTo] = useState("");
   const [limit, setLimit] = useState(PAGE_SIZE);
   const [exporting, setExporting] = useState(false);
+  const [catDirection, setCatDirection] = useState<"expense" | "income">("expense");
+  const [viewAllOpen, setViewAllOpen] = useState(false);
+  const [detailTx, setDetailTx] = useState<Transaction | null>(null);
+  const [detailEdit, setDetailEdit] = useState(false);
 
   const { query } = useSearch();
   const settings = useSettings();
   const allCategories = useCategories();
   const dashboard = useDashboard(monthsForRange(chartRange));
   const currency = settings.data?.baseCurrency ?? "EUR";
-  const cashFlowMonth = dashboard.data?.cashFlowMonth ?? { income: 0, expense: 0 };
-  const balance = cashFlowMonth.income - cashFlowMonth.expense;
 
+  // Everything in the analytics section (cards + charts) reflects the range
+  // chosen in the top toolbar; the transactions list below has its own filters.
   const series = dashboard.data?.cashFlowSeries ?? [];
   const rangeIncome = series.reduce((s, d) => s + d.income, 0);
   const rangeExpense = series.reduce((s, d) => s + d.expense, 0);
+  const rangeBalance = rangeIncome - rangeExpense;
+
+  // Per-category totals for the range, split by direction and sorted by size.
+  const breakdown = dashboard.data?.categoryBreakdown ?? [];
+  const expenseByCategory = breakdown
+    .filter((c) => c.expense > 0)
+    .map((c) => ({ name: c.name, value: c.expense }))
+    .sort((a, b) => b.value - a.value);
+  const incomeByCategory = breakdown
+    .filter((c) => c.income > 0)
+    .map((c) => ({ name: c.name, value: c.income }))
+    .sort((a, b) => b.value - a.value);
 
   // Filters that scope the transactions list (and the export).
   const baseFilters: TransactionFilters = useMemo(
@@ -118,6 +145,8 @@ export default function ExpensesPage() {
   );
 
   const { data, isLoading } = useExpenses({ ...baseFilters, limit });
+  // Always-latest 10, independent of the list filters, for the side panel.
+  const latest = useExpenses({ limit: 10 });
   const del = useDeleteTransaction();
 
   // Any filter change resets the list back to the first page.
@@ -155,20 +184,35 @@ export default function ExpensesPage() {
 
   const hasMore = !query && !!data && data.length === limit;
 
+  // value→label maps so the select triggers show readable text, not raw keys.
+  const directionItems = { [ALL]: "All", ...DIRECTION_LABELS };
+  const categoryItems = useMemo(
+    () => ({
+      [ALL]: "All",
+      ...Object.fromEntries((allCategories.data ?? []).map((c) => [c.id, c.name])),
+    }),
+    [allCategories.data],
+  );
+
+  function openDetail(tx: Transaction, edit = false) {
+    setDetailEdit(edit);
+    setDetailTx(tx);
+  }
+
   const columns: Column<Transaction>[] = [
     { header: "Date", cell: (t) => formatDate(t.date), className: "text-muted-foreground" },
     {
       header: "Description",
       cell: (t) => (
         <div className="flex items-center gap-3">
-          <CategoryIcon name={t.category?.name} color={t.category?.color} />
-          <span className="font-medium">{t.note || t.category?.name || "Transaction"}</span>
+          <CategoryIcon name={t.category?.name} />
+          <span className="font-medium">{truncate(t.note || t.category?.name || "Transaction")}</span>
         </div>
       ),
     },
     {
       header: "Category",
-      cell: (t) => <CategoryBadge name={t.category?.name} color={t.category?.color} />,
+      cell: (t) => <CategoryBadge name={t.category?.name} />,
     },
     {
       header: "Amount",
@@ -187,21 +231,26 @@ export default function ExpensesPage() {
       header: "",
       align: "right",
       cell: (t) => (
-        <ConfirmDialog
-          title="Delete transaction?"
-          confirmLabel="Delete"
-          onConfirm={() =>
-            del.mutate(t.id, {
-              onSuccess: () => toast.success("Deleted"),
-              onError: (e) => toast.error(e.message),
-            })
-          }
-          trigger={
-            <Button variant="ghost" size="icon">
-              <Trash2 />
-            </Button>
-          }
-        />
+        <div className="flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
+          <Button variant="ghost" size="icon" aria-label="Edit" onClick={() => openDetail(t, true)}>
+            <Pencil />
+          </Button>
+          <ConfirmDialog
+            title="Delete transaction?"
+            confirmLabel="Delete"
+            onConfirm={() =>
+              del.mutate(t.id, {
+                onSuccess: () => toast.success("Deleted"),
+                onError: (e) => toast.error(e.message),
+              })
+            }
+            trigger={
+              <Button variant="ghost" size="icon" aria-label="Delete">
+                <Trash2 />
+              </Button>
+            }
+          />
+        </div>
       ),
     },
   ];
@@ -214,6 +263,22 @@ export default function ExpensesPage() {
           <p className="text-sm text-muted-foreground">Track and review your income and spending.</p>
         </div>
         <div className="flex items-center gap-2">
+          <Select
+            value={chartRange}
+            items={RANGE_LABELS}
+            onValueChange={(v) => setChartRange((v ?? "12m") as ChartRange)}
+          >
+            <SelectTrigger className="w-[150px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(Object.keys(RANGE_LABELS) as ChartRange[]).map((k) => (
+                <SelectItem key={k} value={k}>
+                  {RANGE_LABELS[k]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button variant="outline" onClick={handleExport} disabled={exporting}>
             <Upload data-icon="inline-start" />
             Export
@@ -225,22 +290,22 @@ export default function ExpensesPage() {
 
       <div className="grid gap-5 sm:grid-cols-3">
         <StatCard
-          label="Income (month)"
-          value={formatMoney(cashFlowMonth.income, currency)}
+          label={`Income · ${RANGE_LABELS[chartRange]}`}
+          value={formatMoney(rangeIncome, currency)}
           icon={ArrowDownLeft}
           accent="positive"
         />
         <StatCard
-          label="Expenses (month)"
-          value={formatMoney(cashFlowMonth.expense, currency)}
+          label={`Expenses · ${RANGE_LABELS[chartRange]}`}
+          value={formatMoney(rangeExpense, currency)}
           icon={ArrowUpRight}
           accent="negative"
         />
         <StatCard
-          label="Balance (month)"
-          value={formatMoney(balance, currency)}
+          label={`Balance · ${RANGE_LABELS[chartRange]}`}
+          value={formatMoney(rangeBalance, currency)}
           icon={Scale}
-          accent={balance >= 0 ? "positive" : "negative"}
+          accent={rangeBalance >= 0 ? "positive" : "negative"}
         />
       </div>
 
@@ -248,7 +313,7 @@ export default function ExpensesPage() {
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Monthly trend</CardTitle>
-            <CardAction className="flex flex-wrap items-center gap-2">
+            <CardAction>
               <Tabs
                 value={chartType}
                 onValueChange={(v) => setChartType((v ?? "bar") as "bar" | "line")}
@@ -258,21 +323,6 @@ export default function ExpensesPage() {
                   <TabsTrigger value="line">Lines</TabsTrigger>
                 </TabsList>
               </Tabs>
-              <Select
-                value={chartRange}
-                onValueChange={(v) => setChartRange((v ?? "12m") as ChartRange)}
-              >
-                <SelectTrigger className="h-8 w-[160px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(Object.keys(RANGE_LABELS) as ChartRange[]).map((k) => (
-                    <SelectItem key={k} value={k}>
-                      {RANGE_LABELS[k]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </CardAction>
           </CardHeader>
           <CardContent>
@@ -293,15 +343,120 @@ export default function ExpensesPage() {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>All transactions</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
+      <div className="grid gap-5 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>By category</CardTitle>
+            <CardAction>
+              <Tabs
+                value={catDirection}
+                onValueChange={(v) => setCatDirection((v ?? "expense") as "expense" | "income")}
+              >
+                <TabsList>
+                  <TabsTrigger value="expense">Expense</TabsTrigger>
+                  <TabsTrigger value="income">Income</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </CardAction>
+          </CardHeader>
+          <CardContent>
+            <CategoryBarChart
+              data={catDirection === "expense" ? expenseByCategory : incomeByCategory}
+              currency={currency}
+              fallback={catDirection === "expense" ? "var(--negative)" : "var(--positive)"}
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent transactions</CardTitle>
+            <CardAction>
+              <Button variant="outline" size="sm" onClick={() => setViewAllOpen(true)}>
+                View all
+              </Button>
+            </CardAction>
+          </CardHeader>
+          <CardContent className="p-0">
+            <ul className="divide-y">
+              {latest.isLoading ? (
+                <li className="px-4 py-4 text-sm text-muted-foreground">Loading…</li>
+              ) : (latest.data ?? []).length === 0 ? (
+                <li className="px-4 py-8 text-center text-sm text-muted-foreground">
+                  No transactions yet.
+                </li>
+              ) : (
+                latest.data?.map((t) => {
+                  const signed = t.direction === "EXPENSE" ? -t.amount : t.amount;
+                  return (
+                    <li
+                      key={t.id}
+                      onClick={() => openDetail(t)}
+                      className="flex cursor-pointer items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/50"
+                    >
+                      <CategoryIcon name={t.category?.name} />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">
+                          {t.note || t.category?.name || "Transaction"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">{formatDate(t.date)}</p>
+                      </div>
+                      <CategoryBadge name={t.category?.name} />
+                      <MoneyAmount
+                        value={signed}
+                        currency={currency}
+                        colored
+                        signed
+                        className="w-24 text-right text-sm font-medium"
+                      />
+                      <div className="flex items-center" onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label="Edit"
+                          onClick={() => openDetail(t, true)}
+                        >
+                          <Pencil />
+                        </Button>
+                        <ConfirmDialog
+                          title="Delete transaction?"
+                          confirmLabel="Delete"
+                          onConfirm={() =>
+                            del.mutate(t.id, {
+                              onSuccess: () => toast.success("Deleted"),
+                              onError: (e) => toast.error(e.message),
+                            })
+                          }
+                          trigger={
+                            <Button variant="ghost" size="icon-sm" aria-label="Delete">
+                              <Trash2 />
+                            </Button>
+                          }
+                        />
+                      </div>
+                    </li>
+                  );
+                })
+              )}
+            </ul>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Dialog open={viewAllOpen} onOpenChange={setViewAllOpen}>
+        <DialogContent className="flex max-h-[85vh] flex-col gap-4 overflow-y-auto sm:max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>All transactions</DialogTitle>
+            <DialogDescription>Filter and browse every transaction.</DialogDescription>
+          </DialogHeader>
           <div className="flex flex-wrap items-end gap-3">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground">Period</label>
-              <Select value={preset} onValueChange={(v) => applyPreset((v ?? "all") as DatePreset)}>
+              <Select
+                value={preset}
+                items={PRESET_LABELS}
+                onValueChange={(v) => applyPreset((v ?? "all") as DatePreset)}
+              >
                 <SelectTrigger className="h-9 w-[150px]">
                   <SelectValue />
                 </SelectTrigger>
@@ -318,6 +473,7 @@ export default function ExpensesPage() {
               <label className="text-xs font-medium text-muted-foreground">Direction</label>
               <Select
                 value={direction}
+                items={directionItems}
                 onValueChange={(v) => {
                   setDirection(v ?? ALL);
                   setLimit(PAGE_SIZE);
@@ -337,6 +493,7 @@ export default function ExpensesPage() {
               <label className="text-xs font-medium text-muted-foreground">Category</label>
               <Select
                 value={categoryId}
+                items={categoryItems}
                 onValueChange={(v) => {
                   setCategoryId(v ?? ALL);
                   setLimit(PAGE_SIZE);
@@ -383,7 +540,13 @@ export default function ExpensesPage() {
             </div>
           </div>
 
-          <DataTable columns={columns} data={rows} getRowKey={(t) => t.id} isLoading={isLoading} />
+          <DataTable
+            columns={columns}
+            data={rows}
+            getRowKey={(t) => t.id}
+            isLoading={isLoading}
+            onRowClick={(t) => openDetail(t)}
+          />
 
           {hasMore && (
             <div className="flex justify-center">
@@ -392,8 +555,18 @@ export default function ExpensesPage() {
               </Button>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </DialogContent>
+      </Dialog>
+
+      <TransactionDetailDialog
+        transaction={detailTx}
+        open={detailTx !== null}
+        onOpenChange={(o) => {
+          if (!o) setDetailTx(null);
+        }}
+        currency={currency}
+        defaultEditing={detailEdit}
+      />
     </div>
   );
 }

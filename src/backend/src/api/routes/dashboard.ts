@@ -41,6 +41,28 @@ export const dashboardRoutes = new Hono<AppEnv>()
     else bucket.expense += Number(t.amount);
   }
 
+  // Income/expense totals per category across the whole range (drives the
+  // by-category breakdown charts on the transactions page).
+  const categories = new Map<
+    string,
+    { categoryId: string | null; name: string; color: string | null; income: number; expense: number }
+  >();
+  for (const t of rangeTx) {
+    const key = t.category?.id ?? "__uncategorized__";
+    const entry =
+      categories.get(key) ??
+      {
+        categoryId: t.category?.id ?? null,
+        name: t.category?.name ?? "Uncategorized",
+        color: t.category?.color ?? null,
+        income: 0,
+        expense: 0,
+      };
+    if (t.direction === "INCOME") entry.income += Number(t.amount);
+    else entry.expense += Number(t.amount);
+    categories.set(key, entry);
+  }
+
   return c.json({
     netWorth,
     snapshots: snapshots.map((s) => ({
@@ -50,6 +72,7 @@ export const dashboardRoutes = new Hono<AppEnv>()
     })),
     cashFlowMonth,
     cashFlowSeries: [...buckets.values()],
+    categoryBreakdown: [...categories.values()],
     recentTransactions: recent.map(serializeTransaction),
   });
 });

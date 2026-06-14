@@ -10,8 +10,8 @@ import {
 import { formatMoney } from "@/lib/format";
 
 const chartConfig = {
-  income: { label: "Income", color: "var(--chart-2)" },
-  expense: { label: "Expense", color: "var(--chart-3)" },
+  income: { label: "Income", color: "var(--positive)" },
+  expense: { label: "Expense", color: "var(--negative)" },
 } satisfies ChartConfig;
 
 // Income vs expense totals for the selected range, with the net in the centre.
@@ -25,8 +25,8 @@ export function IncomeExpensePie({
   currency: string;
 }) {
   const data = [
-    { key: "income", name: "Income", value: income, fill: "var(--chart-2)" },
-    { key: "expense", name: "Expense", value: expense, fill: "var(--chart-3)" },
+    { key: "income", name: "Income", value: income, fill: "var(--positive)" },
+    { key: "expense", name: "Expense", value: expense, fill: "var(--negative)" },
   ].filter((d) => d.value > 0);
 
   const net = income - expense;
