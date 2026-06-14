@@ -26,7 +26,7 @@ export const transactionRepository = {
   list(filters: TransactionFilters = {}) {
     return prisma.transaction.findMany({
       where: whereFromFilters(filters),
-      include: { category: true, cashAccount: true },
+      include: { category: true },
       orderBy: [{ date: "desc" }, { createdAt: "desc" }],
       take: filters.limit,
       skip: filters.offset,

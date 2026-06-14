@@ -13,7 +13,6 @@ import type { AppEnv } from "../types.ts";
 
 type TxInput = Partial<{
   categoryId: string | null;
-  cashAccountId: string | null;
   date: Date;
   amount: number;
   direction: "INCOME" | "EXPENSE";
@@ -29,11 +28,6 @@ function toTxData(input: TxInput): Prisma.TransactionUpdateInput {
   if (input.note !== undefined) data.note = input.note;
   if (input.categoryId !== undefined) {
     data.category = input.categoryId ? { connect: { id: input.categoryId } } : { disconnect: true };
-  }
-  if (input.cashAccountId !== undefined) {
-    data.cashAccount = input.cashAccountId
-      ? { connect: { id: input.cashAccountId } }
-      : { disconnect: true };
   }
   return data;
 }
@@ -53,7 +47,6 @@ export const expensesRoutes = new Hono<AppEnv>()
       direction: input.direction,
       note: input.note ?? null,
       category: input.categoryId ? { connect: { id: input.categoryId } } : undefined,
-      cashAccount: input.cashAccountId ? { connect: { id: input.cashAccountId } } : undefined,
     });
     return c.json(serializeTransaction(transaction), 201);
   })

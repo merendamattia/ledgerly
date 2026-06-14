@@ -27,7 +27,11 @@ function jsonSafe(value: unknown): unknown {
   if (value instanceof Date) return value.toISOString();
   if (Array.isArray(value)) return value.map(jsonSafe);
   if (value && typeof value === "object") {
-    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, jsonSafe(v)]));
+    const proto = Object.getPrototypeOf(value);
+    if (proto === Object.prototype || proto === null) {
+      return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, jsonSafe(v)]));
+    }
+    return String(value); // Decimal -> "1234.56", and other non-plain objects
   }
   return value;
 }

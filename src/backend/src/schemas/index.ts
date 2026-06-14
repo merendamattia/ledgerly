@@ -47,7 +47,6 @@ export const updateCategorySchema = createCategorySchema.partial();
 // --- Transactions (expenses/income) -----------------------------------------
 export const createTransactionSchema = z.object({
   categoryId: z.string().min(1).nullable().optional(),
-  cashAccountId: z.string().min(1).nullable().optional(),
   date: z.coerce.date(),
   amount: z.number().positive(),
   direction: txDirectionSchema,

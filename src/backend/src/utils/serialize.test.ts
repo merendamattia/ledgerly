@@ -20,7 +20,6 @@ test("serializeTransaction converts Decimal amount to a number", () => {
   const result = serializeTransaction({
     id: "t1",
     categoryId: null,
-    cashAccountId: null,
     date: new Date("2026-01-01"),
     amount: new Prisma.Decimal("80.00"),
     direction: "EXPENSE",

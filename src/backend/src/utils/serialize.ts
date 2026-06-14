@@ -18,12 +18,9 @@ export function serializeHolding(
   };
 }
 
-export function serializeTransaction(
-  t: Transaction & { category?: Category | null; cashAccount?: CashAccount | null },
-) {
+export function serializeTransaction(t: Transaction & { category?: Category | null }) {
   return {
     ...t,
     amount: Number(t.amount),
-    cashAccount: t.cashAccount ? serializeAccount(t.cashAccount) : t.cashAccount ?? null,
   };
 }

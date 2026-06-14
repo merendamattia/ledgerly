@@ -11,7 +11,6 @@ import {
   Landmark,
   Database,
   Settings,
-  HelpCircle,
   LogOut,
 } from "lucide-react";
 import { signOut, useSession } from "@/lib/auth-client";
@@ -148,12 +147,6 @@ export function AppSidebar() {
                 </Link>
               }
             />
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton render={<Link href="#" />}>
-              <HelpCircle />
-              <span>Help</span>
-            </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton onClick={handleSignOut}>
