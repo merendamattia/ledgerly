@@ -1,54 +1,88 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Search, Settings } from "lucide-react";
-import { useSession } from "@/lib/auth-client";
+import { Search } from "lucide-react";
 import { useSearch } from "@/components/search-context";
+import { AddTransactionDialog, type AddMode } from "@/components/add-transaction-dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 
-function initials(email: string): string {
-  const name = email.split("@")[0] ?? "";
-  const parts = name.split(/[._-]+/).filter(Boolean);
-  const letters = parts.length >= 2 ? parts[0][0] + parts[1][0] : name.slice(0, 2);
-  return letters.toUpperCase() || "U";
+type PageMeta = { title: string; subtitle: string };
+
+const PAGE_META: Record<string, PageMeta> = {
+  "/": { title: "Overview", subtitle: "An at-a-glance view of your wealth" },
+  "/investments": {
+    title: "Assets & Investments",
+    subtitle: "Portfolio, performance and allocation",
+  },
+  "/cashflow": { title: "Expenses & Cash Flow", subtitle: "Income, spending and monthly flows" },
+  "/transactions": { title: "Transactions", subtitle: "All your recent movements" },
+};
+
+// Admin pages (settings, database, accounts) render their own PageHeader, so the
+// topbar leaves the title slot empty for them.
+function metaFor(pathname: string): PageMeta | null {
+  if (pathname === "/") return PAGE_META["/"];
+  const match = Object.keys(PAGE_META).find((p) => p !== "/" && pathname.startsWith(p));
+  return match ? PAGE_META[match] : null;
+}
+
+// The "+ Add" button is contextual: it only appears on the three sections that
+// can create something, and each scopes what can be added.
+function addModeFor(pathname: string): AddMode | null {
+  if (pathname.startsWith("/transactions")) return "full";
+  if (pathname.startsWith("/cashflow")) return "cashflow";
+  if (pathname.startsWith("/investments")) return "investment";
+  return null;
 }
 
 export function AppTopbar() {
   const pathname = usePathname();
   const { query, setQuery } = useSearch();
-  const { data: session } = useSession();
-  const email = session?.user.email ?? "";
-  const showSearch = pathname.startsWith("/expenses");
+  const meta = metaFor(pathname);
+  const showSearch = pathname.startsWith("/transactions");
+  const addMode = addModeFor(pathname);
 
   return (
-    <header className="flex h-16 items-center gap-3 border-b bg-card px-4 md:px-6">
-      <SidebarTrigger className="md:hidden" />
+    <header className="sticky top-0 z-10 flex items-center justify-between gap-6 border-b bg-background/80 px-4 py-4 backdrop-blur-md md:px-8">
+      <div className="flex items-center gap-3">
+        <SidebarTrigger className="md:hidden" />
+        {meta ? (
+          <div>
+            <h1 className="font-display text-xl font-semibold tracking-tight md:text-2xl">
+              {meta.title}
+            </h1>
+            {meta.subtitle ? (
+              <p className="mt-0.5 text-sm text-muted-foreground">{meta.subtitle}</p>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
 
-      {showSearch ? (
-        <div className="relative w-full max-w-sm">
-          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search transactions…"
-            className="h-9 pl-9"
+      <div className="flex items-center gap-3">
+        {showSearch ? (
+          <div className="relative hidden w-[230px] sm:block">
+            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search transactions…"
+              className="h-10 w-full rounded-xl border bg-card pr-3 pl-9 text-sm outline-none placeholder:text-muted-foreground focus:border-ring"
+            />
+          </div>
+        ) : null}
+
+        {addMode ? (
+          <AddTransactionDialog
+            mode={addMode}
+            trigger={
+              <Button className="h-10 gap-1.5 rounded-xl px-4">
+                <span className="text-base leading-none">+</span>
+                Add
+              </Button>
+            }
           />
-        </div>
-      ) : (
-        <div className="flex-1" />
-      )}
-
-      <div className="ml-auto flex items-center gap-1.5">
-        <Button variant="ghost" size="icon" nativeButton={false} render={<Link href="/settings" />}>
-          <Settings />
-          <span className="sr-only">Settings</span>
-        </Button>
-        <div className="flex size-8 items-center justify-center rounded-full bg-accent text-xs font-semibold text-accent-foreground">
-          {email ? initials(email) : "U"}
-        </div>
+        ) : null}
       </div>
     </header>
   );

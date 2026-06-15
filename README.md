@@ -4,6 +4,20 @@ Self-hosted web app for tracking your **personal net worth and expenses**. It gi
 centralized view of accounts, investments and cash flow, and **minimizes external provider
 calls** by storing all daily price/FX history in Postgres and caching hot reads in Redis.
 
+## App sections
+
+The UI is organized into four sections (the "modern ledger" design — see [`DESIGN.md`](./DESIGN.md)):
+
+- **Overview** — net worth hero with trend, asset allocation, KPI cards (liquidity, investments,
+  monthly cash flow, savings rate), income-vs-expenses, expenses by category, recent movements,
+  and a **scheduled-jobs section** with run history and a manual "Run now".
+- **Assets & Investments** — portfolio, performance and allocation. *(Scaffold for now; data
+  foundations — tickers, holdings, daily price/FX history — are already in place.)*
+- **Expenses & Cash Flow** — income/expense totals, monthly cash-flow chart, where-money-goes
+  category breakdown, and cumulative savings.
+- **Transactions** — one unified table of all movements (income, expense and, in future,
+  investment buy/sell) with filter chips and a month selector.
+
 ## Features
 
 - **Net worth** — cash accounts + investments valued in a single base currency, with a daily
@@ -11,10 +25,8 @@ calls** by storing all daily price/FX history in Postgres and caching hot reads 
 - **Investments** — add an asset by ticker (e.g. `CSSPX.MI`, `AAPL`, `BTC`); Ledgerly
   downloads the **full daily closing-price history** automatically and tracks your holdings'
   value and gain.
-- **Expenses** — income/expense transactions with user-managed categories, filters and a
-  cash-flow chart.
-- **Dashboard** — net worth trend, asset allocation, monthly cash flow, recent transactions
-  and a **scheduled-jobs section** with run history and a manual "Run now".
+- **Transactions** — income/expense transactions with user-managed categories, surfaced both as
+  a unified ledger and as cash-flow analytics.
 - **Caching** — a nightly job refreshes only the missing daily closes; reads are served
   cache-first from Redis, then Postgres. External providers are only hit by backfill/cron.
 

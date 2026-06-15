@@ -1,17 +1,22 @@
 import type { Metadata } from "next";
-import { Inter, Geist_Mono } from "next/font/google";
+import { Hanken_Grotesk, Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import { Toaster } from "@/components/ui/sonner";
 
-// Single typeface voice: Inter carries headings, body, labels and data.
-// Hierarchy comes from weight and size, not a second display family.
-const inter = Inter({
+// "Modern ledger" type system: Hanken Grotesk for UI/body, Space Grotesk for
+// display headings, JetBrains Mono for every figure (tabular).
+const sans = Hanken_Grotesk({
   variable: "--font-sans",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
+const display = Space_Grotesk({
+  variable: "--font-display",
+  subsets: ["latin"],
+});
+
+const mono = JetBrains_Mono({
   variable: "--font-mono",
   subsets: ["latin"],
 });
@@ -29,9 +34,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${sans.variable} ${display.variable} ${mono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-full flex flex-col" suppressHydrationWarning>
         <Providers>{children}</Providers>
         <Toaster richColors position="top-right" />
       </body>

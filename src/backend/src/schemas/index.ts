@@ -74,7 +74,7 @@ export const transactionFiltersSchema = z.object({
   to: z.coerce.date().optional(),
   categoryId: z.string().min(1).optional(),
   direction: txDirectionSchema.optional(),
-  limit: z.coerce.number().int().positive().max(1000).optional(),
+  limit: z.coerce.number().int().positive().max(5000).optional(),
   offset: z.coerce.number().int().nonnegative().optional(),
 });
 

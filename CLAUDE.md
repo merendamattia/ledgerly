@@ -9,6 +9,15 @@ Ledgerly is a self-hosted personal **net worth + expense tracker**. It gives a c
 view of assets, investments and cash flow, and **minimizes external provider calls** by
 persisting all price/FX history in Postgres and caching hot reads in Redis.
 
+## UI sections (the "modern ledger" design — see `DESIGN.md`)
+The app shell is a dark ink sidebar + 12-column content grid with four sections:
+1. **Overview** (`/`) — net worth, KPIs, allocation, cash-flow + recent movements.
+2. **Assets & Investments** (`/investments`) — portfolio (currently a styled scaffold; full build later).
+3. **Expenses & Cash Flow** (`/cashflow`) — income/expense analytics.
+4. **Transactions** (`/transactions`) — one unified table of all movements. Income/expense exist
+   today; investment buy/sell is a placeholder filter until the schema records them.
+Admin pages (`/settings`, `/database`, `/accounts`) live in the sidebar footer.
+
 ## Monorepo layout (bun workspaces)
 ```
 src/backend    # Hono API (the ONLY owner of the database, Redis and external providers)
@@ -34,6 +43,15 @@ src/frontend   # Next.js App Router UI (talks ONLY to the backend over /api/*)
 4. `bun run db:migrate && bun run db:seed`
 5. `bun run dev` → frontend http://localhost:3000, backend http://localhost:3001
 6. Log in with `ADMIN_EMAIL` / `ADMIN_PASSWORD` (created on first backend start).
+
+## Verify after EVERY change (not optional)
+At the end of **every** change, before reporting it done, you MUST verify it actually works
+end-to-end — not just that it compiles. A green build is not proof the feature works.
+- Run the checks below (types + tests + lint + build).
+- Then exercise the affected path at runtime: hit the API endpoint (log in, `curl` it) and/or
+  load the page, and confirm real data comes back. Watch for client/server contract mismatches
+  (e.g. a query param that exceeds a Zod `max()` returns 400 and the UI silently shows "no data").
+- If anything is broken, fix it before moving on. Never report work as complete unverified.
 
 ## Checks before pushing
 - Backend: `cd src/backend && bunx tsc --noEmit && bun test`

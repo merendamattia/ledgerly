@@ -77,14 +77,15 @@ Three words: **efficient, precise, balanced.**
    compact indicators, and predictable layouts. Controls always speak human: every select and
    dropdown shows a readable label (e.g. "Last 3 years", "Income"), never a raw stored key or tag.
 
-3. **Neutral by default, financial colors for meaning.**
-   The interface uses simple, clean colors:
+3. **Warm-paper canvas, financial colors for meaning.**
+   The interface sits on a warm-paper canvas with an ink sidebar; lime is the brand accent.
+   Color otherwise carries meaning:
+   - Lime → brand, primary actions, the active nav item
    - Green → income, positive performance, growth, gains, healthy status
-   - Blue → stable assets, information, long-term investments
-   - Orange → attention, pending actions, moderate risk
-   - Red → expenses, losses, money out, critical issues
+   - Coral → expenses, losses, money out, critical issues
+   - Blue / violet / amber → categorical series (allocation, category breakdowns)
 
-   Income is always green and expense is always red, applied consistently everywhere.
+   Income is always green and expense is always coral, applied consistently everywhere.
 
    Colors are never decorative and never used without supporting labels.
 
@@ -102,10 +103,8 @@ Three words: **efficient, precise, balanced.**
 
 ## Accessibility & Inclusion
 
-- Target **WCAG AA** contrast in both themes.
-- Support light and dark themes with full component parity.
-- The default visual direction should remain clean and bright, avoiding excessively dark surfaces.
-- Visible focus on every interactive element (3px ring at 50% opacity on the ring color).
-- Theme selection (light / dark / system) is user-controlled and persisted.
+- Target **WCAG AA** contrast on the warm-paper canvas.
+- **Light theme only** — the warm-paper canvas is the single visual voice (no dark mode).
+- Visible focus on every interactive element (ring on the green `ring` token).
 - Respect **reduced-motion**: animations are short and confirmatory.
 - Financial states are never encoded by color alone — text labels and values always accompany colors.

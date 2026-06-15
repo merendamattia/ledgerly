@@ -26,9 +26,21 @@ import { useCategories } from "@/hooks/use-categories";
 import { useCreateTransaction } from "@/hooks/use-expenses";
 import { todayISO, DIRECTION_LABELS } from "@/lib/format";
 
-// Shared "new transaction" dialog. Reused by the sidebar CTA and the
-// Transactions page. Pass a custom `trigger` or fall back to a default button.
-export function AddTransactionDialog({ trigger }: { trigger?: ReactElement }) {
+// Which "add" variant to show:
+// - "full"       Transactions: income, expense, plus a disabled "investment" option.
+// - "cashflow"   Expenses & Cash Flow: income / expense only.
+// - "investment" Assets & Investments: investment movement only — not active yet.
+export type AddMode = "full" | "cashflow" | "investment";
+
+// Shared "new transaction" dialog. The `mode` scopes which directions are
+// offered; pass a custom `trigger` or fall back to a default button.
+export function AddTransactionDialog({
+  trigger,
+  mode = "full",
+}: {
+  trigger?: ReactElement;
+  mode?: AddMode;
+}) {
   const [open, setOpen] = useState(false);
   const [direction, setDirection] = useState<"INCOME" | "EXPENSE">("EXPENSE");
   const [categoryId, setCategoryId] = useState("");
@@ -73,31 +85,55 @@ export function AddTransactionDialog({ trigger }: { trigger?: ReactElement }) {
         }
       />
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>New transaction</DialogTitle>
-          <DialogDescription>Record an income or an expense.</DialogDescription>
-        </DialogHeader>
-        <form onSubmit={submit}>
-          <FieldGroup>
-            <Field>
-              <FieldLabel htmlFor="direction">Direction</FieldLabel>
-              <Select
-                value={direction}
-                items={DIRECTION_LABELS}
-                onValueChange={(v) => {
-                  setDirection((v ?? "EXPENSE") as typeof direction);
-                  setCategoryId("");
-                }}
-              >
-                <SelectTrigger id="direction">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="EXPENSE">Expense</SelectItem>
-                  <SelectItem value="INCOME">Income</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
+        {mode === "investment" ? (
+          <>
+            <DialogHeader>
+              <DialogTitle>New investment movement</DialogTitle>
+              <DialogDescription>Record a buy or sell on your portfolio.</DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col items-center gap-2 py-6 text-center">
+              <span className="inline-flex items-center rounded-full bg-accent px-3 py-1 text-xs font-semibold text-accent-foreground">
+                Coming soon
+              </span>
+              <p className="max-w-xs text-sm text-muted-foreground">
+                Investment movements aren&apos;t recorded yet. They&apos;ll land here once the
+                Assets & Investments section goes live.
+              </p>
+            </div>
+          </>
+        ) : (
+          <>
+            <DialogHeader>
+              <DialogTitle>New transaction</DialogTitle>
+              <DialogDescription>Record an income or an expense.</DialogDescription>
+            </DialogHeader>
+            <form onSubmit={submit}>
+              <FieldGroup>
+                <Field>
+                  <FieldLabel htmlFor="direction">Direction</FieldLabel>
+                  <Select
+                    value={direction}
+                    items={{ ...DIRECTION_LABELS, INVESTMENT: "Investment · soon" }}
+                    onValueChange={(v) => {
+                      if ((v as string) === "INVESTMENT") return;
+                      setDirection((v ?? "EXPENSE") as typeof direction);
+                      setCategoryId("");
+                    }}
+                  >
+                    <SelectTrigger id="direction">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="EXPENSE">Expense</SelectItem>
+                      <SelectItem value="INCOME">Income</SelectItem>
+                      {mode === "full" ? (
+                        <SelectItem value="INVESTMENT" disabled>
+                          Investment · soon
+                        </SelectItem>
+                      ) : null}
+                    </SelectContent>
+                  </Select>
+                </Field>
             <Field>
               <FieldLabel htmlFor="category">Category</FieldLabel>
               <Select
@@ -142,13 +178,15 @@ export function AddTransactionDialog({ trigger }: { trigger?: ReactElement }) {
               <FieldLabel htmlFor="note">Note</FieldLabel>
               <Input id="note" value={note} onChange={(e) => setNote(e.target.value)} />
             </Field>
-            <DialogFooter>
-              <Button type="submit" disabled={create.isPending}>
-                Save
-              </Button>
-            </DialogFooter>
-          </FieldGroup>
-        </form>
+                <DialogFooter>
+                  <Button type="submit" disabled={create.isPending}>
+                    Save
+                  </Button>
+                </DialogFooter>
+              </FieldGroup>
+            </form>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );

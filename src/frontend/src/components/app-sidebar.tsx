@@ -3,25 +3,22 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  LayoutDashboard,
-  Receipt,
-  PiggyBank,
-  Wallet,
-  TrendingUp,
-  Landmark,
+  LayoutGrid,
+  PieChart,
+  ArrowLeftRight,
+  ListChecks,
   Database,
   Settings,
   LogOut,
 } from "lucide-react";
 import { signOut, useSession } from "@/lib/auth-client";
-import { AddTransactionDialog } from "@/components/add-transaction-dialog";
-import { Button } from "@/components/ui/button";
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -32,16 +29,15 @@ import {
 type NavItem = {
   href: string;
   label: string;
-  icon: typeof LayoutDashboard;
+  icon: typeof LayoutGrid;
   disabled?: boolean;
 };
 
 const NAV_ITEMS: NavItem[] = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/expenses", label: "Transactions", icon: Receipt },
-  { href: "/assets", label: "Assets", icon: Wallet, disabled: true },
-  { href: "/budget", label: "Budget", icon: PiggyBank, disabled: true },
-  { href: "/cashflow", label: "Cashflow", icon: TrendingUp, disabled: true },
+  { href: "/", label: "Overview", icon: LayoutGrid },
+  { href: "/investments", label: "Assets & Investments", icon: PieChart },
+  { href: "/cashflow", label: "Expenses & Cash Flow", icon: ArrowLeftRight },
+  { href: "/transactions", label: "Transactions", icon: ListChecks },
 ];
 
 function isActive(pathname: string, href: string): boolean {
@@ -71,26 +67,27 @@ export function AppSidebar() {
       <SidebarHeader>
         <div className="flex items-center gap-2.5 px-2 py-2">
           <div className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Landmark className="size-5" />
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path
+                d="M5 3.5h14M5 12h14M5 20.5h14"
+                stroke="currentColor"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+              />
+              <circle cx="9" cy="3.5" r="2" fill="currentColor" />
+              <circle cx="16" cy="12" r="2" fill="currentColor" />
+              <circle cx="11" cy="20.5" r="2" fill="currentColor" />
+            </svg>
           </div>
-          <div className="flex flex-col leading-tight">
-            <span className="text-base font-semibold tracking-tight">Ledgerly</span>
-            <span className="text-xs text-muted-foreground">Wealth Management</span>
-          </div>
-        </div>
-        <div className="px-2 pt-1">
-          <AddTransactionDialog
-            trigger={
-              <Button className="w-full justify-center">
-                <span>+ Add Transaction</span>
-              </Button>
-            }
-          />
+          <span className="font-display text-xl font-bold tracking-tight text-sidebar-accent-foreground">
+            Ledgerly
+          </span>
         </div>
       </SidebarHeader>
 
       <SidebarContent>
         <SidebarGroup>
+          <SidebarGroupLabel>Finance</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="gap-1">
               {NAV_ITEMS.map((item) =>
@@ -157,10 +154,10 @@ export function AppSidebar() {
         </SidebarMenu>
         <SidebarSeparator />
         <div className="flex items-center gap-2.5 px-2 py-1.5">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-semibold text-accent-foreground">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#3a3b30] font-display text-sm font-semibold text-primary">
             {email ? initials(email) : "U"}
           </div>
-          <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+          <span className="min-w-0 flex-1 truncate text-xs text-sidebar-accent-foreground">
             {email || "Account"}
           </span>
         </div>
