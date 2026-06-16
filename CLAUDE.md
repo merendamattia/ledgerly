@@ -32,7 +32,7 @@ src/frontend   # Next.js App Router UI (talks ONLY to the backend over /api/*)
   whose types come from the backend's exported `AppType`.
 - **Backend is layered**, one-way dependencies: `routes → services → repositories → core/db`.
   See `src/backend/CLAUDE.md`.
-- **External providers** (Yahoo, CoinGecko, Frankfurter) are called **only** from the backfill
+- **External providers** (Yahoo for equity/ETF/crypto, Frankfurter for FX) are called **only** from the backfill
   and nightly-cron services, never on a read path. Reads are cache-first (Redis → Postgres).
 - **Database changes go through Prisma migrations** (`bun run db:migrate`), never `db push`.
 

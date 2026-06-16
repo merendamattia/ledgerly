@@ -43,10 +43,15 @@ export const yahooProvider: PriceProvider = {
 
   async search(query: string): Promise<SearchCandidate[]> {
     const result = await yahooFinance.search(query, { quotesCount: 10, newsCount: 0 });
-    // Keep only equities and ETFs (crypto is served by CoinGecko).
+    // Keep equities, ETFs and crypto. Yahoo serves crypto as "<COIN>-USD" pairs
+    // (quoteType CRYPTOCURRENCY), which we expose under our own CRYPTO type.
     const matches = result.quotes.filter(
-      (q): q is typeof q & { symbol: string; quoteType: "EQUITY" | "ETF" } =>
-        "symbol" in q && (q.quoteType === "EQUITY" || q.quoteType === "ETF"),
+      (q): q is typeof q & {
+        symbol: string;
+        quoteType: "EQUITY" | "ETF" | "CRYPTOCURRENCY";
+      } =>
+        "symbol" in q &&
+        (q.quoteType === "EQUITY" || q.quoteType === "ETF" || q.quoteType === "CRYPTOCURRENCY"),
     );
     if (matches.length === 0) return [];
 
@@ -63,7 +68,7 @@ export const yahooProvider: PriceProvider = {
       return {
         symbol: m.symbol,
         name: String(name),
-        type: m.quoteType,
+        type: m.quoteType === "CRYPTOCURRENCY" ? "CRYPTO" : m.quoteType,
         exchange,
         currency: q?.currency,
         price: q?.regularMarketPrice,
