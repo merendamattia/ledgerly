@@ -13,6 +13,9 @@ import { expensesRoutes } from "./routes/expenses.ts";
 import { importRoutes } from "./routes/import.ts";
 import { tickersRoutes } from "./routes/tickers.ts";
 import { holdingsRoutes } from "./routes/holdings.ts";
+import { investmentTransactionsRoutes } from "./routes/investment-transactions.ts";
+import { investmentImportRoutes } from "./routes/investment-import.ts";
+import { debtsRoutes } from "./routes/debts.ts";
 import { cronRoutes } from "./routes/cron.ts";
 import { dashboardRoutes } from "./routes/dashboard.ts";
 import { databaseRoutes } from "./routes/database.ts";
@@ -62,6 +65,9 @@ const routes = app
   .route("/expenses/import", importRoutes)
   .route("/tickers", tickersRoutes)
   .route("/holdings", holdingsRoutes)
+  .route("/investment-transactions/import", investmentImportRoutes)
+  .route("/investment-transactions", investmentTransactionsRoutes)
+  .route("/debts", debtsRoutes)
   .route("/cron", cronRoutes)
   .route("/dashboard", dashboardRoutes)
   .route("/database", databaseRoutes);

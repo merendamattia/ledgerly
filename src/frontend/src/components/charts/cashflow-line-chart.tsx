@@ -9,7 +9,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { formatMoney } from "@/lib/format";
+import { formatMoney, monthLabel } from "@/lib/format";
 
 const chartConfig = {
   income: { label: "Income", color: "var(--positive)" },
@@ -33,12 +33,8 @@ export function CashFlowLineChart({
   data: { month: string; income: number; expense: number }[];
   currency: string;
 }) {
-  const withYear = data.length > 12;
   const points = data.map((d) => ({
-    month: new Date(`${d.month}-01`).toLocaleDateString("en-GB", {
-      month: "short",
-      ...(withYear ? { year: "2-digit" } : {}),
-    }),
+    month: monthLabel(`${d.month}-01`),
     income: d.income,
     expense: d.expense,
   }));

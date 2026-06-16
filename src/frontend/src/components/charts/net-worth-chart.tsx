@@ -7,7 +7,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { formatMoney } from "@/lib/format";
+import { formatMoney, shortDate } from "@/lib/format";
 
 const chartConfig = {
   totalValue: { label: "Net worth", color: "var(--chart-1)" },
@@ -21,7 +21,7 @@ export function NetWorthChart({
   currency: string;
 }) {
   const points = data.map((d) => ({
-    date: new Date(d.date).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }),
+    date: shortDate(d.date),
     totalValue: d.totalValue,
   }));
 

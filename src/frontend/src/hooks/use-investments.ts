@@ -9,6 +9,18 @@ export type AddAssetInput = InferRequestType<typeof api.tickers.$post>["json"];
 export type CreateHoldingInput = InferRequestType<typeof api.holdings.$post>["json"];
 type UpdateHoldingInput = InferRequestType<(typeof api.holdings)[":id"]["$put"]>["json"];
 
+export type SearchCandidate = InferResponseType<typeof api.tickers.search.$get, 200>[number];
+export type InvestmentTransaction = InferResponseType<
+  (typeof api)["investment-transactions"]["$get"],
+  200
+>[number];
+export type CreateInvestmentTxInput = InferRequestType<
+  (typeof api)["investment-transactions"]["$post"]
+>["json"];
+export type UpdateInvestmentTxInput = InferRequestType<
+  (typeof api)["investment-transactions"][":id"]["$put"]
+>["json"];
+
 // --- Tickers ----------------------------------------------------------------
 export function useTickers() {
   return useQuery({
@@ -37,11 +49,90 @@ export function useDeleteTicker() {
   });
 }
 
+// --- Instrument search ------------------------------------------------------
+/** Debounce should be applied by the caller; query runs only on a non-empty term. */
+export function useTickerSearch(query: string, type?: "EQUITY" | "ETF" | "CRYPTO") {
+  return useQuery({
+    queryKey: queryKeys.tickerSearch(query, type),
+    enabled: query.trim().length >= 2,
+    staleTime: 60_000,
+    queryFn: async () =>
+      unwrap<SearchCandidate[]>(
+        await api.tickers.search.$get({ query: { q: query.trim(), ...(type ? { type } : {}) } }),
+      ),
+  });
+}
+
+// --- Investment transactions (buy/sell ledger) ------------------------------
+export function useInvestmentTransactions(filters: { tickerId?: string; limit?: number } = {}) {
+  const query: Record<string, string> = {};
+  if (filters.tickerId) query.tickerId = filters.tickerId;
+  if (filters.limit != null) query.limit = String(filters.limit);
+  return useQuery({
+    queryKey: queryKeys.investmentTransactions(filters),
+    queryFn: async () =>
+      unwrap<InvestmentTransaction[]>(
+        await api["investment-transactions"].$get({ query }),
+      ),
+  });
+}
+
+function useInvalidateInvestmentTx() {
+  const qc = useQueryClient();
+  return () => {
+    qc.invalidateQueries({ queryKey: ["investment-transactions"] });
+    qc.invalidateQueries({ queryKey: queryKeys.holdings });
+    qc.invalidateQueries({ queryKey: queryKeys.investmentHistory });
+    qc.invalidateQueries({ queryKey: queryKeys.dashboard });
+  };
+}
+
+export function useCreateInvestmentTx() {
+  const invalidate = useInvalidateInvestmentTx();
+  return useMutation({
+    mutationFn: async (json: CreateInvestmentTxInput) =>
+      unwrap<InvestmentTransaction>(await api["investment-transactions"].$post({ json })),
+    onSuccess: invalidate,
+  });
+}
+
+export function useUpdateInvestmentTx() {
+  const invalidate = useInvalidateInvestmentTx();
+  return useMutation({
+    mutationFn: async ({ id, ...json }: UpdateInvestmentTxInput & { id: string }) =>
+      unwrap<InvestmentTransaction>(
+        await api["investment-transactions"][":id"].$put({ param: { id }, json }),
+      ),
+    onSuccess: invalidate,
+  });
+}
+
+export function useDeleteInvestmentTx() {
+  const invalidate = useInvalidateInvestmentTx();
+  return useMutation({
+    mutationFn: async (id: string) =>
+      unwrap<{ ok: boolean }>(
+        await api["investment-transactions"][":id"].$delete({ param: { id } }),
+      ),
+    onSuccess: invalidate,
+  });
+}
+
 // --- Holdings ---------------------------------------------------------------
 export function useHoldings() {
   return useQuery({
     queryKey: queryKeys.holdings,
     queryFn: async () => unwrap<Holding[]>(await api.holdings.$get()),
+  });
+}
+
+export type PortfolioPoint = InferResponseType<typeof api.holdings.history.$get, 200>[number];
+
+/** Daily portfolio value over time (from the first buy), for the portfolio chart. */
+export function useInvestmentHistory() {
+  return useQuery({
+    queryKey: queryKeys.investmentHistory,
+    queryFn: async () => unwrap<PortfolioPoint[]>(await api.holdings.history.$get()),
   });
 }
 

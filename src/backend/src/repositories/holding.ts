@@ -29,4 +29,12 @@ export const holdingRepository = {
   countByTicker(tickerId: string) {
     return prisma.holding.count({ where: { tickerId } });
   },
+
+  findByTicker(tickerId: string) {
+    return prisma.holding.findFirst({ where: { tickerId } });
+  },
+
+  deleteByTicker(tickerId: string) {
+    return prisma.holding.deleteMany({ where: { tickerId } });
+  },
 };

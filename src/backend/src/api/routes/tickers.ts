@@ -4,7 +4,8 @@ import { requireAuth } from "../middlewares/auth.ts";
 import { tickerRepository } from "../../repositories/ticker.ts";
 import { priceRepository } from "../../repositories/price.ts";
 import { addAsset, removeAsset } from "../../services/tickers.ts";
-import { addAssetSchema } from "../../schemas/index.ts";
+import { searchInstruments } from "../../services/market/search.ts";
+import { addAssetSchema, tickerSearchSchema } from "../../schemas/index.ts";
 import { NotFoundError } from "../../core/errors.ts";
 import type { AppEnv } from "../types.ts";
 
@@ -17,6 +18,11 @@ export const tickersRoutes = new Hono<AppEnv>()
       tickers.map(async (t) => ({ ...t, priceCount: await priceRepository.count(t.id) })),
     );
     return c.json(withCounts);
+  })
+  .get("/search", zValidator("query", tickerSearchSchema), async (c) => {
+    const { q, type } = c.req.valid("query");
+    const candidates = await searchInstruments(q, type);
+    return c.json(candidates);
   })
   .post("/", zValidator("json", addAssetSchema), async (c) => {
     const { symbol, type } = c.req.valid("json");

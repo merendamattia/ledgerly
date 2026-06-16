@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { Search } from "lucide-react";
 import { useSearch } from "@/components/search-context";
 import { AddTransactionDialog, type AddMode } from "@/components/add-transaction-dialog";
+import { ImportInvestmentTransactionsDialog } from "@/components/import-investment-transactions-dialog";
 import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 
@@ -35,6 +36,12 @@ function addModeFor(pathname: string): AddMode | null {
   if (pathname.startsWith("/investments")) return "investment";
   return null;
 }
+
+const ADD_LABEL: Record<AddMode, string> = {
+  full: "Add transaction",
+  cashflow: "Add expense",
+  investment: "Add investment",
+};
 
 export function AppTopbar() {
   const pathname = usePathname();
@@ -72,13 +79,24 @@ export function AppTopbar() {
           </div>
         ) : null}
 
+        {addMode === "investment" ? (
+          <ImportInvestmentTransactionsDialog
+            trigger={
+              <Button variant="outline" className="h-10 gap-1.5 rounded-xl px-4">
+                <span className="text-base leading-none">↑</span>
+                Import CSV
+              </Button>
+            }
+          />
+        ) : null}
+
         {addMode ? (
           <AddTransactionDialog
             mode={addMode}
             trigger={
               <Button className="h-10 gap-1.5 rounded-xl px-4">
                 <span className="text-base leading-none">+</span>
-                Add
+                {ADD_LABEL[addMode]}
               </Button>
             }
           />

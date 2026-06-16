@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { requireAuth } from "../middlewares/auth.ts";
 import { computeNetWorth } from "../../services/valuation.ts";
+import { computeNetWorthHistory } from "../../services/netWorthHistory.ts";
 import { snapshotRepository } from "../../repositories/snapshot.ts";
 import { transactionRepository } from "../../repositories/transaction.ts";
 import { serializeTransaction } from "../../utils/serialize.ts";
@@ -14,6 +15,10 @@ function monthKey(date: Date): string {
 
 export const dashboardRoutes = new Hono<AppEnv>()
   .use("*", requireAuth)
+  .get("/networth-history", async (c) => {
+    const points = await computeNetWorthHistory();
+    return c.json(points);
+  })
   .get("/", zValidator("query", dashboardQuerySchema), async (c) => {
   const months = c.req.valid("query").months ?? 6;
   const now = new Date();

@@ -1,6 +1,6 @@
 import { config } from "../../../core/config.ts";
 import { cacheGet, cacheSet } from "../../../core/redis.ts";
-import type { Bar, InstrumentMeta, PriceProvider } from "./types.ts";
+import type { Bar, InstrumentMeta, PriceProvider, SearchCandidate } from "./types.ts";
 
 const BASE_URL = "https://api.coingecko.com/api/v3";
 const VS_CURRENCY = "usd";
@@ -88,5 +88,42 @@ export const coingeckoProvider: PriceProvider = {
     if (!res.ok) throw new Error(`CoinGecko market_chart failed (${res.status})`);
     const data = (await res.json()) as { prices: [number, number][] };
     return toDailyBars(data.prices ?? []);
+  },
+
+  async search(query: string): Promise<SearchCandidate[]> {
+    const res = await fetch(`${BASE_URL}/search?query=${encodeURIComponent(query)}`, {
+      headers: headers(),
+    });
+    if (!res.ok) throw new Error(`CoinGecko search failed (${res.status})`);
+    const data = (await res.json()) as { coins: SearchCoin[] };
+    const coins = (data.coins ?? [])
+      .sort((a, b) => (a.market_cap_rank ?? Infinity) - (b.market_cap_rank ?? Infinity))
+      .slice(0, 10);
+    if (coins.length === 0) return [];
+
+    // Attach live USD prices via the markets endpoint (best effort).
+    const ids = coins.map((c) => c.id).join(",");
+    const prices = new Map<string, number>();
+    try {
+      const mres = await fetch(
+        `${BASE_URL}/coins/markets?vs_currency=${VS_CURRENCY}&ids=${encodeURIComponent(ids)}`,
+        { headers: headers() },
+      );
+      if (mres.ok) {
+        const markets = (await mres.json()) as { id: string; current_price: number }[];
+        for (const m of markets) prices.set(m.id, m.current_price);
+      }
+    } catch {
+      // Prices are optional; the candidate is still selectable without one.
+    }
+
+    return coins.map((c) => ({
+      // The CoinGecko id is the canonical symbol we persist (see fetchMeta).
+      symbol: c.id,
+      name: `${c.name} (${c.symbol.toUpperCase()})`,
+      type: "CRYPTO" as const,
+      currency: VS_CURRENCY.toUpperCase(),
+      price: prices.get(c.id),
+    }));
   },
 };

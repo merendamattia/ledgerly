@@ -90,6 +90,11 @@ enum TxDirection {
   EXPENSE
 }
 
+enum InvestmentSide {
+  BUY
+  SELL
+}
+
 enum CronStatus {
   RUNNING
   SUCCESS
@@ -119,8 +124,55 @@ model CashAccount {
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   holdings     Holding[]
+  snapshots    CashSnapshot[]
+  investmentTransactions InvestmentTransaction[]
 
   @@map("cash_account")
+}
+
+/// Dated balance snapshot for a cash account. The latest snapshot (<= today) is
+/// the source of truth for an account's current balance.
+model CashSnapshot {
+  id            String      @id @default(cuid())
+  cashAccountId String
+  cashAccount   CashAccount @relation(fields: [cashAccountId], references: [id], onDelete: Cascade)
+  date          DateTime    @db.Date
+  balance       Decimal     @db.Decimal(20, 2)
+  createdAt     DateTime    @default(now())
+
+  @@unique([cashAccountId, date])
+  @@index([cashAccountId])
+  @@map("cash_snapshot")
+}
+
+/// A liability (loan, mortgage, credit card balance, ...). Subtracted from net worth.
+model Debt {
+  id        String   @id @default(cuid())
+  name      String
+  type      String   @default("LOAN")
+  currency  String   @default("EUR")
+  amount    Decimal  @db.Decimal(20, 2)
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  snapshots DebtSnapshot[]
+
+  @@map("debt")
+}
+
+/// Dated balance snapshot for a debt. The latest snapshot (<= today) is the
+/// source of truth for a debt's current amount.
+model DebtSnapshot {
+  id        String   @id @default(cuid())
+  debtId    String
+  debt      Debt     @relation(fields: [debtId], references: [id], onDelete: Cascade)
+  date      DateTime @db.Date
+  amount    Decimal  @db.Decimal(20, 2)
+  createdAt DateTime @default(now())
+
+  @@unique([debtId, date])
+  @@index([debtId])
+  @@map("debt_snapshot")
 }
 
 /// Financial instrument metadata. One row per asset.
@@ -135,6 +187,7 @@ model Ticker {
   createdAt   DateTime       @default(now())
   prices      PriceHistory[]
   holdings    Holding[]
+  investmentTransactions InvestmentTransaction[]
 
   @@map("ticker")
 }
@@ -166,6 +219,28 @@ model Holding {
 
   @@index([tickerId])
   @@map("holding")
+}
+
+/// A buy/sell movement on a tracked asset. The Holding (quantity + avgCost) is
+/// derived from the full set of these transactions per ticker.
+model InvestmentTransaction {
+  id            String         @id @default(cuid())
+  tickerId      String
+  ticker        Ticker         @relation(fields: [tickerId], references: [id], onDelete: Restrict)
+  cashAccountId String?
+  cashAccount   CashAccount?   @relation(fields: [cashAccountId], references: [id], onDelete: SetNull)
+  date          DateTime       @db.Date
+  side          InvestmentSide
+  quantity      Decimal        @db.Decimal(28, 10)
+  price         Decimal        @db.Decimal(20, 8)
+  fee           Decimal        @default(0) @db.Decimal(20, 2)
+  note          String?
+  createdAt     DateTime       @default(now())
+
+  @@index([tickerId])
+  @@index([cashAccountId])
+  @@index([date])
+  @@map("investment_transaction")
 }
 
 /// Historical FX rates (daily closes).

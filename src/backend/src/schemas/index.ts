@@ -5,11 +5,78 @@ import { z } from "zod";
 export const tickerTypeSchema = z.enum(["EQUITY", "ETF", "CRYPTO"]);
 export const categoryKindSchema = z.enum(["INCOME", "EXPENSE"]);
 export const txDirectionSchema = z.enum(["INCOME", "EXPENSE"]);
+export const investmentSideSchema = z.enum(["BUY", "SELL"]);
 
 // --- Assets / tickers -------------------------------------------------------
 export const addAssetSchema = z.object({
   symbol: z.string().trim().min(1).max(32),
   type: tickerTypeSchema,
+});
+
+export const tickerSearchSchema = z.object({
+  q: z.string().trim().min(1).max(64),
+  type: tickerTypeSchema.optional(),
+});
+
+// --- Investment transactions (buy/sell ledger) ------------------------------
+export const createInvestmentTxSchema = z.object({
+  tickerId: z.string().min(1),
+  cashAccountId: z.string().min(1),
+  date: z.coerce.date(),
+  side: investmentSideSchema,
+  quantity: z.number().positive(),
+  price: z.number().nonnegative(),
+  fee: z.number().nonnegative().optional(),
+  note: z.string().trim().max(280).nullable().optional(),
+});
+
+// Edit keeps the same ticker (the position drives the ticker); everything else
+// can change. recomputeHolding runs on the existing ticker after the update.
+export const updateInvestmentTxSchema = createInvestmentTxSchema.omit({ tickerId: true });
+
+export const investmentTxFiltersSchema = z.object({
+  tickerId: z.string().min(1).optional(),
+  side: investmentSideSchema.optional(),
+  from: z.coerce.date().optional(),
+  to: z.coerce.date().optional(),
+  limit: z.coerce.number().int().positive().max(5000).optional(),
+  offset: z.coerce.number().int().nonnegative().optional(),
+});
+
+// One row of an investment CSV import. The frontend has already mapped the raw
+// ticker/broker strings to real ids; rows duplicating an existing movement are
+// skipped server-side. Same field shape as createInvestmentTxSchema.
+export const importInvestmentTxRowSchema = createInvestmentTxSchema;
+
+export const importInvestmentTxCommitSchema = z.object({
+  rows: z.array(importInvestmentTxRowSchema).min(1).max(5000),
+});
+
+// --- Debts (liabilities) ----------------------------------------------------
+export const createDebtSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  type: z.string().trim().min(1).max(40).default("LOAN"),
+  currency: z.string().trim().length(3).toUpperCase(),
+  amount: z.number().nonnegative(),
+  note: z.string().trim().max(280).nullable().optional(),
+});
+
+export const updateDebtSchema = createDebtSchema.partial();
+
+// --- Cash snapshots (dated balances) ----------------------------------------
+export const createCashSnapshotSchema = z.object({
+  date: z.coerce.date(),
+  entries: z
+    .array(z.object({ accountId: z.string().min(1), balance: z.number() }))
+    .min(1),
+});
+
+// --- Debt snapshots (dated amounts) -----------------------------------------
+export const createDebtSnapshotSchema = z.object({
+  date: z.coerce.date(),
+  entries: z
+    .array(z.object({ debtId: z.string().min(1), amount: z.number() }))
+    .min(1),
 });
 
 // --- Holdings ---------------------------------------------------------------
