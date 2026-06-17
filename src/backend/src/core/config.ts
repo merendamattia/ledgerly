@@ -12,7 +12,9 @@ const envSchema = z.object({
   CRON_SECRET: z.string().min(8),
   PORT: z.coerce.number().int().positive().default(3001),
   FRONTEND_URL: z.string().url().default("http://localhost:3000"),
-  // In-process scheduler for the nightly price job (no external Coolify task).
+  // In-process scheduler (no external Coolify task). Per-job schedules live in the
+  // DB (seeded CronJob.schedule); CRON_TIMEZONE applies to all of them. CRON_SCHEDULE
+  // is legacy and no longer read by the scheduler.
   CRON_ENABLED: z.coerce.boolean().default(true),
   CRON_SCHEDULE: z.string().default("0 2 * * *"),
   CRON_TIMEZONE: z.string().default("Europe/Rome"),

@@ -15,9 +15,20 @@ const CRON_JOBS: { key: string; name: string; description: string; schedule: str
   {
     key: "nightly-prices",
     name: "Nightly price update",
-    description:
-      "Downloads the missing daily closes for every tracked ticker, updates FX rates, and records a net worth snapshot.",
+    description: "Downloads the missing daily closes for every tracked ticker.",
     schedule: "0 2 * * *",
+  },
+  {
+    key: "fx-rates",
+    name: "FX rates update",
+    description: "Refreshes FX rates (EUR/USD plus every holding currency vs the base currency).",
+    schedule: "0 2 * * *",
+  },
+  {
+    key: "snapshots",
+    name: "Daily snapshots",
+    description: "Records the daily net worth, cash and debt snapshots.",
+    schedule: "0 3 * * *",
   },
   {
     key: "backfill",

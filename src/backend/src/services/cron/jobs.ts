@@ -5,31 +5,77 @@ import { backfillFx } from "../market/fx.ts";
 import { createDailySnapshot, createDailyBalanceSnapshots } from "../snapshot.ts";
 
 /**
- * Nightly job: for every tracked ticker, fetch the missing daily closes; refresh
- * FX rates for each non-base currency; then record today's net worth snapshot.
+ * Nightly price job: for every tracked ticker, fetch the missing daily closes.
  * Returns the number of tickers processed.
  */
 export async function runNightlyPrices(): Promise<number> {
   const tickers = await tickerRepository.listAll();
-
   for (const ticker of tickers) {
     await backfillTicker(ticker, { incremental: true });
   }
+  return tickers.length;
+}
 
-  const base = await settingsRepository.baseCurrency();
-  const currencies = new Set(tickers.map((t) => t.currency));
-  for (const currency of currencies) {
-    if (currency !== base) {
-      await backfillFx(currency, base, { incremental: true });
-    }
+/**
+ * Build the set of FX pairs to refresh nightly: always EUR/USD (both directions,
+ * the reference "fix rate") plus every ticker currency converted to the base
+ * currency. Deduped, with same-currency pairs dropped.
+ */
+export function buildFxPairs(base: string, tickerCurrencies: string[]): [string, string][] {
+  const seen = new Set<string>();
+  const pairs: [string, string][] = [];
+  const add = (b: string, q: string) => {
+    if (b === q) return;
+    const key = `${b}:${q}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    pairs.push([b, q]);
+  };
+
+  // Guaranteed reference pair, independent of holdings.
+  add("EUR", "USD");
+  add("USD", "EUR");
+
+  // Every holding currency valued against the base currency.
+  for (const currency of tickerCurrencies) {
+    add(currency, base);
   }
 
+  return pairs;
+}
+
+/**
+ * Nightly FX job: refresh the historical FX rates for every tracked pair
+ * (EUR/USD plus each holding currency vs base). Returns the number of pairs processed.
+ */
+export async function runFxRates(): Promise<number> {
+  const base = await settingsRepository.baseCurrency();
+  const tickers = await tickerRepository.listAll();
+  const pairs = buildFxPairs(
+    base,
+    tickers.map((t) => t.currency),
+  );
+
+  for (const [b, q] of pairs) {
+    await backfillFx(b, q, { incremental: true });
+  }
+  return pairs.length;
+}
+
+/**
+ * Nightly snapshot job: record today's cash and debt balances, then the net worth
+ * snapshot. Runs after the price/FX jobs so it reads fresh data. Returns the number
+ * of snapshot groups written (balances + net worth).
+ */
+export async function runSnapshots(): Promise<number> {
   await createDailyBalanceSnapshots();
   await createDailySnapshot();
-  return tickers.length;
+  return 1;
 }
 
 // Jobs that can be triggered by key via POST /api/cron/:key/run.
 export const cronHandlers: Record<string, () => Promise<number>> = {
   "nightly-prices": runNightlyPrices,
+  "fx-rates": runFxRates,
+  snapshots: runSnapshots,
 };
