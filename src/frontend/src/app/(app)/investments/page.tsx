@@ -18,6 +18,7 @@ import {
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { PositionTransactionsDialog } from "@/components/position-transactions-dialog";
+import { AddMovementSheet } from "@/components/add-transaction-dialog";
 import { SnapshotPanel } from "@/components/snapshot-panel";
 import { AddAccountDialog } from "@/components/add-account-dialog";
 import { MoneyAmount } from "@/components/money-amount";
@@ -40,7 +41,7 @@ import {
   useDebtSnapshots,
   useCreateDebtSnapshot,
 } from "@/hooks/use-debts";
-import { formatMoney, formatPercent, shortDate } from "@/lib/format";
+import { formatMoney, formatNumber, formatPercent, shortDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 type Holding = DashboardData["netWorth"]["holdings"][number];
@@ -117,6 +118,7 @@ export default function InvestmentsPage() {
   const [period, setPeriod] = useState<string>("YTD");
   const [classFilter, setClassFilter] = useState<string>("ALL");
   const [openPosition, setOpenPosition] = useState<Holding | null>(null);
+  const [addPosition, setAddPosition] = useState<Holding | null>(null);
 
   const nw = data?.netWorth;
   const currency = nw?.baseCurrency ?? "EUR";
@@ -181,6 +183,7 @@ export default function InvestmentsPage() {
   const filteredHoldings =
     classFilter === "ALL" ? holdings : holdings.filter((h) => h.type === classFilter);
   const classes = ["ALL", ...new Set(holdings.map((h) => h.type))];
+  const totalValue = useMemo(() => holdings.reduce((s, h) => s + h.value, 0), [holdings]);
 
   return (
     <div className="grid grid-cols-12 gap-5">
@@ -326,39 +329,66 @@ export default function InvestmentsPage() {
             })}
           </div>
         </div>
-        <div className="grid grid-cols-[minmax(0,1.5fr)_110px_120px_120px_110px] items-center border-b px-2 py-3 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-          <span>Asset</span>
-          <span>Class</span>
-          <span className="text-right">Qty · Price</span>
-          <span className="text-right">Value</span>
-          <span className="text-right">Return</span>
-        </div>
-        {isLoading ? (
-          <div className="px-2 py-10 text-center text-sm text-muted-foreground">Loading…</div>
-        ) : filteredHoldings.length === 0 ? (
-          <div className="px-2 py-12 text-center text-sm text-muted-foreground">
-            No positions — record a buy with the + Add button.
+        <div className="overflow-x-auto">
+          <div className="min-w-[860px]">
+            <div className="grid grid-cols-[minmax(0,1.4fr)_84px_90px_104px_104px_116px_116px_120px_92px] items-center border-b px-2 py-3 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+              <span>Asset</span>
+              <span>Class</span>
+              <span className="text-right">Qty</span>
+              <span className="text-right">Avg cost</span>
+              <span className="text-right">Price</span>
+              <span className="text-right">Invested</span>
+              <span className="text-right">Value</span>
+              <span className="text-right">P/L</span>
+              <span className="text-right">Weight</span>
+            </div>
+            {isLoading ? (
+              <div className="px-2 py-10 text-center text-sm text-muted-foreground">Loading…</div>
+            ) : filteredHoldings.length === 0 ? (
+              <div className="px-2 py-12 text-center text-sm text-muted-foreground">
+                No positions — record a buy with the + Add button.
+              </div>
+            ) : (
+              filteredHoldings.map((h) => (
+                <PositionRow
+                  key={h.holdingId}
+                  h={h}
+                  currency={currency}
+                  weight={totalValue > 0 ? (h.value / totalValue) * 100 : 0}
+                  onClick={() => setOpenPosition(h)}
+                />
+              ))
+            )}
           </div>
-        ) : (
-          filteredHoldings.map((h) => (
-            <PositionRow
-              key={h.holdingId}
-              h={h}
-              currency={currency}
-              onClick={() => setOpenPosition(h)}
-            />
-          ))
-        )}
+        </div>
       </Card>
 
       {openPosition ? (
         <PositionTransactionsDialog
-          tickerId={openPosition.tickerId}
-          symbol={openPosition.symbol}
-          name={openPosition.name}
+          holding={openPosition}
           open={openPosition !== null}
           onOpenChange={(o) => {
             if (!o) setOpenPosition(null);
+          }}
+          onAddMovement={() => {
+            setAddPosition(openPosition);
+            setOpenPosition(null);
+          }}
+        />
+      ) : null}
+
+      {addPosition ? (
+        <AddMovementSheet
+          ticker={{
+            tickerId: addPosition.tickerId,
+            symbol: addPosition.symbol,
+            name: addPosition.name,
+            type: addPosition.type as "EQUITY" | "ETF" | "CRYPTO",
+            currency: addPosition.currency,
+          }}
+          open={addPosition !== null}
+          onOpenChange={(o) => {
+            if (!o) setAddPosition(null);
           }}
         />
       ) : null}
@@ -476,17 +506,19 @@ function BenchmarkCard({ className, period }: { className?: string; period: stri
 function PositionRow({
   h,
   currency,
+  weight,
   onClick,
 }: {
   h: Holding;
   currency: string;
+  weight: number;
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="grid w-full grid-cols-[minmax(0,1.5fr)_110px_120px_120px_110px] items-center border-b border-background px-2 py-3.5 text-left text-sm transition-colors last:border-b-0 hover:bg-muted/60">
+      className="grid w-full grid-cols-[minmax(0,1.4fr)_84px_90px_104px_104px_116px_116px_120px_92px] items-center border-b border-background px-2 py-3.5 text-left text-sm transition-colors last:border-b-0 hover:bg-muted/60">
       <span className="flex min-w-0 items-center gap-3">
         <span
           className="flex size-8 items-center justify-center rounded-lg font-display text-[11px] font-semibold text-white"
@@ -501,16 +533,45 @@ function PositionRow({
       </span>
       <span className="text-muted-foreground">{CLASS_LABELS[h.type] ?? h.type}</span>
       <span className="text-right font-mono text-xs text-muted-foreground tabular-nums">
-        {h.quantity} · {formatMoney(h.price, h.currency)}
+        {formatNumber(h.quantity, 4)}
       </span>
+      <span className="text-right font-mono text-xs text-muted-foreground tabular-nums">
+        {formatMoney(h.avgCost, h.currency)}
+      </span>
+      <span className="text-right font-mono text-xs text-muted-foreground tabular-nums">
+        {formatMoney(h.price, h.currency)}
+      </span>
+      <MoneyAmount
+        value={h.cost}
+        currency={currency}
+        className="text-right font-mono text-muted-foreground"
+      />
       <MoneyAmount value={h.value} currency={currency} className="text-right font-mono font-semibold" />
-      <span
-        className={cn(
-          "text-right font-mono font-semibold tabular-nums",
-          h.gainPct >= 0 ? "text-positive" : "text-negative",
-        )}
-      >
-        {formatPercent(h.gainPct)}
+      <span className="text-right">
+        <MoneyAmount
+          value={h.gain}
+          currency={currency}
+          colored
+          signed
+          className="block font-mono text-[13px] font-semibold"
+        />
+        <span
+          className={cn(
+            "block font-mono text-[11px] tabular-nums",
+            h.gainPct >= 0 ? "text-positive" : "text-negative",
+          )}
+        >
+          {formatPercent(h.gainPct)}
+        </span>
+      </span>
+      <span className="pl-3">
+        <span className="block text-right font-mono text-xs tabular-nums">{weight.toFixed(1)}%</span>
+        <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-muted">
+          <span
+            className="block h-full rounded-full animate-grow bg-foreground/70"
+            style={{ width: `${Math.min(100, weight)}%` }}
+          />
+        </span>
       </span>
     </button>
   );
