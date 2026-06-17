@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect, useState, type ReactElement } from "react";
+import { memo, useCallback, useEffect, useState, type ReactElement, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Download, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -21,9 +21,34 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Table, TableBody, TableHead, TableHeader, TableRow, TableCell } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 import { DIRECTION_LABELS } from "@/lib/format";
 import { useParseImport, useCommitImport, type ImportRow } from "@/hooks/use-import";
+
+// Shared column template: a labeled stack on phones, an aligned grid from sm up.
+const IMPORT_COLS =
+  "sm:grid-cols-[112px_minmax(120px,1fr)_148px_110px_minmax(150px,1.6fr)_auto]";
+
+// A single field that shows its column label only on mobile (where the header
+// row is hidden), so each stacked input stays identifiable.
+function Cell({
+  label,
+  className,
+  children,
+}: {
+  label: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className={cn("min-w-0", className)}>
+      <span className="mb-1 block text-[11px] font-medium text-muted-foreground sm:hidden">
+        {label}
+      </span>
+      {children}
+    </div>
+  );
+}
 
 // One editable preview row. Memoized so editing a field only re-renders its own
 // row, keeping a ~2000-row import responsive.
@@ -39,14 +64,19 @@ const ImportRowEditor = memo(function ImportRowEditor({
   onRemove: (index: number) => void;
 }) {
   return (
-    <TableRow>
-      <TableCell>
+    <div
+      className={cn(
+        "grid grid-cols-2 gap-x-3 gap-y-2 border-b p-3 last:border-b-0 sm:grid sm:items-center sm:gap-2 sm:p-2",
+        IMPORT_COLS,
+      )}
+    >
+      <Cell label="Type">
         <Select
           value={row.direction}
           items={DIRECTION_LABELS}
           onValueChange={(v) => onChange(index, { direction: (v ?? "EXPENSE") as ImportRow["direction"] })}
         >
-          <SelectTrigger className="h-8 w-[110px]">
+          <SelectTrigger className="w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -54,44 +84,44 @@ const ImportRowEditor = memo(function ImportRowEditor({
             <SelectItem value="INCOME">Income</SelectItem>
           </SelectContent>
         </Select>
-      </TableCell>
-      <TableCell>
+      </Cell>
+      <Cell label="Category">
         <Input
-          className="h-8 w-[130px]"
+          className="w-full"
           value={row.category ?? ""}
           onChange={(e) => onChange(index, { category: e.target.value || null })}
         />
-      </TableCell>
-      <TableCell>
+      </Cell>
+      <Cell label="Date">
         <Input
           type="date"
-          className="h-8 w-[150px]"
+          className="w-full"
           value={row.date}
           onChange={(e) => onChange(index, { date: e.target.value })}
         />
-      </TableCell>
-      <TableCell align="right">
+      </Cell>
+      <Cell label="Amount">
         <Input
           type="number"
           step="0.01"
-          className="h-8 w-[100px] text-right"
+          className="w-full text-right"
           value={row.amount}
           onChange={(e) => onChange(index, { amount: Number(e.target.value) })}
         />
-      </TableCell>
-      <TableCell>
+      </Cell>
+      <Cell label="Note" className="col-span-2 sm:col-span-1">
         <Input
-          className="h-8 min-w-[200px]"
+          className="w-full"
           value={row.note ?? ""}
           onChange={(e) => onChange(index, { note: e.target.value || null })}
         />
-      </TableCell>
-      <TableCell align="right">
-        <Button variant="ghost" size="icon" onClick={() => onRemove(index)}>
+      </Cell>
+      <div className="col-span-2 flex justify-end sm:col-span-1">
+        <Button variant="ghost" size="icon" onClick={() => onRemove(index)} aria-label="Remove row">
           <Trash2 />
         </Button>
-      </TableCell>
-    </TableRow>
+      </div>
+    </div>
   );
 });
 
@@ -232,29 +262,28 @@ export function ImportTransactionsDialog({
               </div>
             )}
             <div className="max-h-[55vh] overflow-y-auto rounded-md border">
-              <Table>
-                <TableHeader className="sticky top-0 bg-popover">
-                  <TableRow>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                    <TableHead>Note</TableHead>
-                    <TableHead />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.map((row, i) => (
-                    <ImportRowEditor
-                      key={i}
-                      row={row}
-                      index={i}
-                      onChange={update}
-                      onRemove={remove}
-                    />
-                  ))}
-                </TableBody>
-              </Table>
+              <div
+                className={cn(
+                  "sticky top-0 z-10 hidden gap-2 border-b bg-popover px-2 py-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase sm:grid sm:items-center",
+                  IMPORT_COLS,
+                )}
+              >
+                <span>Type</span>
+                <span>Category</span>
+                <span>Date</span>
+                <span className="text-right">Amount</span>
+                <span>Note</span>
+                <span />
+              </div>
+              {rows.map((row, i) => (
+                <ImportRowEditor
+                  key={i}
+                  row={row}
+                  index={i}
+                  onChange={update}
+                  onRemove={remove}
+                />
+              ))}
             </div>
           </div>
         )}

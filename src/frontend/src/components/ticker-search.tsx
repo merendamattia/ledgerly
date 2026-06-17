@@ -106,7 +106,7 @@ export function TickerSearch({
         value={term}
         onChange={(e) => setTerm(e.target.value)}
         placeholder="Search ticker or name (e.g. AAPL, Bitcoin)…"
-        className="h-10 pl-9"
+        className="pl-9"
         autoComplete="off"
       />
       {(isFetching || addAsset.isPending) && (

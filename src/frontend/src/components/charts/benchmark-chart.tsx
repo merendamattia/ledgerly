@@ -30,7 +30,14 @@ export function BenchmarkChart({
     <ChartContainer config={chartConfig} className="h-[168px] w-full">
       <LineChart data={points} margin={{ left: 4, right: 4, top: 4 }}>
         <CartesianGrid vertical={false} strokeDasharray="3 5" />
-        <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} minTickGap={36} />
+        <XAxis
+          dataKey="date"
+          tickLine={false}
+          axisLine={false}
+          tickMargin={8}
+          minTickGap={36}
+          tick={{ fontSize: 11 }}
+        />
         <ChartTooltip
           content={
             <ChartTooltipContent formatter={(v) => `${Number(v).toFixed(1)}`} indicator="line" />
