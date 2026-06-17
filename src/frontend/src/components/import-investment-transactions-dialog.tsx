@@ -1,8 +1,17 @@
 "use client";
 
-import { memo, useCallback, useEffect, useMemo, useState, type ReactElement } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import { toast } from "sonner";
 import { Download, Plus, Trash2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -35,6 +44,32 @@ type Side = "BUY" | "SELL";
 // A preview row: the parsed CSV row plus the (defaulted, editable) side.
 type PreviewRow = ParsedInvestmentRow & { side: Side };
 
+// Shared column template for the preview editor: labeled stack on phones, an
+// aligned ledger grid from sm up.
+const PREVIEW_COLS =
+  "sm:grid-cols-[minmax(72px,1fr)_minmax(72px,1fr)_92px_146px_104px_104px_minmax(84px,0.9fr)_auto]";
+
+// A field that shows its column label only on mobile (header row is hidden
+// there), keeping each stacked control identifiable.
+function Cell({
+  label,
+  className,
+  children,
+}: {
+  label: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className={cn("min-w-0", className)}>
+      <span className="mb-1 block text-[11px] font-medium text-muted-foreground sm:hidden">
+        {label}
+      </span>
+      {children}
+    </div>
+  );
+}
+
 // One editable preview row. Memoized so editing a field only re-renders its own
 // row, keeping a large import responsive. Ticker/broker are resolved via the
 // mapping panel above, so here they are read-only labels.
@@ -54,16 +89,25 @@ const PreviewRowEditor = memo(function PreviewRowEditor({
   onRemove: (index: number) => void;
 }) {
   return (
-    <TableRow>
-      <TableCell className="font-mono text-xs">{tickerLabel}</TableCell>
-      <TableCell className="text-xs">{brokerLabel}</TableCell>
-      <TableCell>
+    <div
+      className={cn(
+        "grid grid-cols-2 gap-x-3 gap-y-2 border-b p-3 last:border-b-0 sm:grid sm:items-center sm:gap-2 sm:p-2",
+        PREVIEW_COLS,
+      )}
+    >
+      <Cell label="Ticker">
+        <span className="block truncate font-mono text-sm">{tickerLabel}</span>
+      </Cell>
+      <Cell label="Broker">
+        <span className="block truncate text-sm">{brokerLabel}</span>
+      </Cell>
+      <Cell label="Side">
         <Select
           value={row.side}
           items={INVESTMENT_SIDE_LABELS}
           onValueChange={(v) => onChange(index, { side: (v ?? "BUY") as Side })}
         >
-          <SelectTrigger className="h-8 w-[90px]">
+          <SelectTrigger className="w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -71,42 +115,44 @@ const PreviewRowEditor = memo(function PreviewRowEditor({
             <SelectItem value="SELL">Sell</SelectItem>
           </SelectContent>
         </Select>
-      </TableCell>
-      <TableCell>
+      </Cell>
+      <Cell label="Date">
         <Input
           type="date"
-          className="h-8 w-[150px]"
+          className="w-full"
           value={row.date}
           onChange={(e) => onChange(index, { date: e.target.value })}
         />
-      </TableCell>
-      <TableCell align="right">
+      </Cell>
+      <Cell label="Qty">
         <Input
           type="number"
           step="0.0000001"
-          className="h-8 w-[110px] text-right"
+          className="w-full text-right"
           value={row.quantity}
           onChange={(e) => onChange(index, { quantity: Number(e.target.value) })}
         />
-      </TableCell>
-      <TableCell align="right">
+      </Cell>
+      <Cell label="Price">
         <Input
           type="number"
           step="0.01"
-          className="h-8 w-[110px] text-right"
+          className="w-full text-right"
           value={row.price}
           onChange={(e) => onChange(index, { price: Number(e.target.value) })}
         />
-      </TableCell>
-      <TableCell align="right" className="font-mono text-xs tabular-nums text-muted-foreground">
-        {formatMoney(row.quantity * row.price, "EUR")}
-      </TableCell>
-      <TableCell align="right">
-        <Button variant="ghost" size="icon" onClick={() => onRemove(index)}>
+      </Cell>
+      <Cell label="Total" className="sm:text-right">
+        <span className="font-mono text-sm tabular-nums text-muted-foreground">
+          {formatMoney(row.quantity * row.price, "EUR")}
+        </span>
+      </Cell>
+      <div className="col-span-2 flex justify-end sm:col-span-1">
+        <Button variant="ghost" size="icon" onClick={() => onRemove(index)} aria-label="Remove row">
           <Trash2 />
         </Button>
-      </TableCell>
-    </TableRow>
+      </div>
+    </div>
   );
 });
 
@@ -781,35 +827,34 @@ export function ImportInvestmentTransactionsDialog({
             </div>
 
             <div className="max-h-[45vh] overflow-y-auto rounded-md border">
-              <Table>
-                <TableHeader className="sticky top-0 bg-popover">
-                  <TableRow>
-                    <TableHead>Ticker</TableHead>
-                    <TableHead>Broker</TableHead>
-                    <TableHead>Side</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead className="text-right">Qty</TableHead>
-                    <TableHead className="text-right">Price</TableHead>
-                    <TableHead className="text-right">Total</TableHead>
-                    <TableHead />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {previewRows.map((row, i) => (
-                    <PreviewRowEditor
-                      key={i}
-                      row={row}
-                      index={i}
-                      tickerLabel={tickerMap[row.ticker]?.symbol ?? row.ticker}
-                      brokerLabel={
-                        accounts?.find((a) => a.id === brokerMap[row.broker])?.name ?? row.broker
-                      }
-                      onChange={update}
-                      onRemove={remove}
-                    />
-                  ))}
-                </TableBody>
-              </Table>
+              <div
+                className={cn(
+                  "sticky top-0 z-10 hidden gap-2 border-b bg-popover px-2 py-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase sm:grid sm:items-center",
+                  PREVIEW_COLS,
+                )}
+              >
+                <span>Ticker</span>
+                <span>Broker</span>
+                <span>Side</span>
+                <span>Date</span>
+                <span className="text-right">Qty</span>
+                <span className="text-right">Price</span>
+                <span className="text-right">Total</span>
+                <span />
+              </div>
+              {previewRows.map((row, i) => (
+                <PreviewRowEditor
+                  key={i}
+                  row={row}
+                  index={i}
+                  tickerLabel={tickerMap[row.ticker]?.symbol ?? row.ticker}
+                  brokerLabel={
+                    accounts?.find((a) => a.id === brokerMap[row.broker])?.name ?? row.broker
+                  }
+                  onChange={update}
+                  onRemove={remove}
+                />
+              ))}
             </div>
           </div>
         )}

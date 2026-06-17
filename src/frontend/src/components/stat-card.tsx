@@ -48,7 +48,7 @@ export function StatCard({
       </div>
 
       <div className="mt-3 flex items-baseline gap-2">
-        <span className="text-3xl font-semibold tracking-tight tabular-nums">{value}</span>
+        <span className="text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">{value}</span>
         {delta ? (
           <span
             className={cn(

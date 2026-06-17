@@ -9,21 +9,12 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { formatMoney, monthLabel } from "@/lib/format";
+import { compactMoney, formatMoney, monthLabel } from "@/lib/format";
 
 const chartConfig = {
   income: { label: "Income", color: "var(--positive)" },
   expense: { label: "Expense", color: "var(--negative)" },
 } satisfies ChartConfig;
-
-function compactMoney(value: number, currency: string): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-    notation: "compact",
-    maximumFractionDigits: 1,
-  }).format(value);
-}
 
 // Income vs expense as two distinct lines over the selected range.
 export function CashFlowLineChart({
@@ -41,13 +32,22 @@ export function CashFlowLineChart({
 
   return (
     <ChartContainer config={chartConfig} className="h-[260px] w-full">
-      <LineChart data={points} margin={{ left: 12, right: 12 }}>
+      <LineChart data={points} margin={{ left: 0, right: 8 }}>
         <CartesianGrid vertical={false} strokeDasharray="4 4" />
-        <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} minTickGap={16} />
+        <XAxis
+          dataKey="month"
+          tickLine={false}
+          axisLine={false}
+          tickMargin={8}
+          minTickGap={16}
+          tick={{ fontSize: 11 }}
+        />
         <YAxis
           tickLine={false}
           axisLine={false}
-          width={64}
+          width={46}
+          tickCount={4}
+          tick={{ fontSize: 11 }}
           tickFormatter={(v) => compactMoney(Number(v), currency)}
         />
         <ChartTooltip

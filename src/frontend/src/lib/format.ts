@@ -12,6 +12,16 @@ export function formatNumber(value: number, maximumFractionDigits = 2): string {
   return new Intl.NumberFormat("en-US", { maximumFractionDigits }).format(value);
 }
 
+/** Compact currency for tight spaces like chart axes, e.g. "€45k", "€2.0k". */
+export function compactMoney(value: number, currency = "EUR"): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency,
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(value);
+}
+
 /** Hard-truncate a string to `max` characters, appending an ellipsis if cut. */
 export function truncate(value: string, max = 25): string {
   return value.length > max ? `${value.slice(0, max).trimEnd()}…` : value;
@@ -58,6 +68,14 @@ export function formatDuration(start: string | Date, end?: string | Date | null)
 /** Today's date as an ISO yyyy-mm-dd string (for date inputs). */
 export function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+/** Numeric date, e.g. "14/06/2026" — compact, used in transaction/list rows. */
+export function numericDate(value: string | Date): string {
+  const d = typeof value === "string" ? new Date(value) : value;
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  return `${day}/${month}/${d.getFullYear()}`;
 }
 
 /** Compact day label with year, e.g. "15 Jun '26" — used on chart axes/rows. */

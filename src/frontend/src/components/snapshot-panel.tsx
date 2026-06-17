@@ -9,8 +9,6 @@ import { Input } from "@/components/ui/input";
 import { formatMoney, shortDate, todayISO } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-const card = "border shadow-card ring-0";
-
 export interface SnapshotRow {
   id: string;
   name: string;
@@ -96,7 +94,7 @@ export function SnapshotPanel({
 
   return (
     <>
-      <Card className={cn(card, "col-span-12 gap-0 p-6 animate-fu lg:col-span-7")}>
+      <Card className={cn("col-span-12 gap-0 p-5 animate-fu lg:col-span-7")}>
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="font-display text-base font-semibold">{title}</p>
@@ -157,20 +155,16 @@ export function SnapshotPanel({
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="h-10 w-40"
+            className="h-9 w-40"
           />
-          <Button
-            onClick={submit}
-            disabled={submitting || rows.length === 0}
-            className="h-10"
-          >
+          <Button onClick={submit} disabled={submitting || rows.length === 0}>
             <Plus data-icon="inline-start" />
             Create snapshot
           </Button>
         </div>
       </Card>
 
-      <Card className="col-span-12 gap-0 border-0 bg-sidebar p-6 text-sidebar-accent-foreground shadow-card ring-0 animate-fu lg:col-span-5">
+      <Card className="col-span-12 gap-0 border-0 bg-sidebar p-5 text-sidebar-accent-foreground shadow-card ring-0 animate-fu lg:col-span-5">
         <p className="font-display text-base font-semibold text-white">{historyTitle}</p>
         <p className="mt-0.5 text-xs text-sidebar-foreground">{historySubtitle}</p>
         {points ? (

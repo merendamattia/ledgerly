@@ -46,7 +46,9 @@ import { cn } from "@/lib/utils";
 
 type Holding = DashboardData["netWorth"]["holdings"][number];
 
-const card = "border shadow-card ring-0";
+// Positions ledger column template — desktop only; below md rows stack.
+const POS_COLS =
+  "grid-cols-[minmax(0,1.4fr)_84px_90px_104px_104px_116px_116px_120px_92px]";
 const PERIODS = [
   { value: "1M", label: "1M" },
   { value: "3M", label: "3M" },
@@ -186,9 +188,9 @@ export default function InvestmentsPage() {
   const totalValue = useMemo(() => holdings.reduce((s, h) => s + h.value, 0), [holdings]);
 
   return (
-    <div className="grid grid-cols-12 gap-5">
+    <div className="grid grid-cols-12 gap-4 md:gap-5">
       {/* Portfolio hero */}
-      <Card className={cn(card, "col-span-12 gap-0 p-6 animate-fu lg:col-span-8")}>
+      <Card className={cn("col-span-12 gap-0 p-5 animate-fu lg:col-span-8")}>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-xs font-medium text-muted-foreground">Portfolio value</p>
@@ -215,14 +217,14 @@ export default function InvestmentsPage() {
               </span>
             </p>
           </div>
-          <div className="flex gap-1 rounded-[10px] bg-muted p-1">
+          <div className="flex gap-0.5 self-start rounded-lg bg-muted p-0.5">
             {PERIODS.map((p) => (
               <button
                 key={p.value}
                 type="button"
                 onClick={() => setPeriod(p.value)}
                 className={cn(
-                  "rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors",
+                  "rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
                   period === p.value
                     ? "bg-card text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground",
@@ -245,7 +247,7 @@ export default function InvestmentsPage() {
       </Card>
 
       {/* Allocation by class — beside the chart */}
-      <Card className={cn(card, "col-span-12 gap-0 p-6 animate-fu lg:col-span-4")}>
+      <Card className={cn("col-span-12 gap-0 p-5 animate-fu lg:col-span-4")}>
         <p className="font-display text-base font-semibold">Allocation by position</p>
         <div className="mt-4">
           <AllocationChart
@@ -258,7 +260,7 @@ export default function InvestmentsPage() {
 
       {/* Row 2 — three charts */}
       {/* Return per position */}
-      <Card className={cn(card, "col-span-12 gap-0 p-6 animate-fu lg:col-span-4")}>
+      <Card className={cn("col-span-12 gap-0 p-5 animate-fu lg:col-span-4")}>
         <p className="font-display text-base font-semibold">Return by position</p>
         <div className="mt-4 flex flex-col gap-3.5">
           {returnRows.length === 0 ? (
@@ -305,7 +307,7 @@ export default function InvestmentsPage() {
       <DebtsCard currency={currency} />
 
       {/* Positions table */}
-      <Card className={cn(card, "col-span-12 gap-0 p-6 animate-fu")}>
+      <Card className={cn("col-span-12 gap-0 p-5 animate-fu")}>
         <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
           <p className="font-display text-base font-semibold">Positions</p>
           <div className="flex flex-wrap items-center gap-2">
@@ -329,9 +331,14 @@ export default function InvestmentsPage() {
             })}
           </div>
         </div>
-        <div className="overflow-x-auto">
-          <div className="min-w-[860px]">
-            <div className="grid grid-cols-[minmax(0,1.4fr)_84px_90px_104px_104px_116px_116px_120px_92px] items-center border-b px-2 py-3 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+        <div className="md:overflow-x-auto">
+          <div className="md:min-w-[860px]">
+            <div
+              className={cn(
+                "hidden items-center border-b px-2 py-3 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase md:grid",
+                POS_COLS,
+              )}
+            >
               <span>Asset</span>
               <span>Class</span>
               <span className="text-right">Qty</span>
@@ -431,7 +438,7 @@ function BenchmarkCard({ className, period }: { className?: string; period: stri
     : 0;
 
   return (
-    <Card className={cn(card, "gap-0 p-6 animate-fu", className)}>
+    <Card className={cn("gap-0 p-5 animate-fu", className)}>
       <div className="mb-1 flex flex-wrap items-start justify-between gap-2">
         <p className="font-display text-base font-semibold">Portfolio vs benchmark</p>
         {available ? (
@@ -514,65 +521,100 @@ function PositionRow({
   weight: number;
   onClick: () => void;
 }) {
+  const tile = (
+    <span
+      className="flex size-8 shrink-0 items-center justify-center rounded-lg font-display text-[11px] font-semibold text-white"
+      style={{ background: CLASS_COLOR[h.type] ?? "var(--chart-3)" }}
+    >
+      {h.symbol.slice(0, 2).toUpperCase()}
+    </span>
+  );
   return (
     <button
       type="button"
       onClick={onClick}
-      className="grid w-full grid-cols-[minmax(0,1.4fr)_84px_90px_104px_104px_116px_116px_120px_92px] items-center border-b border-background px-2 py-3.5 text-left text-sm transition-colors last:border-b-0 hover:bg-muted/60">
-      <span className="flex min-w-0 items-center gap-3">
-        <span
-          className="flex size-8 items-center justify-center rounded-lg font-display text-[11px] font-semibold text-white"
-          style={{ background: CLASS_COLOR[h.type] ?? "var(--chart-3)" }}
-        >
-          {h.symbol.slice(0, 2).toUpperCase()}
+      className="block w-full border-b border-background text-left transition-colors last:border-b-0 hover:bg-muted/60"
+    >
+      {/* Desktop: full ledger grid */}
+      <div className={cn("hidden items-center px-2 py-3.5 text-sm md:grid", POS_COLS)}>
+        <span className="flex min-w-0 items-center gap-3">
+          {tile}
+          <span className="min-w-0">
+            <span className="block truncate font-medium">{h.name}</span>
+            <span className="block truncate text-xs text-muted-foreground">{h.symbol}</span>
+          </span>
         </span>
-        <span className="min-w-0">
-          <span className="block truncate font-medium">{h.name}</span>
-          <span className="block truncate text-xs text-muted-foreground">{h.symbol}</span>
+        <span className="text-muted-foreground">{CLASS_LABELS[h.type] ?? h.type}</span>
+        <span className="text-right font-mono text-xs text-muted-foreground tabular-nums">
+          {formatNumber(h.quantity, 4)}
         </span>
-      </span>
-      <span className="text-muted-foreground">{CLASS_LABELS[h.type] ?? h.type}</span>
-      <span className="text-right font-mono text-xs text-muted-foreground tabular-nums">
-        {formatNumber(h.quantity, 4)}
-      </span>
-      <span className="text-right font-mono text-xs text-muted-foreground tabular-nums">
-        {formatMoney(h.avgCost, h.currency)}
-      </span>
-      <span className="text-right font-mono text-xs text-muted-foreground tabular-nums">
-        {formatMoney(h.price, h.currency)}
-      </span>
-      <MoneyAmount
-        value={h.cost}
-        currency={currency}
-        className="text-right font-mono text-muted-foreground"
-      />
-      <MoneyAmount value={h.value} currency={currency} className="text-right font-mono font-semibold" />
-      <span className="text-right">
+        <span className="text-right font-mono text-xs text-muted-foreground tabular-nums">
+          {formatMoney(h.avgCost, h.currency)}
+        </span>
+        <span className="text-right font-mono text-xs text-muted-foreground tabular-nums">
+          {formatMoney(h.price, h.currency)}
+        </span>
         <MoneyAmount
-          value={h.gain}
+          value={h.cost}
           currency={currency}
-          colored
-          signed
-          className="block font-mono text-[13px] font-semibold"
+          className="text-right font-mono text-muted-foreground"
         />
-        <span
-          className={cn(
-            "block font-mono text-[11px] tabular-nums",
-            h.gainPct >= 0 ? "text-positive" : "text-negative",
-          )}
-        >
-          {formatPercent(h.gainPct)}
-        </span>
-      </span>
-      <span className="pl-3">
-        <span className="block text-right font-mono text-xs tabular-nums">{weight.toFixed(1)}%</span>
-        <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-muted">
-          <span
-            className="block h-full rounded-full animate-grow bg-foreground/70"
-            style={{ width: `${Math.min(100, weight)}%` }}
+        <MoneyAmount value={h.value} currency={currency} className="text-right font-mono font-semibold" />
+        <span className="text-right">
+          <MoneyAmount
+            value={h.gain}
+            currency={currency}
+            colored
+            signed
+            className="block font-mono text-[13px] font-semibold"
           />
+          <span
+            className={cn(
+              "block font-mono text-[11px] tabular-nums",
+              h.gainPct >= 0 ? "text-positive" : "text-negative",
+            )}
+          >
+            {formatPercent(h.gainPct)}
+          </span>
         </span>
-      </span>
+        <span className="pl-3">
+          <span className="block text-right font-mono text-xs tabular-nums">{weight.toFixed(1)}%</span>
+          <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-muted">
+            <span
+              className="block h-full rounded-full animate-grow bg-foreground/70"
+              style={{ width: `${Math.min(100, weight)}%` }}
+            />
+          </span>
+        </span>
+      </div>
+
+      {/* Mobile: stacked — name + value on top, class/symbol + P/L beneath */}
+      <div className="flex items-center gap-3 px-1 py-3 md:hidden">
+        {tile}
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="truncate text-sm font-medium">{h.name}</span>
+            <MoneyAmount
+              value={h.value}
+              currency={currency}
+              className="font-mono text-sm font-semibold"
+            />
+          </div>
+          <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+            <span className="truncate">
+              {CLASS_LABELS[h.type] ?? h.type} · {h.symbol} · {weight.toFixed(1)}%
+            </span>
+            <span
+              className={cn(
+                "shrink-0 font-mono tabular-nums",
+                h.gainPct >= 0 ? "text-positive" : "text-negative",
+              )}
+            >
+              {formatPercent(h.gainPct)}
+            </span>
+          </div>
+        </div>
+      </div>
     </button>
   );
 }

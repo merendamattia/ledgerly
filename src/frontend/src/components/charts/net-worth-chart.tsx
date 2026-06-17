@@ -7,7 +7,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { formatMoney, shortDate } from "@/lib/format";
+import { compactMoney, formatMoney, shortDate } from "@/lib/format";
 
 const chartConfig = {
   totalValue: { label: "Net worth", color: "var(--chart-1)" },
@@ -29,7 +29,7 @@ export function NetWorthChart({
 
   return (
     <ChartContainer config={chartConfig} className={className}>
-      <AreaChart data={points} margin={{ left: 12, right: 12 }}>
+      <AreaChart data={points} margin={{ left: 0, right: 8 }}>
         <defs>
           <linearGradient id="netWorthFill" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="var(--color-totalValue)" stopOpacity={0.28} />
@@ -37,12 +37,21 @@ export function NetWorthChart({
           </linearGradient>
         </defs>
         <CartesianGrid vertical={false} strokeDasharray="4 4" />
-        <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} minTickGap={32} />
+        <XAxis
+          dataKey="date"
+          tickLine={false}
+          axisLine={false}
+          tickMargin={8}
+          minTickGap={32}
+          tick={{ fontSize: 11 }}
+        />
         <YAxis
           tickLine={false}
           axisLine={false}
-          width={70}
-          tickFormatter={(v) => formatMoney(Number(v), currency)}
+          width={46}
+          tickCount={4}
+          tick={{ fontSize: 11 }}
+          tickFormatter={(v) => compactMoney(Number(v), currency)}
         />
         <ChartTooltip
           content={<ChartTooltipContent formatter={(v) => formatMoney(Number(v), currency)} />}
