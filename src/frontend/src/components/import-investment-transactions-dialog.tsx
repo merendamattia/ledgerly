@@ -110,6 +110,101 @@ const PreviewRowEditor = memo(function PreviewRowEditor({
   );
 });
 
+type ImportField = "ticker" | "price" | "quantity" | "total" | "date" | "broker";
+type DefaultableField = "ticker" | "date" | "broker";
+
+const IMPORT_FIELDS: Array<{
+  key: ImportField;
+  label: string;
+  required: boolean;
+  defaultable: boolean;
+  optional: boolean;
+}> = [
+  { key: "ticker", label: "Ticker", required: true, defaultable: true, optional: false },
+  { key: "price", label: "Price", required: true, defaultable: false, optional: false },
+  { key: "quantity", label: "Quantity", required: true, defaultable: false, optional: false },
+  { key: "total", label: "Total", required: false, defaultable: false, optional: true },
+  { key: "date", label: "Date", required: true, defaultable: true, optional: false },
+  { key: "broker", label: "Broker", required: true, defaultable: true, optional: false },
+];
+
+const COLUMN_DEFAULT_TOKEN = "__default__";
+const COLUMN_IGNORE_TOKEN = "__ignore__";
+
+function detectDelimiter(headerLine: string): RegExp {
+  if (headerLine.includes("\t")) return /\t/;
+  if (headerLine.includes(";")) return /;/;
+  if (headerLine.includes(",")) return /,/;
+  return /\s{2,}/;
+}
+
+function splitLine(line: string, delimiter: RegExp): string[] {
+  return line.split(delimiter).map((cell) => cell.trim());
+}
+
+function normalizeColumnName(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+function createEmptyFieldColumns(): Record<ImportField, number | null> {
+  return {
+    ticker: null,
+    price: null,
+    quantity: null,
+    total: null,
+    date: null,
+    broker: null,
+  };
+}
+
+function createEmptyColumnAssignments(columnCount: number): Array<ImportField | null> {
+  return Array.from({ length: columnCount }, () => null);
+}
+
+function suggestFieldColumns(columns: string[]): Record<ImportField, number | null> {
+  const normalized = columns.map((column) => normalizeColumnName(column));
+  const synonyms: Record<ImportField, string[]> = {
+    ticker: ["ticker", "ticket", "symbol", "isin"],
+    price: ["price", "prezzo", "unitprice", "rate"],
+    quantity: ["quantity", "quantita", "qty", "amount"],
+    total: ["total", "value", "countervalue", "importo"],
+    date: ["date", "data"],
+    broker: ["broker", "account", "intermediary"],
+  };
+
+  const result = createEmptyFieldColumns();
+  for (const field of IMPORT_FIELDS) {
+    const matches = synonyms[field.key];
+    const index = normalized.findIndex((column) =>
+      matches.some((synonym) => column === synonym || column.includes(synonym) || synonym.includes(column)),
+    );
+    result[field.key] = index >= 0 ? index : null;
+  }
+  return result;
+}
+
+function suggestColumnAssignments(columns: string[]): Array<ImportField | null> {
+  const fieldColumns = suggestFieldColumns(columns);
+  const assignments = createEmptyColumnAssignments(columns.length);
+  for (const field of IMPORT_FIELDS) {
+    const index = fieldColumns[field.key];
+    if (index !== null && index < assignments.length && assignments[index] === null) {
+      assignments[index] = field.key;
+    }
+  }
+  return assignments;
+}
+
+function inspectInvestmentFile(text: string): { columns: string[]; sampleRows: string[][] } {
+  const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
+  if (lines.length === 0) return { columns: [], sampleRows: [] };
+  const delimiter = detectDelimiter(lines[0]);
+  return {
+    columns: splitLine(lines[0], delimiter),
+    sampleRows: lines.slice(1, 4).map((line) => splitLine(line, delimiter)),
+  };
+}
+
 // Maps one raw broker string to a CashAccount: pick an existing one or create a
 // new account inline (pre-filled with the raw label).
 function BrokerMapper({
@@ -120,7 +215,7 @@ function BrokerMapper({
 }: {
   raw: string;
   accounts: Account[];
-  value: string | undefined;
+  value?: string;
   onMap: (cashAccountId: string) => void;
 }) {
   const [creating, setCreating] = useState(false);
@@ -212,6 +307,18 @@ export function ImportInvestmentTransactionsDialog({
   const open = isControlled ? openProp : openState;
   const [rows, setRows] = useState<PreviewRow[] | null>(null);
   const [errors, setErrors] = useState<{ line: number; message: string }[]>([]);
+  const [stage, setStage] = useState<"upload" | "mapping" | "preview">("upload");
+  const [sourceFile, setSourceFile] = useState<File | null>(null);
+  const [sourceColumns, setSourceColumns] = useState<string[]>([]);
+  const [sampleRows, setSampleRows] = useState<string[][]>([]);
+  const [columnAssignments, setColumnAssignments] = useState<Array<ImportField | null>>([]);
+  const [fieldDefaults, setFieldDefaults] = useState<Record<DefaultableField, string>>({
+    ticker: "",
+    date: "",
+    broker: "",
+  });
+  const [fileInputKey, setFileInputKey] = useState(0);
+  const [inspecting, setInspecting] = useState(false);
   // Raw CSV value -> resolved app entity.
   const [tickerMap, setTickerMap] = useState<Record<string, SelectedTicker>>({});
   const [brokerMap, setBrokerMap] = useState<Record<string, string>>({});
@@ -223,8 +330,16 @@ export function ImportInvestmentTransactionsDialog({
   const reset = useCallback(() => {
     setRows(null);
     setErrors([]);
+    setStage("upload");
+    setSourceFile(null);
+    setSourceColumns([]);
+    setSampleRows([]);
+    setColumnAssignments([]);
+    setFieldDefaults({ ticker: "", date: "", broker: "" });
+    setInspecting(false);
     setTickerMap({});
     setBrokerMap({});
+    setFileInputKey((key) => key + 1);
   }, []);
 
   const setOpen = useCallback(
@@ -236,26 +351,69 @@ export function ImportInvestmentTransactionsDialog({
     [isControlled, onOpenChange, reset],
   );
 
-  const parseFile = useCallback(
-    (file: File) => {
-      parse.mutate(file, {
-        onSuccess: (res) => {
-          setRows(res.rows.map((r) => ({ ...r, side: "BUY" as const })));
-          setErrors(res.errors);
-          setTickerMap({});
-          setBrokerMap({});
-        },
-        onError: (err) => toast.error(err.message),
-      });
-    },
-    [parse],
-  );
+  const inspectFile = useCallback(async (file: File) => {
+    setSourceFile(file);
+    setStage("mapping");
+    setInspecting(true);
+    try {
+      const preview = inspectInvestmentFile(await file.text());
+      setSourceColumns(preview.columns);
+      setSampleRows(preview.sampleRows);
+      setColumnAssignments(suggestColumnAssignments(preview.columns));
+      setFieldDefaults({ ticker: "", date: "", broker: "" });
+      setTickerMap({});
+      setBrokerMap({});
+      setRows(null);
+      setErrors([]);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Unable to inspect file");
+      reset();
+    } finally {
+      setInspecting(false);
+    }
+  }, [reset]);
 
   // Controlled open with a preloaded file (handed off from the Add drawer).
   useEffect(() => {
-    if (open && initialFile) parseFile(initialFile);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, initialFile]);
+    if (!open || !initialFile) return;
+    const timeout = window.setTimeout(() => {
+      void inspectFile(initialFile);
+    }, 0);
+    return () => window.clearTimeout(timeout);
+  }, [open, initialFile, inspectFile]);
+
+  const mappedFieldColumns = useMemo(() => {
+    const result = createEmptyFieldColumns();
+    columnAssignments.forEach((field, index) => {
+      if (field !== null) result[field] = index;
+    });
+    return result;
+  }, [columnAssignments]);
+
+  const canProceed =
+    mappedFieldColumns.price !== null &&
+    mappedFieldColumns.quantity !== null &&
+    (mappedFieldColumns.ticker !== null || fieldDefaults.ticker.trim().length > 0) &&
+    (mappedFieldColumns.date !== null || fieldDefaults.date.trim().length > 0) &&
+    (mappedFieldColumns.broker !== null || fieldDefaults.broker.trim().length > 0);
+
+  const parsePayload = useMemo(
+    () => ({
+      ticker: mappedFieldColumns.ticker,
+      price: mappedFieldColumns.price,
+      quantity: mappedFieldColumns.quantity,
+      total: mappedFieldColumns.total,
+      date: mappedFieldColumns.date,
+      broker: mappedFieldColumns.broker,
+      defaults: {
+        ticker: fieldDefaults.ticker.trim() || undefined,
+        date: fieldDefaults.date.trim() || undefined,
+        broker: fieldDefaults.broker.trim() || undefined,
+      },
+      skipHeader: true,
+    }),
+    [mappedFieldColumns, fieldDefaults],
+  );
 
   const distinctTickers = useMemo(
     () => (rows ? [...new Set(rows.map((r) => r.ticker))] : []),
@@ -266,13 +424,28 @@ export function ImportInvestmentTransactionsDialog({
     [rows],
   );
 
-  const allMapped =
-    distinctTickers.every((t) => tickerMap[t]) && distinctBrokers.every((b) => brokerMap[b]);
+  const allMapped = distinctTickers.every((t) => tickerMap[t]) && distinctBrokers.every((b) => brokerMap[b]);
+  const previewRows = rows ?? [];
 
   function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    parseFile(file);
+    void inspectFile(file);
+  }
+
+  function confirmMapping() {
+    if (!sourceFile || !canProceed) return;
+    parse.mutate(
+      { file: sourceFile, mapping: parsePayload },
+      {
+        onSuccess: (res) => {
+          setRows(res.rows.map((r) => ({ ...r, side: "BUY" as const })));
+          setErrors(res.errors);
+          setStage("preview");
+        },
+        onError: (err) => toast.error(err.message),
+      },
+    );
   }
 
   const update = useCallback((index: number, patch: Partial<PreviewRow>) => {
@@ -321,26 +494,237 @@ export function ImportInvestmentTransactionsDialog({
         <DialogHeader>
           <DialogTitle>Import investment transactions</DialogTitle>
           <DialogDescription>
-            Upload a broker CSV/TSV export. Map each ticker and broker to an app record, review the
-            rows, then confirm. Duplicates are skipped automatically.
+            Upload a broker CSV/TSV export. First map the file columns to the app fields, then
+            parse the rows, review the result, and confirm. Duplicates are skipped automatically.
           </DialogDescription>
         </DialogHeader>
 
-        {!rows ? (
-          <div className="flex flex-col gap-3 py-4">
-            <Input
-              type="file"
-              accept=".csv,.tsv,text/csv,text/tab-separated-values"
-              onChange={onFile}
-              disabled={parse.isPending}
-            />
-            {parse.isPending && <p className="text-sm text-muted-foreground">Parsing…</p>}
+        {stage !== "preview" ? (
+          <div className="flex flex-col gap-4 py-2">
+            {stage === "upload" ? (
+              <div className="flex flex-col gap-3">
+                <Input
+                  key={fileInputKey}
+                  type="file"
+                  accept=".csv,.tsv,text/csv,text/tab-separated-values"
+                  onChange={onFile}
+                  disabled={inspecting}
+                />
+                {inspecting && <p className="text-sm text-muted-foreground">Inspecting file…</p>}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium">{sourceFile?.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Map the file columns below. Fields without a source column can use a default
+                      value for this import.
+                    </p>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={reset}>
+                    Choose another file
+                  </Button>
+                </div>
+
+                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                  {sourceColumns.map((column) => (
+                    <span key={column} className="rounded-full border bg-muted px-2 py-1">
+                      {column}
+                    </span>
+                  ))}
+                </div>
+
+                <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+                  <div className="rounded-lg border bg-card p-4">
+                    <div className="mb-4">
+                      <p className="text-xs font-semibold text-muted-foreground">
+                        Backend schema mapping
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Pick which uploaded file column feeds each backend field. Each file column
+                        can be assigned once.
+                      </p>
+                    </div>
+                    <div className="overflow-hidden rounded-md border">
+                      <Table>
+                        <TableHeader className="bg-popover">
+                          <TableRow>
+                            <TableHead className="w-[180px]">Backend field</TableHead>
+                            <TableHead>File column</TableHead>
+                            <TableHead className="w-[240px]">Notes / default</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {IMPORT_FIELDS.map((field) => {
+                            const defaultField = field.key as DefaultableField;
+                            const current = mappedFieldColumns[field.key];
+                            const selectedLabel =
+                              current !== null
+                                ? sourceColumns[current] ?? "Select file column"
+                                : field.defaultable
+                                  ? "Use default value"
+                                  : field.optional
+                                    ? "Ignore"
+                                    : "Select file column";
+                            const selectValue =
+                              current !== null
+                                ? String(current)
+                                : field.defaultable
+                                  ? COLUMN_DEFAULT_TOKEN
+                                  : field.optional
+                                    ? COLUMN_IGNORE_TOKEN
+                                    : "";
+                            return (
+                              <TableRow key={field.key}>
+                                <TableCell className="align-top">
+                                  <div className="flex flex-col gap-1">
+                                    <span className="text-sm font-medium">{field.label}</span>
+                                    <span className="text-xs text-muted-foreground">
+                                      {field.defaultable
+                                        ? "Text field"
+                                        : field.optional
+                                          ? "Optional numeric field"
+                                          : "Numeric field"}
+                                    </span>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="align-top">
+                                  <Select
+                                    value={selectValue}
+                                    onValueChange={(value) => {
+                                      setColumnAssignments((prev) => {
+                                        const next = [...prev];
+                                        if (
+                                          value === COLUMN_DEFAULT_TOKEN ||
+                                          value === COLUMN_IGNORE_TOKEN
+                                        ) {
+                                          next.forEach((assignment, assignmentIndex) => {
+                                            if (assignment === field.key) next[assignmentIndex] = null;
+                                          });
+                                          return next;
+                                        }
+                                        const fileIndex = Number(value);
+                                        const duplicateIndex = next.findIndex(
+                                          (assignment, assignmentIndex) =>
+                                            assignment === field.key && assignmentIndex !== fileIndex,
+                                        );
+                                        if (duplicateIndex >= 0) next[duplicateIndex] = null;
+                                        next[fileIndex] = field.key;
+                                        return next;
+                                      });
+                                    }}
+                                  >
+                                    <SelectTrigger className="h-9 w-full">
+                                      <span className="truncate">{selectedLabel}</span>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {sourceColumns.map((column, index) => (
+                                        <SelectItem
+                                          key={column}
+                                          value={String(index)}
+                                          disabled={
+                                            columnAssignments[index] !== null &&
+                                            columnAssignments[index] !== field.key
+                                          }
+                                        >
+                                          {column}
+                                        </SelectItem>
+                                      ))}
+                                      {field.defaultable ? (
+                                        <SelectItem value={COLUMN_DEFAULT_TOKEN}>Use default value</SelectItem>
+                                      ) : null}
+                                      {field.optional ? (
+                                        <SelectItem value={COLUMN_IGNORE_TOKEN}>Ignore</SelectItem>
+                                      ) : null}
+                                    </SelectContent>
+                                  </Select>
+                                </TableCell>
+                                <TableCell className="align-top">
+                                  {field.defaultable && current === null ? (
+                                    <Input
+                                      placeholder={
+                                        field.key === "date"
+                                          ? "15/01/2024"
+                                          : `Default ${field.label.toLowerCase()}`
+                                      }
+                                      value={fieldDefaults[defaultField]}
+                                      onChange={(event) =>
+                                        setFieldDefaults((prev) => ({
+                                          ...prev,
+                                          [defaultField]: event.target.value,
+                                        }))
+                                      }
+                                    />
+                                  ) : (
+                                    <p className="text-xs text-muted-foreground">
+                                      {field.defaultable
+                                        ? "Optional if the file does not provide a column"
+                                        : field.optional
+                                          ? "Leave blank if not needed"
+                                          : "Required from file"}
+                                    </p>
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                    <p className="mt-3 text-xs text-muted-foreground">
+                      Missing text values can still use defaults later if the file does not contain a
+                      column for them.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col gap-3 rounded-lg border bg-card p-4">
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground">Sample rows</p>
+                      <p className="text-xs text-muted-foreground">
+                        A quick preview of the file structure before parsing.
+                      </p>
+                    </div>
+                    <div className="overflow-hidden rounded-md border">
+                      <Table>
+                        <TableHeader className="sticky top-0 bg-popover">
+                          <TableRow>
+                            {sourceColumns.map((column) => (
+                              <TableHead key={column}>{column}</TableHead>
+                            ))}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {sampleRows.length > 0 ? (
+                            sampleRows.map((row, rowIndex) => (
+                              <TableRow key={rowIndex}>
+                                {sourceColumns.map((_, cellIndex) => (
+                                  <TableCell key={cellIndex} className="text-xs">
+                                    {row[cellIndex] ?? ""}
+                                  </TableCell>
+                                ))}
+                              </TableRow>
+                            ))
+                          ) : (
+                            <TableRow>
+                              <TableCell colSpan={Math.max(sourceColumns.length, 1)} className="py-6 text-center text-xs text-muted-foreground">
+                                No sample rows detected.
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <p className="text-sm text-muted-foreground">
-                {rows.length} transaction{rows.length === 1 ? "" : "s"}
+                {previewRows.length} transaction{previewRows.length === 1 ? "" : "s"}
                 {errors.length > 0 ? ` · ${errors.length} row(s) skipped while parsing` : ""}
               </p>
               <Button variant="ghost" size="sm" onClick={reset}>
@@ -411,7 +795,7 @@ export function ImportInvestmentTransactionsDialog({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rows.map((row, i) => (
+                  {previewRows.map((row, i) => (
                     <PreviewRowEditor
                       key={i}
                       row={row}
@@ -431,15 +815,19 @@ export function ImportInvestmentTransactionsDialog({
         )}
 
         <DialogFooter showCloseButton>
-          {rows && (
-            <Button onClick={confirm} disabled={commit.isPending || rows.length === 0 || !allMapped}>
+          {stage === "mapping" ? (
+            <Button onClick={confirmMapping} disabled={!canProceed || parse.isPending || inspecting}>
+              {parse.isPending ? "Parsing…" : "Proceed"}
+            </Button>
+          ) : rows ? (
+            <Button onClick={confirm} disabled={commit.isPending || previewRows.length === 0 || !allMapped}>
               {commit.isPending
                 ? "Importing…"
                 : !allMapped
                   ? "Map all tickers & brokers"
-                  : `Import ${rows.length}`}
+                  : `Import ${previewRows.length}`}
             </Button>
-          )}
+          ) : null}
         </DialogFooter>
       </DialogContent>
     </Dialog>

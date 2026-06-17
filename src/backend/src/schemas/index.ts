@@ -6,6 +6,7 @@ export const tickerTypeSchema = z.enum(["EQUITY", "ETF", "CRYPTO"]);
 export const categoryKindSchema = z.enum(["INCOME", "EXPENSE"]);
 export const txDirectionSchema = z.enum(["INCOME", "EXPENSE"]);
 export const investmentSideSchema = z.enum(["BUY", "SELL"]);
+export const investmentImportFieldSchema = z.enum(["ticker", "price", "quantity", "total", "date", "broker"]);
 
 // --- Assets / tickers -------------------------------------------------------
 export const addAssetSchema = z.object({
@@ -47,6 +48,23 @@ export const investmentTxFiltersSchema = z.object({
 // ticker/broker strings to real ids; rows duplicating an existing movement are
 // skipped server-side. Same field shape as createInvestmentTxSchema.
 export const importInvestmentTxRowSchema = createInvestmentTxSchema;
+
+export const investmentImportColumnMapSchema = z.object({
+  ticker: z.number().int().nonnegative().nullable().default(null),
+  price: z.number().int().nonnegative().nullable().default(null),
+  quantity: z.number().int().nonnegative().nullable().default(null),
+  total: z.number().int().nonnegative().nullable().default(null),
+  date: z.number().int().nonnegative().nullable().default(null),
+  broker: z.number().int().nonnegative().nullable().default(null),
+  defaults: z
+    .object({
+      ticker: z.string().trim().min(1).optional(),
+      date: z.string().trim().min(1).optional(),
+      broker: z.string().trim().min(1).optional(),
+    })
+    .default({}),
+  skipHeader: z.boolean().default(true),
+});
 
 export const importInvestmentTxCommitSchema = z.object({
   rows: z.array(importInvestmentTxRowSchema).min(1).max(5000),
