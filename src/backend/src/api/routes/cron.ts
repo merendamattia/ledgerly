@@ -9,9 +9,11 @@ import { NotFoundError } from "../../core/errors.ts";
 import type { AppEnv } from "../types.ts";
 
 export const cronRoutes = new Hono<AppEnv>()
-  // List job definitions with their latest run.
+  // List job definitions with their latest run. `runnable` flags the jobs the UI
+  // can trigger via "Run now" (those with a registered handler).
   .get("/jobs", requireAuth, async (c) => {
-    return c.json(await cronRepository.listJobs());
+    const jobs = await cronRepository.listJobs();
+    return c.json(jobs.map((job) => ({ ...job, runnable: job.key in cronHandlers })));
   })
   // List recent runs (optionally filtered by job).
   .get(

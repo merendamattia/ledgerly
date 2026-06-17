@@ -42,6 +42,19 @@ export function formatDateTime(value: string | Date): string {
   }).format(date);
 }
 
+/**
+ * Elapsed time between a run's start and finish, e.g. "820 ms" / "3.4 s".
+ * Returns "—" when the run is still in flight (no finish time).
+ */
+export function formatDuration(start: string | Date, end?: string | Date | null): string {
+  if (!end) return "—";
+  const startMs = (typeof start === "string" ? new Date(start) : start).getTime();
+  const endMs = (typeof end === "string" ? new Date(end) : end).getTime();
+  const ms = endMs - startMs;
+  if (ms < 1000) return `${ms} ms`;
+  return `${(ms / 1000).toFixed(1)} s`;
+}
+
 /** Today's date as an ISO yyyy-mm-dd string (for date inputs). */
 export function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
