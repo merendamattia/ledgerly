@@ -8,6 +8,7 @@ import {
   ArrowLeftRight,
   ListChecks,
   Database,
+  Terminal,
   Settings,
   LogOut,
 } from "lucide-react";
@@ -123,6 +124,17 @@ export function AppSidebar() {
 
       <SidebarFooter>
         <SidebarMenu className="gap-1">
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              isActive={isActive(pathname, "/dev")}
+              render={
+                <Link href="/dev">
+                  <Terminal />
+                  <span>Dev</span>
+                </Link>
+              }
+            />
+          </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton
               isActive={isActive(pathname, "/database")}

@@ -52,6 +52,12 @@ export const dashboardRoutes = new Hono<AppEnv>()
     string,
     { categoryId: string | null; name: string; income: number; expense: number }
   >();
+  // Same, but scoped to the current calendar month — powers the Overview's
+  // "Expenses by category" card so it reflects how the month is going.
+  const categoriesMonth = new Map<
+    string,
+    { categoryId: string | null; name: string; income: number; expense: number }
+  >();
   for (const t of rangeTx) {
     const key = t.category?.id ?? "__uncategorized__";
     const entry =
@@ -65,6 +71,20 @@ export const dashboardRoutes = new Hono<AppEnv>()
     if (t.direction === "INCOME") entry.income += Number(t.amount);
     else entry.expense += Number(t.amount);
     categories.set(key, entry);
+
+    if (t.date >= monthStart) {
+      const m =
+        categoriesMonth.get(key) ??
+        {
+          categoryId: t.category?.id ?? null,
+          name: t.category?.name ?? "Uncategorized",
+          income: 0,
+          expense: 0,
+        };
+      if (t.direction === "INCOME") m.income += Number(t.amount);
+      else m.expense += Number(t.amount);
+      categoriesMonth.set(key, m);
+    }
   }
 
   return c.json({
@@ -77,6 +97,7 @@ export const dashboardRoutes = new Hono<AppEnv>()
     cashFlowMonth,
     cashFlowSeries: [...buckets.values()],
     categoryBreakdown: [...categories.values()],
+    categoryBreakdownMonth: [...categoriesMonth.values()],
     recentTransactions: recent.map(serializeTransaction),
   });
 });

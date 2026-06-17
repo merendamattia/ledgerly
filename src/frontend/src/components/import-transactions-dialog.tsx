@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useState, type ReactElement } from "react";
+import { memo, useCallback, useEffect, useState, type ReactElement } from "react";
 import { toast } from "sonner";
 import { Download, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -95,8 +95,21 @@ const ImportRowEditor = memo(function ImportRowEditor({
   );
 });
 
-export function ImportTransactionsDialog({ trigger }: { trigger?: ReactElement }) {
-  const [open, setOpen] = useState(false);
+export function ImportTransactionsDialog({
+  trigger,
+  open: openProp,
+  onOpenChange,
+  initialFile,
+}: {
+  trigger?: ReactElement;
+  // Optional controlled mode: lets the Add drawer open this with a dropped file.
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  initialFile?: File | null;
+}) {
+  const [openState, setOpenState] = useState(false);
+  const isControlled = openProp !== undefined;
+  const open = isControlled ? openProp : openState;
   const [rows, setRows] = useState<ImportRow[] | null>(null);
   const [errors, setErrors] = useState<{ line: number; message: string }[]>([]);
 
@@ -108,16 +121,38 @@ export function ImportTransactionsDialog({ trigger }: { trigger?: ReactElement }
     setErrors([]);
   }, []);
 
+  const setOpen = useCallback(
+    (o: boolean) => {
+      if (!isControlled) setOpenState(o);
+      onOpenChange?.(o);
+      if (!o) reset();
+    },
+    [isControlled, onOpenChange, reset],
+  );
+
+  const parseFile = useCallback(
+    (file: File) => {
+      parse.mutate(file, {
+        onSuccess: (res) => {
+          setRows(res.rows);
+          setErrors(res.errors);
+        },
+        onError: (err) => toast.error(err.message),
+      });
+    },
+    [parse],
+  );
+
+  // Controlled open with a preloaded file (handed off from the Add drawer).
+  useEffect(() => {
+    if (open && initialFile) parseFile(initialFile);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialFile]);
+
   function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    parse.mutate(file, {
-      onSuccess: (res) => {
-        setRows(res.rows);
-        setErrors(res.errors);
-      },
-      onError: (err) => toast.error(err.message),
-    });
+    parseFile(file);
   }
 
   const update = useCallback((index: number, patch: Partial<ImportRow>) => {
@@ -144,23 +179,19 @@ export function ImportTransactionsDialog({ trigger }: { trigger?: ReactElement }
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        setOpen(o);
-        if (!o) reset();
-      }}
-    >
-      <DialogTrigger
-        render={
-          trigger ?? (
-            <Button variant="outline">
-              <Download data-icon="inline-start" />
-              Import
-            </Button>
-          )
-        }
-      />
+    <Dialog open={open} onOpenChange={setOpen}>
+      {!isControlled ? (
+        <DialogTrigger
+          render={
+            trigger ?? (
+              <Button variant="outline">
+                <Download data-icon="inline-start" />
+                Import
+              </Button>
+            )
+          }
+        />
+      ) : null}
       <DialogContent className="sm:max-w-5xl">
         <DialogHeader>
           <DialogTitle>Import transactions</DialogTitle>

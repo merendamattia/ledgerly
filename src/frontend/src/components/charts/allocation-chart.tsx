@@ -15,8 +15,11 @@ const PALETTE = [
   "var(--chart-3)",
   "var(--chart-4)",
   "var(--chart-5)",
+  "var(--chart-6)",
 ];
 
+// Default labels for the asset-class view (Overview). Per-position callers pass
+// their own `labels` map (holdingId → name).
 const LABELS: Record<string, string> = {
   CASH: "Cash",
   EQUITY: "Equity",
@@ -27,15 +30,17 @@ const LABELS: Record<string, string> = {
 export function AllocationChart({
   allocation,
   currency,
+  labels,
 }: {
   allocation: Record<string, number>;
   currency: string;
+  labels?: Record<string, string>;
 }) {
   const data = Object.entries(allocation)
     .filter(([, value]) => value > 0)
     .map(([key, value], i) => ({
       key,
-      name: LABELS[key] ?? key,
+      name: labels?.[key] ?? LABELS[key] ?? key,
       value,
       fill: PALETTE[i % PALETTE.length],
     }));

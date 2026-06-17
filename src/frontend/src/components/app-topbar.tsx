@@ -6,6 +6,7 @@ import { Search } from "lucide-react";
 import { useSearch } from "@/components/search-context";
 import { AddTransactionDialog, type AddMode } from "@/components/add-transaction-dialog";
 import { ImportInvestmentTransactionsDialog } from "@/components/import-investment-transactions-dialog";
+import { ImportTransactionsDialog } from "@/components/import-transactions-dialog";
 import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 
@@ -50,7 +51,8 @@ export function AppTopbar() {
   const meta = metaFor(pathname);
   const showSearch = pathname.startsWith("/transactions");
   const addMode = addModeFor(pathname);
-  // CSV dropped inside the investment Add drawer is handed off to the import flow.
+  // A CSV dropped inside the Add drawer is handed off to the matching import
+  // flow: investment movements vs. income/expense transactions.
   const [importOpen, setImportOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
 
@@ -86,14 +88,10 @@ export function AppTopbar() {
         {addMode ? (
           <AddTransactionDialog
             mode={addMode}
-            onImportFile={
-              addMode === "investment"
-                ? (file) => {
-                    setImportFile(file);
-                    setImportOpen(true);
-                  }
-                : undefined
-            }
+            onImportFile={(file) => {
+              setImportFile(file);
+              setImportOpen(true);
+            }}
             trigger={
               <Button className="h-10 gap-1.5 rounded-xl px-4">
                 <span className="text-base leading-none">+</span>
@@ -105,6 +103,15 @@ export function AppTopbar() {
 
         {addMode === "investment" ? (
           <ImportInvestmentTransactionsDialog
+            open={importOpen}
+            onOpenChange={(o) => {
+              setImportOpen(o);
+              if (!o) setImportFile(null);
+            }}
+            initialFile={importFile}
+          />
+        ) : addMode === "full" || addMode === "cashflow" ? (
+          <ImportTransactionsDialog
             open={importOpen}
             onOpenChange={(o) => {
               setImportOpen(o);
