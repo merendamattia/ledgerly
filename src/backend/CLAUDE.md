@@ -13,7 +13,7 @@ core/       config (validated env), db (Prisma client), redis, logger, errors, a
 schemas/    Zod schemas used by @hono/zod-validator at the route boundary
 repositories/  the ONLY place that issues Prisma queries (one module per entity)
 services/   domain logic; orchestrate repositories + providers + cache
-  market/   providers/ (yahoo, coingecko, frankfurter), backfill, fx, quotes
+  market/   providers/ (yahoo, frankfurter), backfill, fx, quotes
   cron/     runner (opens/closes a CronRun), jobs (registry of runnable jobs)
 utils/      pure helpers (no I/O)
 ```

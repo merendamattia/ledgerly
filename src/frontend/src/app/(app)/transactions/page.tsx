@@ -5,6 +5,9 @@ import { Calendar } from "lucide-react";
 import { MoneyAmount } from "@/components/money-amount";
 import { CategoryIcon, CategoryBadge } from "@/components/category-badge";
 import { TransactionDetailDialog } from "@/components/transaction-detail-dialog";
+import { InvestmentTxDialog } from "@/components/investment-tx-dialog";
+import { AddTransactionDialog } from "@/components/add-transaction-dialog";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -20,6 +23,11 @@ import {
   type Transaction,
   type TransactionFilters,
 } from "@/hooks/use-expenses";
+import {
+  useInvestmentTransactions,
+  type InvestmentTransaction,
+} from "@/hooks/use-investments";
+import { formatMoney, shortDate, INVESTMENT_SIDE_LABELS } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 50;
@@ -37,18 +45,12 @@ const FILTERS: { value: Filter; label: string }[] = [
 
 const GRID = "grid grid-cols-[78px_minmax(0,1.5fr)_130px_140px_120px] items-center";
 
-// Short month-day label for the date column, e.g. "13 Jun".
-function shortDate(iso: string): string {
-  return new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short" }).format(
-    new Date(iso),
-  );
-}
-
 export default function TransactionsPage() {
   const [filter, setFilter] = useState<Filter>("ALL");
   const [month, setMonth] = useState<string>("all");
   const [limit, setLimit] = useState(PAGE_SIZE);
   const [detailTx, setDetailTx] = useState<Transaction | null>(null);
+  const [invTx, setInvTx] = useState<InvestmentTransaction | null>(null);
 
   const { query } = useSearch();
   const settings = useSettings();
@@ -84,6 +86,7 @@ export default function TransactionsPage() {
   };
 
   const { data, isLoading } = useExpenses(filters);
+  const investments = useInvestmentTransactions({ limit: filter === "INVESTMENT" ? limit : 1 });
 
   const rows = useMemo(() => {
     if (filter === "INVESTMENT") return [];
@@ -96,6 +99,18 @@ export default function TransactionsPage() {
         (t.category?.name ?? "").toLowerCase().includes(q),
     );
   }, [data, query, filter]);
+
+  const investmentRows = useMemo(() => {
+    if (filter !== "INVESTMENT") return [];
+    const q = query.trim().toLowerCase();
+    const list = investments.data ?? [];
+    if (!q) return list;
+    return list.filter(
+      (t) =>
+        (t.ticker?.symbol ?? "").toLowerCase().includes(q) ||
+        (t.ticker?.name ?? "").toLowerCase().includes(q),
+    );
+  }, [investments.data, query, filter]);
 
   const hasMore = filter !== "INVESTMENT" && !query && !!data && data.length === limit;
 
@@ -125,7 +140,18 @@ export default function TransactionsPage() {
           );
         })}
 
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2.5">
+          {filter === "INVESTMENT" ? (
+            <AddTransactionDialog
+              mode="investment"
+              trigger={
+                <Button>
+                  <Plus data-icon="inline-start" />
+                  Add movement
+                </Button>
+              }
+            />
+          ) : null}
           <Select value={month} items={monthItems} onValueChange={(v) => setMonth(v ?? "all")}>
             <SelectTrigger className="h-10 gap-2 rounded-xl border bg-card">
               <Calendar className="size-4 text-muted-foreground" />
@@ -157,13 +183,60 @@ export default function TransactionsPage() {
           <span className="text-right">Amount</span>
         </div>
 
-        {isLoading ? (
+        {filter === "INVESTMENT" ? (
+          investments.isLoading ? (
+            <div className="px-6 py-10 text-center text-sm text-muted-foreground">Loading…</div>
+          ) : investmentRows.length === 0 ? (
+            <div className="px-6 py-12 text-center text-sm text-muted-foreground">
+              No investment movements yet.
+            </div>
+          ) : (
+            investmentRows.map((t) => {
+              const gross = t.quantity * t.price;
+              const signed = t.side === "BUY" ? -(gross + t.fee) : gross - t.fee;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setInvTx(t)}
+                  className={cn(
+                    GRID,
+                    "w-full border-b border-background px-6 py-4 text-left text-sm transition-colors last:border-b-0 hover:bg-muted/50",
+                  )}
+                >
+                  <span className="font-mono text-xs text-muted-foreground">{shortDate(t.date)}</span>
+                  <span className="flex min-w-0 items-center gap-3">
+                    <span className="flex size-8 items-center justify-center rounded-lg bg-accent font-display text-[11px] font-semibold text-accent-foreground">
+                      {(t.ticker?.symbol ?? "?").slice(0, 2).toUpperCase()}
+                    </span>
+                    <span className="truncate font-medium">
+                      {INVESTMENT_SIDE_LABELS[t.side]} {t.ticker?.symbol ?? ""}
+                    </span>
+                  </span>
+                  <span>
+                    <span className="rounded-md bg-accent px-2 py-0.5 text-[11px] font-semibold text-accent-foreground">
+                      Investment
+                    </span>
+                  </span>
+                  <span className="truncate text-muted-foreground">{t.ticker?.name ?? "—"}</span>
+                  <span
+                    className={cn(
+                      "text-right font-mono font-semibold tabular-nums",
+                      signed >= 0 ? "text-positive" : "text-negative",
+                    )}
+                  >
+                    {signed >= 0 ? "+" : ""}
+                    {formatMoney(signed, t.ticker?.currency ?? currency)}
+                  </span>
+                </button>
+              );
+            })
+          )
+        ) : isLoading ? (
           <div className="px-6 py-10 text-center text-sm text-muted-foreground">Loading…</div>
         ) : rows.length === 0 ? (
           <div className="px-6 py-12 text-center text-sm text-muted-foreground">
-            {filter === "INVESTMENT"
-              ? "No investment movements yet."
-              : "No transactions for this filter."}
+            No transactions for this filter.
           </div>
         ) : (
           rows.map((t) => {
@@ -217,6 +290,14 @@ export default function TransactionsPage() {
           if (!o) setDetailTx(null);
         }}
         currency={currency}
+      />
+
+      <InvestmentTxDialog
+        tx={invTx}
+        open={invTx !== null}
+        onOpenChange={(o) => {
+          if (!o) setInvTx(null);
+        }}
       />
     </div>
   );

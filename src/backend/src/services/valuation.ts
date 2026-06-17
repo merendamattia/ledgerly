@@ -23,6 +23,7 @@ export interface NetWorth {
   baseCurrency: string;
   cash: number;
   investments: number;
+  debts: number;
   total: number;
   allocation: Record<string, number>; // CASH + per TickerType, in base currency
   holdings: HoldingValuation[];
@@ -36,7 +37,8 @@ export interface NetWorth {
 export async function computeNetWorth(): Promise<NetWorth> {
   const baseCurrency = await settingsRepository.baseCurrency();
 
-  // Cash accounts converted to base currency.
+  // Cash accounts converted to base currency. The account's current cached
+  // balance is the live source of truth (snapshots are kept only for history).
   const accounts = await prisma.cashAccount.findMany();
   let cash = 0;
   for (const account of accounts) {
@@ -79,11 +81,20 @@ export async function computeNetWorth(): Promise<NetWorth> {
     });
   }
 
+  // Debts (liabilities) converted to base currency, subtracted from net worth.
+  const debtRows = await prisma.debt.findMany();
+  let debts = 0;
+  for (const debt of debtRows) {
+    const fx = await getFxRate(debt.currency, baseCurrency);
+    debts += Number(debt.amount) * fx;
+  }
+
   return {
     baseCurrency,
     cash,
     investments,
-    total: cash + investments,
+    debts,
+    total: cash + investments - debts,
     allocation,
     holdings: detail,
   };

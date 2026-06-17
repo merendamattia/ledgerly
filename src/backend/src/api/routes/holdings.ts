@@ -6,6 +6,8 @@ import { holdingRepository } from "../../repositories/holding.ts";
 import { tickerRepository } from "../../repositories/ticker.ts";
 import { createHoldingSchema, updateHoldingSchema } from "../../schemas/index.ts";
 import { serializeHolding } from "../../utils/serialize.ts";
+import { computeInvestmentHistory } from "../../services/investmentHistory.ts";
+import { computeBenchmarkComparison } from "../../services/benchmark.ts";
 import { NotFoundError } from "../../core/errors.ts";
 import type { AppEnv } from "../types.ts";
 
@@ -14,6 +16,14 @@ export const holdingsRoutes = new Hono<AppEnv>()
   .get("/", async (c) => {
     const holdings = await holdingRepository.list();
     return c.json(holdings.map(serializeHolding));
+  })
+  .get("/history", async (c) => {
+    const points = await computeInvestmentHistory();
+    return c.json(points);
+  })
+  .get("/benchmark", async (c) => {
+    const comparison = await computeBenchmarkComparison();
+    return c.json(comparison);
   })
   .post("/", zValidator("json", createHoldingSchema), async (c) => {
     const input = c.req.valid("json");

@@ -2,7 +2,7 @@ import { tickerRepository } from "../../repositories/ticker.ts";
 import { settingsRepository } from "../../repositories/settings.ts";
 import { backfillTicker } from "../market/backfill.ts";
 import { backfillFx } from "../market/fx.ts";
-import { createDailySnapshot } from "../snapshot.ts";
+import { createDailySnapshot, createDailyBalanceSnapshots } from "../snapshot.ts";
 
 /**
  * Nightly job: for every tracked ticker, fetch the missing daily closes; refresh
@@ -24,6 +24,7 @@ export async function runNightlyPrices(): Promise<number> {
     }
   }
 
+  await createDailyBalanceSnapshots();
   await createDailySnapshot();
   return tickers.length;
 }

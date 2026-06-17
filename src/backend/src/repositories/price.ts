@@ -31,6 +31,15 @@ export const priceRepository = {
     });
   },
 
+  /** Full ascending close series for a ticker (for benchmark comparison). */
+  series(tickerId: string) {
+    return prisma.priceHistory.findMany({
+      where: { tickerId },
+      orderBy: { date: "asc" },
+      select: { date: true, close: true },
+    });
+  },
+
   /** Latest close on or before a given date (for historical valuations). */
   onOrBefore(tickerId: string, date: Date) {
     return prisma.priceHistory.findFirst({

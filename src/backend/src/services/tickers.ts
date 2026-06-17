@@ -6,6 +6,7 @@ import { getPriceProvider } from "./market/providers/index.ts";
 import { backfillTicker } from "./market/backfill.ts";
 import { backfillFx } from "./market/fx.ts";
 import { runTrackedJob } from "./cron/runner.ts";
+import { assertNoInvestmentTransactions } from "./investments.ts";
 import { ConflictError } from "../core/errors.ts";
 
 /**
@@ -17,10 +18,10 @@ export async function addAsset(symbol: string, type: TickerType): Promise<Ticker
   const provider = getPriceProvider(type);
   const meta = await provider.fetchMeta(symbol);
 
+  // Idempotent: if already tracked, return it (its prices are already backfilled).
+  // This lets the "search → select" flow safely (re)resolve a ticker id.
   const existing = await tickerRepository.findBySymbol(meta.symbol);
-  if (existing) {
-    throw new ConflictError(`Asset already tracked: ${meta.symbol}`);
-  }
+  if (existing) return existing;
 
   const ticker = await tickerRepository.create({
     symbol: meta.symbol,
@@ -48,11 +49,12 @@ export async function addAsset(symbol: string, type: TickerType): Promise<Ticker
   return ticker;
 }
 
-/** Remove a tracked asset. Fails if any holding still references it. */
+/** Remove a tracked asset. Fails if any holding or movement still references it. */
 export async function removeAsset(id: string): Promise<void> {
   const count = await holdingRepository.countByTicker(id);
   if (count > 0) {
     throw new ConflictError("Cannot delete an asset that still has holdings");
   }
+  await assertNoInvestmentTransactions(id);
   await tickerRepository.delete(id);
 }

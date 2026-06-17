@@ -47,6 +47,23 @@ export function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+/** Compact day label with year, e.g. "15 Jun '26" — used on chart axes/rows. */
+export function shortDate(value: string | Date): string {
+  const d = typeof value === "string" ? new Date(value) : value;
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = d.toLocaleDateString("en-GB", { month: "short" });
+  const yy = String(d.getFullYear()).slice(-2);
+  return `${day} ${month} '${yy}`;
+}
+
+/** Compact month label with year, e.g. "Jun '26" — used on month-bucketed charts. */
+export function monthLabel(value: string | Date): string {
+  const d = typeof value === "string" ? new Date(value) : value;
+  const month = d.toLocaleDateString("en-GB", { month: "short" });
+  const yy = String(d.getFullYear()).slice(-2);
+  return `${month} '${yy}`;
+}
+
 /** Local date as an ISO yyyy-mm-dd string (avoids UTC off-by-one). */
 function localISO(d: Date): string {
   const y = d.getFullYear();
@@ -85,6 +102,12 @@ export const TICKER_TYPE_LABELS: Record<string, string> = {
   ETF: "ETF",
   EQUITY: "Equity",
   CRYPTO: "Crypto",
+};
+
+/** Human-readable labels for investment movement sides shown in selects. */
+export const INVESTMENT_SIDE_LABELS: Record<string, string> = {
+  BUY: "Buy",
+  SELL: "Sell",
 };
 
 export type DatePreset = "this-month" | "last-month" | "this-year" | "all";

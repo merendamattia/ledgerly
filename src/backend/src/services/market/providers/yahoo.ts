@@ -1,5 +1,5 @@
 import YahooFinance from "yahoo-finance2";
-import type { Bar, InstrumentMeta, PriceProvider } from "./types.ts";
+import type { Bar, InstrumentMeta, PriceProvider, SearchCandidate } from "./types.ts";
 
 // In v3 the client is instantiated. Suppress interactive notices and the version
 // check so the library is silent in a server context.
@@ -39,5 +39,40 @@ export const yahooProvider: PriceProvider = {
     }
     bars.sort((a, b) => a.date.getTime() - b.date.getTime());
     return bars;
+  },
+
+  async search(query: string): Promise<SearchCandidate[]> {
+    const result = await yahooFinance.search(query, { quotesCount: 10, newsCount: 0 });
+    // Keep equities, ETFs and crypto. Yahoo serves crypto as "<COIN>-USD" pairs
+    // (quoteType CRYPTOCURRENCY), which we expose under our own CRYPTO type.
+    const matches = result.quotes.filter(
+      (q): q is typeof q & {
+        symbol: string;
+        quoteType: "EQUITY" | "ETF" | "CRYPTOCURRENCY";
+      } =>
+        "symbol" in q &&
+        (q.quoteType === "EQUITY" || q.quoteType === "ETF" || q.quoteType === "CRYPTOCURRENCY"),
+    );
+    if (matches.length === 0) return [];
+
+    // Attach live prices + currency from a batch quote (best effort).
+    const symbols = matches.map((m) => m.symbol);
+    const quotes = await yahooFinance.quote(symbols).catch(() => []);
+    const bySymbol = new Map(quotes.map((q) => [q.symbol, q]));
+
+    return matches.map((m) => {
+      const q = bySymbol.get(m.symbol);
+      const name =
+        ("longname" in m && m.longname) || ("shortname" in m && m.shortname) || m.symbol;
+      const exchange = "exchDisp" in m && typeof m.exchDisp === "string" ? m.exchDisp : undefined;
+      return {
+        symbol: m.symbol,
+        name: String(name),
+        type: m.quoteType === "CRYPTOCURRENCY" ? "CRYPTO" : m.quoteType,
+        exchange,
+        currency: q?.currency,
+        price: q?.regularMarketPrice,
+      } satisfies SearchCandidate;
+    });
   },
 };

@@ -2,8 +2,14 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { requireAuth } from "../middlewares/auth.ts";
 import { cashAccountRepository } from "../../repositories/cashAccount.ts";
-import { createAccountSchema, updateAccountSchema } from "../../schemas/index.ts";
-import { serializeAccount } from "../../utils/serialize.ts";
+import { cashSnapshotRepository } from "../../repositories/cashSnapshot.ts";
+import { createCashSnapshot } from "../../services/snapshot.ts";
+import {
+  createAccountSchema,
+  createCashSnapshotSchema,
+  updateAccountSchema,
+} from "../../schemas/index.ts";
+import { serializeAccount, serializeCashSnapshot } from "../../utils/serialize.ts";
 import { NotFoundError } from "../../core/errors.ts";
 import type { AppEnv } from "../types.ts";
 
@@ -12,6 +18,15 @@ export const accountsRoutes = new Hono<AppEnv>()
   .get("/", async (c) => {
     const accounts = await cashAccountRepository.list();
     return c.json(accounts.map(serializeAccount));
+  })
+  .get("/snapshots", async (c) => {
+    const snapshots = await cashSnapshotRepository.history();
+    return c.json(snapshots.map(serializeCashSnapshot));
+  })
+  .post("/snapshots", zValidator("json", createCashSnapshotSchema), async (c) => {
+    const { date, entries } = c.req.valid("json");
+    const snapshots = await createCashSnapshot(date, entries);
+    return c.json(snapshots.map(serializeCashSnapshot), 201);
   })
   .post("/", zValidator("json", createAccountSchema), async (c) => {
     const input = c.req.valid("json");

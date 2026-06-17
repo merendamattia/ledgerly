@@ -10,8 +10,8 @@ import { CronSection } from "@/components/cron-section";
 import { NetWorthChart } from "@/components/charts/net-worth-chart";
 import { AllocationChart } from "@/components/charts/allocation-chart";
 import { CashFlowChart } from "@/components/charts/cashflow-chart";
-import { useDashboard, type DashboardData } from "@/hooks/use-dashboard";
-import { formatMoney, formatPercent } from "@/lib/format";
+import { useDashboard, useNetWorthHistory, type DashboardData } from "@/hooks/use-dashboard";
+import { formatMoney, formatPercent, shortDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 type RecentTx = DashboardData["recentTransactions"][number];
@@ -34,10 +34,6 @@ const BAR_COLORS = [
   "var(--chart-6)",
 ];
 
-function shortDate(iso: string): string {
-  return new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short" }).format(new Date(iso));
-}
-
 export default function OverviewPage() {
   const { data, isLoading } = useDashboard();
   const [period, setPeriod] = useState<string>("365");
@@ -53,10 +49,11 @@ export default function OverviewPage() {
   const netFlow = cashFlow.income - cashFlow.expense;
   const savingsRate = cashFlow.income > 0 ? Math.round((netFlow / cashFlow.income) * 100) : 0;
 
+  const nwHistory = useNetWorthHistory();
   const sliced = useMemo(() => {
-    const snaps = data?.snapshots ?? [];
-    return snaps.slice(Math.max(0, snaps.length - Number(period)));
-  }, [data?.snapshots, period]);
+    const pts = (nwHistory.data ?? []).map((p) => ({ date: p.date, totalValue: p.totalValue }));
+    return pts.slice(Math.max(0, pts.length - Number(period)));
+  }, [nwHistory.data, period]);
 
   const nwDelta = useMemo(() => {
     if (sliced.length < 2) return null;

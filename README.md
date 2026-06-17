@@ -37,7 +37,7 @@ The UI is organized into four sections (the "modern ledger" design — see [`DES
 | Frontend  | Next.js (App Router), TanStack Query, shadcn/ui, Recharts             |
 | Backend   | Hono (typed RPC), Prisma 7 + Postgres, Redis (ioredis), Better Auth   |
 | Tooling   | Bun (workspaces, test runner), TypeScript                            |
-| Providers | Yahoo Finance (equity/ETF), CoinGecko (crypto), Frankfurter (FX)     |
+| Providers | Yahoo Finance (equity/ETF/crypto), Frankfurter (FX)                  |
 
 ## Architecture
 

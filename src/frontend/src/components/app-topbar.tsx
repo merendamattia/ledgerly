@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { Search } from "lucide-react";
 import { useSearch } from "@/components/search-context";
 import { AddTransactionDialog, type AddMode } from "@/components/add-transaction-dialog";
+import { ImportInvestmentTransactionsDialog } from "@/components/import-investment-transactions-dialog";
 import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 
@@ -36,12 +38,21 @@ function addModeFor(pathname: string): AddMode | null {
   return null;
 }
 
+const ADD_LABEL: Record<AddMode, string> = {
+  full: "Add transaction",
+  cashflow: "Add expense",
+  investment: "Add investment",
+};
+
 export function AppTopbar() {
   const pathname = usePathname();
   const { query, setQuery } = useSearch();
   const meta = metaFor(pathname);
   const showSearch = pathname.startsWith("/transactions");
   const addMode = addModeFor(pathname);
+  // CSV dropped inside the investment Add drawer is handed off to the import flow.
+  const [importOpen, setImportOpen] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
 
   return (
     <header className="sticky top-0 z-10 flex items-center justify-between gap-6 border-b bg-background/80 px-4 py-4 backdrop-blur-md md:px-8">
@@ -75,12 +86,31 @@ export function AppTopbar() {
         {addMode ? (
           <AddTransactionDialog
             mode={addMode}
+            onImportFile={
+              addMode === "investment"
+                ? (file) => {
+                    setImportFile(file);
+                    setImportOpen(true);
+                  }
+                : undefined
+            }
             trigger={
               <Button className="h-10 gap-1.5 rounded-xl px-4">
                 <span className="text-base leading-none">+</span>
-                Add
+                {ADD_LABEL[addMode]}
               </Button>
             }
+          />
+        ) : null}
+
+        {addMode === "investment" ? (
+          <ImportInvestmentTransactionsDialog
+            open={importOpen}
+            onOpenChange={(o) => {
+              setImportOpen(o);
+              if (!o) setImportFile(null);
+            }}
+            initialFile={importFile}
           />
         ) : null}
       </div>

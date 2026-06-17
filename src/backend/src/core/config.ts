@@ -12,7 +12,6 @@ const envSchema = z.object({
   CRON_SECRET: z.string().min(8),
   PORT: z.coerce.number().int().positive().default(3001),
   FRONTEND_URL: z.string().url().default("http://localhost:3000"),
-  COINGECKO_API_KEY: z.string().optional(),
   // In-process scheduler for the nightly price job (no external Coolify task).
   CRON_ENABLED: z.coerce.boolean().default(true),
   CRON_SCHEDULE: z.string().default("0 2 * * *"),
