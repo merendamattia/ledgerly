@@ -97,7 +97,7 @@ export function AppBottomNav() {
   return (
     <nav
       aria-label="Primary"
-      className="pb-safe fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 backdrop-blur-md"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 pb-[calc(env(safe-area-inset-bottom)+0.625rem)] backdrop-blur-md"
     >
       <ul className="mx-auto flex max-w-2xl items-stretch">
         {TABS.map((tab) => {

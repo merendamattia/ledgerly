@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, type ReactElement } from "react";
+import { useState, type ComponentType, type ReactElement } from "react";
 import { toast } from "sonner";
-import { Plus } from "lucide-react";
+import { Plus, Check, Wallet, ArrowDownLeft, ArrowUpRight, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,21 +15,17 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Field, FieldLabel } from "@/components/ui/field";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { CategoryIcon } from "@/components/category-badge";
 import { TickerSearch, type SelectedTicker } from "@/components/ticker-search";
 import { CsvDropzone } from "@/components/csv-dropzone";
-import { useCategories } from "@/hooks/use-categories";
+import { useCategories, type Category } from "@/hooks/use-categories";
 import { useCreateTransaction } from "@/hooks/use-expenses";
 import { useCreateInvestmentTx } from "@/hooks/use-investments";
-import { useAccounts, useCreateAccount } from "@/hooks/use-accounts";
-import { todayISO, DIRECTION_LABELS, formatMoney } from "@/lib/format";
+import { useAccounts, useCreateAccount, type Account } from "@/hooks/use-accounts";
+import { todayISO, formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
+
+type Kind = "INCOME" | "EXPENSE" | "INVESTMENT";
 
 // Shared shell: a scrollable field area + a pinned footer (Cancel + submit),
 // matching the design drawer. Used by every form in the Add drawer.
@@ -67,14 +63,215 @@ function FormShell({
   );
 }
 
+// A segmented control (Buy/Sell, Expense/Income/Investment) styled like the
+// design's pill switch — bigger and clearer than a two-option dropdown.
+function Segment<T extends string>({
+  options,
+  value,
+  onChange,
+}: {
+  options: { value: T; label: string; icon?: ComponentType<{ className?: string }> }[];
+  value: T;
+  onChange: (value: T) => void;
+}) {
+  return (
+    <div className="flex gap-1 rounded-xl bg-muted p-1">
+      {options.map((o) => {
+        const active = value === o.value;
+        return (
+          <button
+            key={o.value}
+            type="button"
+            onClick={() => onChange(o.value)}
+            className={cn(
+              "flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-[13px] font-semibold transition-colors",
+              active
+                ? "bg-card text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {o.icon ? <o.icon className="size-4" /> : null}
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+const KIND_OPTIONS: { value: Kind; label: string; icon: ComponentType<{ className?: string }> }[] = [
+  { value: "EXPENSE", label: "Expense", icon: ArrowUpRight },
+  { value: "INCOME", label: "Income", icon: ArrowDownLeft },
+  { value: "INVESTMENT", label: "Investment", icon: TrendingUp },
+];
+
+// Beige tappable category chips with the design's tinted icon. Selecting toggles;
+// the list is already scoped to the chosen kind, so the other set never shows.
+function CategoryPicker({
+  categories,
+  isLoading,
+  value,
+  onChange,
+}: {
+  categories: Category[];
+  isLoading: boolean;
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  if (isLoading) return <p className="text-sm text-muted-foreground">Loading categories…</p>;
+  if (categories.length === 0)
+    return (
+      <p className="text-sm text-muted-foreground">No categories yet — add some in Settings.</p>
+    );
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      {categories.map((c) => {
+        const selected = value === c.id;
+        return (
+          <button
+            key={c.id}
+            type="button"
+            onClick={() => onChange(selected ? "" : c.id)}
+            className={cn(
+              "flex items-center gap-2.5 rounded-xl border p-2.5 text-left transition-colors",
+              selected
+                ? "border-foreground/30 bg-card shadow-sm"
+                : "border-transparent bg-secondary/60 hover:bg-secondary",
+            )}
+          >
+            <CategoryIcon name={c.name} />
+            <span className="min-w-0 flex-1 truncate text-sm font-medium capitalize">{c.name}</span>
+            {selected ? <Check className="size-4 shrink-0 text-foreground" /> : null}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// Beige tappable account cards + an inline "New account" card. Adding one
+// renders it as a new card (and selects it), no separate dialog.
+function AccountPicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  const accounts = useAccounts();
+  const createAccount = useCreateAccount();
+  const [showNew, setShowNew] = useState(false);
+  const [name, setName] = useState("");
+  const [currency, setCurrency] = useState("EUR");
+
+  const rows = accounts.data ?? [];
+
+  async function add() {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    try {
+      const acc = await createAccount.mutateAsync({
+        name: trimmed,
+        type: "BROKER",
+        currency: currency.trim().toUpperCase() || "EUR",
+        balance: 0,
+      });
+      onChange(acc.id);
+      setName("");
+      setCurrency("EUR");
+      setShowNew(false);
+    } catch (err) {
+      toast.error((err as Error).message);
+    }
+  }
+
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      {rows.map((a: Account) => {
+        const selected = value === a.id;
+        return (
+          <button
+            key={a.id}
+            type="button"
+            onClick={() => onChange(a.id)}
+            className={cn(
+              "flex items-center gap-2.5 rounded-xl border p-2.5 text-left transition-colors",
+              selected
+                ? "border-foreground/30 bg-card shadow-sm"
+                : "border-transparent bg-secondary/60 hover:bg-secondary",
+            )}
+          >
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-[9px] bg-accent text-accent-foreground">
+              <Wallet className="size-4" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-medium">{a.name}</span>
+              <span className="block truncate text-xs text-muted-foreground">{a.currency}</span>
+            </span>
+            {selected ? <Check className="size-4 shrink-0 text-foreground" /> : null}
+          </button>
+        );
+      })}
+
+      {showNew ? (
+        <div className="col-span-2 flex flex-col gap-2 rounded-xl border bg-card p-3">
+          <div className="flex gap-2">
+            <Input
+              autoFocus
+              placeholder="Account name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void add();
+                }
+              }}
+            />
+            <Input
+              className="w-20 shrink-0 text-center uppercase"
+              placeholder="EUR"
+              maxLength={3}
+              value={currency}
+              onChange={(e) => setCurrency(e.target.value.toUpperCase())}
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" size="sm" onClick={() => setShowNew(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => void add()}
+              disabled={createAccount.isPending || !name.trim()}
+            >
+              {createAccount.isPending ? "Adding…" : "Add account"}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setShowNew(true)}
+          className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-border bg-secondary/40 p-2.5 text-sm font-semibold text-[#5b7d10] transition-colors hover:bg-secondary"
+        >
+          <Plus className="size-4" />
+          New account
+        </button>
+      )}
+    </div>
+  );
+}
+
 // Which "add" variant to show:
-// - "full"       Transactions: income, expense, plus a disabled "investment" option.
+// - "full"       Transactions: income, expense, investment.
 // - "cashflow"   Expenses & Cash Flow: income / expense only.
-// - "investment" Assets & Investments: investment movement only — not active yet.
+// - "investment" Assets & Investments: investment movement only.
 export type AddMode = "full" | "cashflow" | "investment";
 
 const SHEET_META: Record<AddMode, { title: string; description: string }> = {
-  full: { title: "New transaction", description: "Record an income or an expense." },
+  full: { title: "New transaction", description: "Record an income, expense or investment." },
   cashflow: { title: "New transaction", description: "Record an income or an expense." },
   investment: {
     title: "New investment movement",
@@ -96,9 +293,7 @@ export function AddTransactionDialog({
   onImportFile?: (file: File) => void;
 }) {
   const [open, setOpen] = useState(false);
-  // In "full" mode the user picks between income, expense and an investment
-  // movement; "cashflow" mode is income/expense only.
-  const [kind, setKind] = useState<"INCOME" | "EXPENSE" | "INVESTMENT">("EXPENSE");
+  const [kind, setKind] = useState<Kind>("EXPENSE");
   const [categoryId, setCategoryId] = useState("");
   const [date, setDate] = useState(todayISO());
   const [amount, setAmount] = useState("");
@@ -106,8 +301,7 @@ export function AddTransactionDialog({
   const categories = useCategories(kind === "INVESTMENT" ? "EXPENSE" : kind);
   const create = useCreateTransaction();
   const meta = SHEET_META[mode];
-  const typeItems =
-    mode === "full" ? { ...DIRECTION_LABELS, INVESTMENT: "Investment" } : DIRECTION_LABELS;
+  const kindOptions = mode === "full" ? KIND_OPTIONS : KIND_OPTIONS.filter((o) => o.value !== "INVESTMENT");
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -144,7 +338,10 @@ export function AddTransactionDialog({
           )
         }
       />
-      <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-lg">
+      <SheetContent
+        side="right"
+        className="flex w-full flex-col gap-0 p-0 data-[side=right]:w-[88%] sm:max-w-xl"
+      >
         <SheetHeader className="border-b p-6">
           <SheetTitle className="font-display text-xl font-semibold tracking-tight">
             {meta.title}
@@ -168,33 +365,19 @@ export function AddTransactionDialog({
           <div className="flex min-h-0 flex-1 flex-col">
             <div className="border-b px-6 py-4">
               <Field>
-                <FieldLabel htmlFor="tx-type">Type</FieldLabel>
-                <Select
+                <FieldLabel>Type</FieldLabel>
+                <Segment
+                  options={kindOptions}
                   value={kind}
-                  items={typeItems}
-                  onValueChange={(v) => {
-                    setKind((v ?? "EXPENSE") as typeof kind);
+                  onChange={(v) => {
+                    setKind(v);
                     setCategoryId("");
                   }}
-                >
-                  <SelectTrigger id="tx-type">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="EXPENSE">Expense</SelectItem>
-                    <SelectItem value="INCOME">Income</SelectItem>
-                    {mode === "full" ? (
-                      <SelectItem value="INVESTMENT">Investment</SelectItem>
-                    ) : null}
-                  </SelectContent>
-                </Select>
+                />
               </Field>
             </div>
             {kind === "INVESTMENT" ? (
-              <InvestmentCreate
-                onDone={() => setOpen(false)}
-                onCancel={() => setOpen(false)}
-              />
+              <InvestmentCreate onDone={() => setOpen(false)} onCancel={() => setOpen(false)} />
             ) : (
               <FormShell
                 onSubmit={submit}
@@ -203,23 +386,13 @@ export function AddTransactionDialog({
                 submitting={create.isPending}
               >
                 <Field>
-                  <FieldLabel htmlFor="category">Category</FieldLabel>
-                  <Select
+                  <FieldLabel>Category</FieldLabel>
+                  <CategoryPicker
+                    categories={categories.data ?? []}
+                    isLoading={categories.isLoading}
                     value={categoryId}
-                    items={categories.data?.map((c) => ({ value: c.id, label: c.name })) ?? []}
-                    onValueChange={(v) => setCategoryId(v ?? "")}
-                  >
-                    <SelectTrigger id="category">
-                      <SelectValue placeholder="Select a category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.data?.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    onChange={setCategoryId}
+                  />
                 </Field>
                 <div className="grid grid-cols-2 gap-4">
                   <Field>
@@ -238,6 +411,7 @@ export function AddTransactionDialog({
                       id="amount"
                       type="number"
                       step="0.01"
+                      placeholder="0.00"
                       value={amount}
                       onChange={(e) => setAmount(e.target.value)}
                       required
@@ -281,7 +455,10 @@ export function AddMovementSheet({
   const create = useCreateInvestmentTx();
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-lg">
+      <SheetContent
+        side="right"
+        className="flex w-full flex-col gap-0 p-0 data-[side=right]:w-[88%] sm:max-w-xl"
+      >
         <SheetHeader className="border-b p-6">
           <SheetTitle className="font-display text-xl font-semibold tracking-tight">
             New investment movement
@@ -390,8 +567,6 @@ export function InvestmentMovementForm({
   onCancel?: () => void;
   children?: React.ReactNode;
 }) {
-  const accounts = useAccounts();
-  const createAccount = useCreateAccount();
   const [ticker, setTicker] = useState<SelectedTicker | null>(lockedTicker ?? null);
   const [side, setSide] = useState<"BUY" | "SELL">(initial?.side ?? "BUY");
   const [date, setDate] = useState(initial?.date ?? todayISO());
@@ -400,29 +575,6 @@ export function InvestmentMovementForm({
   const [fee, setFee] = useState(initial?.fee ?? "");
   const [note, setNote] = useState(initial?.note ?? "");
   const [cashAccountId, setCashAccountId] = useState(initial?.cashAccountId ?? "");
-  const [showNewAccount, setShowNewAccount] = useState(false);
-  const [newAccountName, setNewAccountName] = useState("");
-
-  const accountRows = accounts.data ?? [];
-  const accountItems = Object.fromEntries(accountRows.map((a) => [a.id, a.name]));
-
-  async function addAccount() {
-    const name = newAccountName.trim();
-    if (!name) return;
-    try {
-      const acc = await createAccount.mutateAsync({
-        name,
-        type: "BROKER",
-        currency: "EUR",
-        balance: 0,
-      });
-      setCashAccountId(acc.id);
-      setNewAccountName("");
-      setShowNewAccount(false);
-    } catch (err) {
-      toast.error((err as Error).message);
-    }
-  }
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -484,80 +636,20 @@ export function InvestmentMovementForm({
       </Field>
 
       <Field>
-        <FieldLabel htmlFor="account">Account</FieldLabel>
-        <Select
-          value={cashAccountId}
-          items={accountItems}
-          onValueChange={(v) => setCashAccountId(v ?? "")}
-        >
-          <SelectTrigger id="account">
-            <SelectValue placeholder="Select an account" />
-          </SelectTrigger>
-          <SelectContent>
-            {accountRows.map((a) => (
-              <SelectItem key={a.id} value={a.id}>
-                {a.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {showNewAccount ? (
-          <div className="mt-2 flex gap-2">
-            <Input
-              placeholder="New account name"
-              value={newAccountName}
-              onChange={(e) => setNewAccountName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  void addAccount();
-                }
-              }}
-            />
-            <Button
-              type="button"
-              onClick={() => void addAccount()}
-              disabled={createAccount.isPending || !newAccountName.trim()}
-            >
-              Add
-            </Button>
-            <Button type="button" variant="ghost" onClick={() => setShowNewAccount(false)}>
-              Cancel
-            </Button>
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setShowNewAccount(true)}
-            className="mx-auto mt-1.5 text-xs font-semibold text-[#5b7d10] hover:underline"
-          >
-            + New account
-          </button>
-        )}
+        <FieldLabel>Account</FieldLabel>
+        <AccountPicker value={cashAccountId} onChange={setCashAccountId} />
       </Field>
 
       <Field>
         <FieldLabel>Side</FieldLabel>
-        <div className="flex gap-1 rounded-xl bg-muted p-1">
-          {(["BUY", "SELL"] as const).map((s) => {
-            const active = side === s;
-            return (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setSide(s)}
-                className={cn(
-                  "flex-1 rounded-lg py-2 text-sm font-semibold transition-colors",
-                  active
-                    ? "bg-card text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {s === "BUY" ? "↗ Buy" : "↘ Sell"}
-              </button>
-            );
-          })}
-        </div>
+        <Segment
+          options={[
+            { value: "BUY", label: "↗ Buy" },
+            { value: "SELL", label: "↘ Sell" },
+          ]}
+          value={side}
+          onChange={setSide}
+        />
       </Field>
 
       <div className="grid grid-cols-2 gap-4">
