@@ -22,7 +22,6 @@ services:
       CRON_ENABLED: ${CRON_ENABLED:-true}
       CRON_SCHEDULE: ${CRON_SCHEDULE:-0 2 * * *}
       CRON_TIMEZONE: ${CRON_TIMEZONE:-Europe/Rome}
-      COINGECKO_API_KEY: ${COINGECKO_API_KEY:-}
     expose:
       - "3001"
 

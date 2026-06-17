@@ -83,6 +83,7 @@ function useInvalidateInvestmentTx() {
     qc.invalidateQueries({ queryKey: ["investment-transactions"] });
     qc.invalidateQueries({ queryKey: queryKeys.holdings });
     qc.invalidateQueries({ queryKey: queryKeys.investmentHistory });
+    qc.invalidateQueries({ queryKey: queryKeys.investmentBenchmark });
     qc.invalidateQueries({ queryKey: queryKeys.dashboard });
   };
 }
@@ -133,6 +134,17 @@ export function useInvestmentHistory() {
   return useQuery({
     queryKey: queryKeys.investmentHistory,
     queryFn: async () => unwrap<PortfolioPoint[]>(await api.holdings.history.$get()),
+  });
+}
+
+export type BenchmarkComparison = InferResponseType<typeof api.holdings.benchmark.$get, 200>;
+
+/** Portfolio vs MSCI World (IWDA.AS) rebased index + summary, for the benchmark chart. */
+export function useBenchmark() {
+  return useQuery({
+    queryKey: queryKeys.investmentBenchmark,
+    queryFn: async () =>
+      unwrap<BenchmarkComparison>(await api.holdings.benchmark.$get()),
   });
 }
 

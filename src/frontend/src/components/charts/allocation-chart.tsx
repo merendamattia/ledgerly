@@ -75,13 +75,16 @@ export function AllocationChart({
         </div>
       </div>
 
-      <ul className="grid w-full gap-2">
+      <ul className="grid w-full gap-2.5">
         {data.map((d) => (
-          <li key={d.key} className="flex items-center gap-2 text-sm">
-            <span className="size-2.5 rounded-full" style={{ backgroundColor: d.fill }} />
-            <span className="text-muted-foreground">{d.name}</span>
-            <span className="ml-auto font-medium tabular-nums">
+          <li key={d.key} className="flex items-center gap-2.5 text-sm">
+            <span className="size-2.5 rounded-[3px]" style={{ backgroundColor: d.fill }} />
+            <span>{d.name}</span>
+            <span className="ml-auto font-mono font-semibold tabular-nums">
               {total > 0 ? Math.round((d.value / total) * 100) : 0}%
+            </span>
+            <span className="min-w-[64px] text-right font-mono text-xs text-muted-foreground tabular-nums">
+              {formatMoney(d.value, currency)}
             </span>
           </li>
         ))}

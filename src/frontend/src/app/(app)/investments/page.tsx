@@ -23,8 +23,10 @@ import { AddAccountDialog } from "@/components/add-account-dialog";
 import { MoneyAmount } from "@/components/money-amount";
 import { NetWorthChart } from "@/components/charts/net-worth-chart";
 import { AllocationChart } from "@/components/charts/allocation-chart";
+import { BenchmarkChart } from "@/components/charts/benchmark-chart";
+import { GeoExposureCard } from "@/components/geo-exposure-card";
 import { useDashboard, type DashboardData } from "@/hooks/use-dashboard";
-import { useInvestmentHistory } from "@/hooks/use-investments";
+import { useInvestmentHistory, useBenchmark } from "@/hooks/use-investments";
 import {
   useAccounts,
   useDeleteAccount,
@@ -45,11 +47,24 @@ type Holding = DashboardData["netWorth"]["holdings"][number];
 
 const card = "border shadow-card ring-0";
 const PERIODS = [
-  { value: "30", label: "1M" },
-  { value: "90", label: "3M" },
-  { value: "365", label: "1Y" },
-  { value: "9999", label: "Max" },
+  { value: "1M", label: "1M" },
+  { value: "3M", label: "3M" },
+  { value: "YTD", label: "YTD" },
+  { value: "1Y", label: "1Y" },
+  { value: "Max", label: "Max" },
 ] as const;
+const PERIOD_DAYS: Record<string, number> = { "1M": 30, "3M": 90, "1Y": 365 };
+
+// Earliest ISO day (yyyy-mm-dd) to keep for a period; null = keep everything (Max).
+function periodCutoff(period: string): string | null {
+  if (period === "Max") return null;
+  const d = new Date();
+  d.setUTCHours(0, 0, 0, 0);
+  if (period === "YTD") return `${d.getUTCFullYear()}-01-01`;
+  const days = PERIOD_DAYS[period] ?? 365;
+  d.setUTCDate(d.getUTCDate() - days);
+  return d.toISOString().slice(0, 10);
+}
 
 const CLASS_LABELS: Record<string, string> = { EQUITY: "Equity", ETF: "ETF", CRYPTO: "Crypto" };
 const CLASS_COLOR: Record<string, string> = {
@@ -68,7 +83,7 @@ const BAR_COLORS = [
 
 export default function InvestmentsPage() {
   const { data, isLoading } = useDashboard();
-  const [period, setPeriod] = useState<string>("365");
+  const [period, setPeriod] = useState<string>("1Y");
   const [classFilter, setClassFilter] = useState<string>("ALL");
   const [openPosition, setOpenPosition] = useState<Holding | null>(null);
 
@@ -79,18 +94,21 @@ export default function InvestmentsPage() {
   const totalCost = holdings.reduce((s, h) => s + h.cost, 0);
   const totalGain = holdings.reduce((s, h) => s + h.gain, 0);
   const returnPct = totalCost > 0 ? (totalGain / totalCost) * 100 : 0;
-  const best = useMemo(
-    () => [...holdings].sort((a, b) => b.gainPct - a.gainPct)[0] ?? null,
-    [holdings],
-  );
 
   // Portfolio area series: real daily portfolio value (from the first buy),
-  // computed server-side from price history. The period pill slices the tail.
+  // computed server-side from price history. The period pill slices a date window.
   const history = useInvestmentHistory();
-  const series = useMemo(() => {
-    const points = (history.data ?? []).map((p) => ({ date: p.date, totalValue: p.value }));
-    return points.slice(Math.max(0, points.length - Number(period)));
+  const periodWindow = useMemo(() => {
+    const points = history.data ?? [];
+    const cutoff = periodCutoff(period);
+    if (!cutoff) return points;
+    const sliced = points.filter((p) => p.date >= cutoff);
+    return sliced.length >= 2 ? sliced : points; // fall back if window predates first point
   }, [history.data, period]);
+  const series = useMemo(
+    () => periodWindow.map((p) => ({ date: p.date, totalValue: p.value })),
+    [periodWindow],
+  );
 
   const allocation = nw?.allocation ?? {};
   const investmentAllocation = Object.fromEntries(
@@ -161,53 +179,19 @@ export default function InvestmentsPage() {
         </div>
       </Card>
 
-      {/* KPI stack */}
-      <div className="col-span-12 flex flex-col gap-5 lg:col-span-4">
-        <Card className={cn(card, "gap-0 p-5 animate-fu")}>
-          <p className="text-xs font-medium text-muted-foreground">Total return</p>
-          <p
-            className={cn(
-              "mt-2 font-mono text-2xl font-semibold tabular-nums",
-              returnPct >= 0 ? "text-positive" : "text-negative",
-            )}
-          >
-            {formatPercent(returnPct)}
-          </p>
-        </Card>
-        <Card className={cn(card, "gap-0 p-5 animate-fu")}>
-          <p className="text-xs font-medium text-muted-foreground">Best position</p>
-          {best ? (
-            <div className="mt-2 flex items-baseline gap-2">
-              <span className="font-display text-lg font-semibold">{best.symbol}</span>
-              <span className="font-mono text-sm font-semibold text-positive tabular-nums">
-                {formatPercent(best.gainPct)}
-              </span>
-            </div>
-          ) : (
-            <p className="mt-2 text-sm text-muted-foreground">No positions yet</p>
-          )}
-        </Card>
-        <Card className="gap-0 border-0 bg-sidebar p-5 text-sidebar-accent-foreground shadow-card ring-0 animate-fu">
-          <p className="text-xs font-medium text-sidebar-foreground">Unrealised gain</p>
-          <p className="mt-2 font-mono text-2xl font-semibold tabular-nums text-primary">
-            {totalGain >= 0 ? "+" : ""}
-            {formatMoney(totalGain, currency)}
-          </p>
-        </Card>
-      </div>
-
-      {/* Allocation by class */}
-      <Card className={cn(card, "col-span-12 gap-0 p-6 animate-fu lg:col-span-5")}>
+      {/* Allocation by class — beside the chart */}
+      <Card className={cn(card, "col-span-12 gap-0 p-6 animate-fu lg:col-span-4")}>
         <p className="font-display text-base font-semibold">Allocation by class</p>
-        <div className="mt-2">
+        <div className="mt-4">
           <AllocationChart allocation={investmentAllocation} currency={currency} />
         </div>
       </Card>
 
+      {/* Row 2 — three charts */}
       {/* Return per position */}
-      <Card className={cn(card, "col-span-12 gap-0 p-6 animate-fu lg:col-span-7")}>
+      <Card className={cn(card, "col-span-12 gap-0 p-6 animate-fu lg:col-span-4")}>
         <p className="font-display text-base font-semibold">Return by position</p>
-        <div className="mt-4 flex flex-col gap-4">
+        <div className="mt-4 flex flex-col gap-3.5">
           {holdings.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">No positions yet.</p>
           ) : (
@@ -241,6 +225,12 @@ export default function InvestmentsPage() {
           )}
         </div>
       </Card>
+
+      {/* Portfolio vs benchmark */}
+      <BenchmarkCard className="col-span-12 lg:col-span-4" />
+
+      {/* Geographic exposure (placeholder until data lands) */}
+      <GeoExposureCard className="col-span-12 lg:col-span-4" />
 
       {/* Liquidity panel + snapshot history */}
       <LiquidityPanel currency={currency} />
@@ -310,6 +300,87 @@ export default function InvestmentsPage() {
         />
       ) : null}
     </div>
+  );
+}
+
+// Portfolio vs MSCI World (IWDA.AS). Real data when the benchmark ticker is
+// tracked; a placeholder otherwise.
+function BenchmarkCard({ className }: { className?: string }) {
+  const { data, isLoading } = useBenchmark();
+  const available = data && data.available ? data : null;
+  const outperf = available
+    ? available.portfolioReturnPct - available.benchmarkReturnPct
+    : 0;
+
+  return (
+    <Card className={cn(card, "gap-0 p-6 animate-fu", className)}>
+      <div className="mb-1 flex items-start justify-between gap-3">
+        <p className="font-display text-base font-semibold">Portfolio vs benchmark</p>
+        {available ? (
+          <span
+            className={cn(
+              "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold",
+              outperf >= 0 ? "bg-positive/10 text-positive" : "bg-negative/10 text-negative",
+            )}
+          >
+            {outperf >= 0 ? "+" : ""}
+            {outperf.toFixed(1)} pp
+          </span>
+        ) : null}
+      </div>
+
+      {isLoading ? (
+        <div className="flex h-[200px] items-center justify-center text-sm text-muted-foreground">
+          Loading…
+        </div>
+      ) : available ? (
+        <>
+          <div className="mb-2 flex gap-3.5 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <span className="size-2.5 rounded-[3px] bg-[var(--chart-1)]" />
+              You
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="size-2.5 rounded-[3px] bg-[var(--chart-3)]" />
+              {available.benchmarkName}
+            </span>
+          </div>
+          <BenchmarkChart data={available.series} />
+          <div className="mt-3.5 grid grid-cols-3 border-t pt-3.5 text-xs">
+            <div>
+              <p className="text-muted-foreground">Your return</p>
+              <p
+                className={cn(
+                  "font-mono text-sm font-semibold tabular-nums",
+                  available.portfolioReturnPct >= 0 ? "text-positive" : "text-negative",
+                )}
+              >
+                {formatPercent(available.portfolioReturnPct)}
+              </p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Benchmark</p>
+              <p className="font-mono text-sm font-semibold tabular-nums">
+                {formatPercent(available.benchmarkReturnPct)}
+              </p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Beta</p>
+              <p className="font-mono text-sm font-semibold tabular-nums">
+                {available.beta.toFixed(2)}
+              </p>
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="flex h-[200px] flex-col items-center justify-center gap-1.5 text-center">
+          <p className="text-sm font-medium text-muted-foreground">No benchmark yet</p>
+          <p className="max-w-[240px] text-xs text-muted-foreground">
+            Track the MSCI World ETF (IWDA.AS) to compare your portfolio against the market.
+          </p>
+        </div>
+      )}
+    </Card>
   );
 }
 

@@ -12,6 +12,7 @@ export const queryKeys = {
   tickerSearch: (q: string, type?: string) => ["tickers", "search", q, type ?? ""] as const,
   holdings: ["holdings"] as const,
   investmentHistory: ["holdings", "history"] as const,
+  investmentBenchmark: ["holdings", "benchmark"] as const,
   investmentTransactions: (filters?: Record<string, unknown>) =>
     ["investment-transactions", filters ?? {}] as const,
   debts: ["debts"] as const,
