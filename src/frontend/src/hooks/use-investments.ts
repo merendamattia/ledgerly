@@ -148,6 +148,19 @@ export function useBenchmark() {
   });
 }
 
+export type HoldingReturn = InferResponseType<typeof api.holdings.returns.$get, 200>[number];
+
+/** Per-position market return over a window (omit `from` for the Max window). */
+export function useHoldingReturns(from?: string) {
+  return useQuery({
+    queryKey: from ? [...queryKeys.investmentReturns, from] : queryKeys.investmentReturns,
+    queryFn: async () =>
+      unwrap<HoldingReturn[]>(
+        await api.holdings.returns.$get({ query: from ? { from } : {} }),
+      ),
+  });
+}
+
 function useInvalidateHoldings() {
   const qc = useQueryClient();
   return () => {

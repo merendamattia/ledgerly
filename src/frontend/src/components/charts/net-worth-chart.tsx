@@ -16,9 +16,11 @@ const chartConfig = {
 export function NetWorthChart({
   data,
   currency,
+  className = "h-[280px] w-full",
 }: {
   data: { date: string; totalValue: number }[];
   currency: string;
+  className?: string;
 }) {
   const points = data.map((d) => ({
     date: shortDate(d.date),
@@ -26,7 +28,7 @@ export function NetWorthChart({
   }));
 
   return (
-    <ChartContainer config={chartConfig} className="h-[280px] w-full">
+    <ChartContainer config={chartConfig} className={className}>
       <AreaChart data={points} margin={{ left: 12, right: 12 }}>
         <defs>
           <linearGradient id="netWorthFill" x1="0" y1="0" x2="0" y2="1">

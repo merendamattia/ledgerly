@@ -150,6 +150,14 @@ export const dashboardQuerySchema = z.object({
   months: z.coerce.number().int().min(1).max(60).optional(),
 });
 
+// Per-position returns query: ISO day (yyyy-mm-dd) the window starts from.
+export const holdingReturnsQuerySchema = z.object({
+  from: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+});
+
 // --- Settings ---------------------------------------------------------------
 export const updateSettingsSchema = z.object({
   baseCurrency: z.string().trim().length(3).toUpperCase(),

@@ -15,6 +15,7 @@ export interface SnapshotRow {
   id: string;
   name: string;
   type: string;
+  note?: string | null;
   currency: string;
   value: number;
 }
@@ -131,7 +132,7 @@ export function SnapshotPanel({
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold">{r.name}</p>
-                  <p className="truncate text-xs text-muted-foreground">{r.type}</p>
+                  <p className="truncate text-xs text-muted-foreground">{r.note || r.type}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-xs text-muted-foreground">{r.currency}</span>

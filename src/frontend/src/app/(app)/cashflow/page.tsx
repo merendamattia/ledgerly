@@ -12,7 +12,6 @@ import {
 } from "@/components/ui/select";
 import { StatCard } from "@/components/stat-card";
 import { MoneyAmount } from "@/components/money-amount";
-import { ImportTransactionsDialog } from "@/components/import-transactions-dialog";
 import { CashFlowChart } from "@/components/charts/cashflow-chart";
 import { NetWorthChart } from "@/components/charts/net-worth-chart";
 import { useExpenses } from "@/hooks/use-expenses";
@@ -127,7 +126,6 @@ export default function CashFlowPage() {
   return (
     <div className="flex flex-col gap-5 animate-fu">
       <div className="flex flex-wrap items-center justify-end gap-2.5">
-        <ImportTransactionsDialog />
         <Select
           value={period}
           items={PERIOD_LABELS}
@@ -171,8 +169,9 @@ export default function CashFlowPage() {
         </Card>
       </div>
 
+      {/* Two equal-size charts side by side. */}
       <div className="grid gap-5 lg:grid-cols-12">
-        <Card className={`${cardClass} lg:col-span-7`}>
+        <Card className={`${cardClass} lg:col-span-6`}>
           <CardHeader className="px-0">
             <CardTitle className="font-display font-semibold">Monthly cash flow</CardTitle>
           </CardHeader>
@@ -180,12 +179,33 @@ export default function CashFlowPage() {
             {series.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">No data in range.</p>
             ) : (
-              <CashFlowChart data={series} currency={currency} />
+              <CashFlowChart data={series} currency={currency} className="h-[300px] w-full" />
             )}
           </CardContent>
         </Card>
 
-        <Card className={`${cardClass} lg:col-span-5`}>
+        <Card className={`${cardClass} lg:col-span-6`}>
+          <CardHeader className="px-0">
+            <CardTitle className="font-display font-semibold">Cumulative savings</CardTitle>
+            <CardAction>
+              <span className="inline-flex items-center rounded-full bg-accent px-2.5 py-1 text-xs font-semibold text-accent-foreground">
+                <MoneyAmount value={net} currency={currency} signed /> in range
+              </span>
+            </CardAction>
+          </CardHeader>
+          <CardContent className="px-0 pt-4">
+            {cumulative.length < 2 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">Not enough data yet.</p>
+            ) : (
+              <NetWorthChart data={cumulative} currency={currency} className="h-[300px] w-full" />
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Breakdown on the left, room for a future chart on the right. */}
+      <div className="grid gap-5 lg:grid-cols-12">
+        <Card className={`${cardClass} lg:col-span-6`}>
           <CardHeader className="px-0">
             <CardTitle className="font-display font-semibold">Where money goes</CardTitle>
           </CardHeader>
@@ -193,7 +213,7 @@ export default function CashFlowPage() {
             {expenseByCategory.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">No expenses in range.</p>
             ) : (
-              expenseByCategory.slice(0, 6).map((c, i) => (
+              expenseByCategory.map((c, i) => (
                 <div key={c.name}>
                   <div className="mb-1.5 flex items-center justify-between text-sm">
                     <span className="flex items-center gap-2 capitalize">
@@ -221,25 +241,14 @@ export default function CashFlowPage() {
             )}
           </CardContent>
         </Card>
-      </div>
 
-      <Card className={cardClass}>
-        <CardHeader className="px-0">
-          <CardTitle className="font-display font-semibold">Cumulative savings</CardTitle>
-          <CardAction>
-            <span className="inline-flex items-center rounded-full bg-accent px-2.5 py-1 text-xs font-semibold text-accent-foreground">
-              <MoneyAmount value={net} currency={currency} signed /> in range
-            </span>
-          </CardAction>
-        </CardHeader>
-        <CardContent className="px-0 pt-4">
-          {cumulative.length < 2 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">Not enough data yet.</p>
-          ) : (
-            <NetWorthChart data={cumulative} currency={currency} />
-          )}
-        </CardContent>
-      </Card>
+        <Card
+          className={`${cardClass} flex min-h-[260px] flex-col items-center justify-center text-center lg:col-span-6`}
+        >
+          <p className="text-sm font-medium text-muted-foreground">More insights coming soon</p>
+          <p className="mt-1 text-xs text-muted-foreground">A new chart will live here.</p>
+        </Card>
+      </div>
     </div>
   );
 }

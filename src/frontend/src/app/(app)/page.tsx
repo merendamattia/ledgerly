@@ -2,16 +2,16 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, TrendingUp } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { MoneyAmount } from "@/components/money-amount";
 import { CategoryIcon, CategoryBadge } from "@/components/category-badge";
-import { CronSection } from "@/components/cron-section";
 import { NetWorthChart } from "@/components/charts/net-worth-chart";
 import { AllocationChart } from "@/components/charts/allocation-chart";
 import { CashFlowChart } from "@/components/charts/cashflow-chart";
 import { useDashboard, useNetWorthHistory, type DashboardData } from "@/hooks/use-dashboard";
-import { formatMoney, formatPercent, shortDate } from "@/lib/format";
+import { useInvestmentTransactions } from "@/hooks/use-investments";
+import { formatMoney, formatPercent, shortDate, INVESTMENT_SIDE_LABELS } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 type RecentTx = DashboardData["recentTransactions"][number];
@@ -23,7 +23,6 @@ const PERIODS = [
   { value: "9999", label: "Max" },
 ] as const;
 
-const SAVINGS_GOAL = 30;
 const card = "border shadow-card ring-0";
 const BAR_COLORS = [
   "var(--chart-1)",
@@ -36,6 +35,7 @@ const BAR_COLORS = [
 
 export default function OverviewPage() {
   const { data, isLoading } = useDashboard();
+  const investmentTx = useInvestmentTransactions({ limit: 5 });
   const [period, setPeriod] = useState<string>("365");
 
   const nw = data?.netWorth;
@@ -43,7 +43,8 @@ export default function OverviewPage() {
   const total = nw?.total ?? 0;
   const allocation = nw?.allocation ?? {};
   const liquidity = allocation["CASH"] ?? 0;
-  const investments = total - liquidity;
+  const investments = nw?.investments ?? 0;
+  const debts = nw?.debts ?? 0;
 
   const cashFlow = data?.cashFlowMonth ?? { income: 0, expense: 0 };
   const netFlow = cashFlow.income - cashFlow.expense;
@@ -66,19 +67,19 @@ export default function OverviewPage() {
 
   const series = data?.cashFlowSeries ?? [];
   const expenseByCategory = useMemo(() => {
-    const b = data?.categoryBreakdown ?? [];
+    const b = data?.categoryBreakdownMonth ?? [];
     return b
       .filter((c) => c.expense > 0)
       .map((c) => ({ name: c.name, value: c.expense }))
       .sort((a, b) => b.value - a.value);
-  }, [data?.categoryBreakdown]);
+  }, [data?.categoryBreakdownMonth]);
   const expenseTotal = expenseByCategory.reduce((s, c) => s + c.value, 0);
   const maxCategory = expenseByCategory[0]?.value || 1;
 
   return (
     <div className="grid grid-cols-12 gap-5">
       {/* Net worth hero */}
-      <Card className={cn(card, "col-span-12 gap-0 p-6 animate-fu lg:col-span-8")}>
+      <Card className={cn(card, "col-span-12 flex flex-col gap-0 p-6 animate-fu lg:col-span-8")}>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-xs font-medium text-muted-foreground">Net worth</p>
@@ -120,8 +121,13 @@ export default function OverviewPage() {
             ))}
           </div>
         </div>
-        <div className="mt-4">
-          <NetWorthChart data={sliced} currency={currency} />
+        {/* Chart is absolutely positioned so it adds no intrinsic height; the
+            row height is driven by the Allocation card on the right, which
+            grows as new assets are added. */}
+        <div className="relative mt-4 min-h-[280px] flex-1">
+          <div className="absolute inset-0">
+            <NetWorthChart data={sliced} currency={currency} className="aspect-auto h-full w-full" />
+          </div>
         </div>
       </Card>
 
@@ -133,13 +139,7 @@ export default function OverviewPage() {
         </div>
       </Card>
 
-      {/* KPI row */}
-      <Card className={cn(card, "col-span-6 gap-0 p-5 animate-fu lg:col-span-3")}>
-        <p className="text-xs font-medium text-muted-foreground">Liquidity</p>
-        <p className="mt-2.5 font-mono text-2xl font-semibold tabular-nums">
-          {formatMoney(liquidity, currency)}
-        </p>
-      </Card>
+      {/* KPI row — Investments · Liquidity · Debts · Cash flow + Savings */}
       <Card className={cn(card, "col-span-6 gap-0 p-5 animate-fu lg:col-span-3")}>
         <p className="text-xs font-medium text-muted-foreground">Investments</p>
         <p className="mt-2.5 font-mono text-2xl font-semibold tabular-nums">
@@ -147,56 +147,75 @@ export default function OverviewPage() {
         </p>
       </Card>
       <Card className={cn(card, "col-span-6 gap-0 p-5 animate-fu lg:col-span-3")}>
-        <p className="text-xs font-medium text-muted-foreground">Monthly cash flow</p>
+        <p className="text-xs font-medium text-muted-foreground">Liquidity</p>
+        <p className="mt-2.5 font-mono text-2xl font-semibold tabular-nums">
+          {formatMoney(liquidity, currency)}
+        </p>
+      </Card>
+      <Card className={cn(card, "col-span-6 gap-0 p-5 animate-fu lg:col-span-3")}>
+        <p className="text-xs font-medium text-muted-foreground">Debts</p>
         <p
           className={cn(
             "mt-2.5 font-mono text-2xl font-semibold tabular-nums",
-            netFlow >= 0 ? "text-positive" : "text-negative",
+            debts > 0 && "text-negative",
           )}
         >
-          {netFlow >= 0 ? "+" : ""}
-          {formatMoney(netFlow, currency)}
+          {debts > 0 ? "−" : ""}
+          {formatMoney(debts, currency)}
         </p>
       </Card>
-      {/* Savings rate: dark ink card */}
+      {/* Monthly cash flow + savings rate: dark ink card (they're related) */}
       <Card
         className={cn(
           "col-span-6 gap-0 border-0 bg-sidebar p-5 text-sidebar-accent-foreground shadow-card ring-0 animate-fu lg:col-span-3",
         )}
       >
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-sidebar-foreground">Savings rate</span>
-          <span className="rounded-md bg-primary/15 px-2 py-0.5 text-[11px] font-semibold text-primary">
-            Goal {SAVINGS_GOAL}%
+        <span className="text-xs font-medium text-sidebar-foreground">Monthly cash flow</span>
+        <p className="mt-2.5 flex items-baseline gap-2 font-mono text-2xl font-semibold tabular-nums text-primary">
+          <span>
+            {netFlow >= 0 ? "+" : ""}
+            {formatMoney(netFlow, currency)}
           </span>
-        </div>
-        <p className="mt-2.5 font-mono text-2xl font-semibold tabular-nums text-primary">
-          {savingsRate}%
+          <span className="text-sm font-medium text-sidebar-foreground">
+            (Savings rate {savingsRate}%)
+          </span>
         </p>
-        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[#2c2d22]">
-          <div
-            className="h-full rounded-full bg-primary animate-grow"
-            style={{ width: `${Math.min(100, (savingsRate / SAVINGS_GOAL) * 100)}%` }}
-          />
-        </div>
       </Card>
 
-      {/* Income vs expenses */}
-      <Card className={cn(card, "col-span-12 gap-0 p-6 animate-fu lg:col-span-7")}>
+      {/* Income vs expenses — the row height is driven by the category card on
+          the right; the chart is absolutely positioned so it adds no intrinsic
+          height and simply fills whatever height that gives. */}
+      <Card className={cn(card, "col-span-12 flex flex-col gap-0 p-6 animate-fu lg:col-span-7")}>
         <p className="font-display text-base font-semibold">Income vs expenses</p>
-        <div className="mt-4">
-          <CashFlowChart data={series} currency={currency} />
+        <div className="relative mt-4 min-h-[260px] flex-1">
+          <div className="absolute inset-0">
+            <CashFlowChart
+              data={series}
+              currency={currency}
+              className="aspect-auto h-full w-full"
+            />
+          </div>
         </div>
       </Card>
 
       {/* Expenses by category */}
       <Card className={cn(card, "col-span-12 gap-0 p-6 animate-fu lg:col-span-5")}>
-        <p className="font-display text-base font-semibold">Expenses by category</p>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="font-display text-base font-semibold">Expenses by category</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">This month</p>
+          </div>
+          {expenseByCategory.length > 6 ? (
+            <Link href="/cashflow" className="text-sm font-semibold text-positive">
+              View all →
+            </Link>
+          ) : null}
+        </div>
         <div className="mt-4 flex flex-col gap-4">
           {expenseByCategory.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">No expenses yet.</p>
           ) : (
-            expenseByCategory.slice(0, 5).map((c, i) => (
+            expenseByCategory.slice(0, 6).map((c, i) => (
               <div key={c.name}>
                 <div className="mb-1.5 flex items-center justify-between text-sm">
                   <span>{c.name}</span>
@@ -227,10 +246,10 @@ export default function OverviewPage() {
         ) : null}
       </Card>
 
-      {/* Recent movements */}
-      <Card className={cn(card, "col-span-12 gap-0 p-6 animate-fu")}>
+      {/* Recent expenses & income */}
+      <Card className={cn(card, "col-span-12 gap-0 p-6 animate-fu lg:col-span-6")}>
         <div className="flex items-center justify-between">
-          <p className="font-display text-base font-semibold">Recent movements</p>
+          <p className="font-display text-base font-semibold">Recent expenses</p>
           <Link href="/transactions" className="text-sm font-semibold text-positive">
             View all →
           </Link>
@@ -244,8 +263,8 @@ export default function OverviewPage() {
             data?.recentTransactions.slice(0, 5).map((t: RecentTx) => {
               const signed = t.direction === "EXPENSE" ? -t.amount : t.amount;
               return (
-                <li key={t.id} className="flex items-center gap-3 py-3.5">
-                  <span className="w-14 font-mono text-xs text-muted-foreground">
+                <li key={t.id} className="flex items-center gap-3 py-2.5">
+                  <span className="w-20 shrink-0 font-mono text-xs whitespace-nowrap text-muted-foreground">
                     {shortDate(t.date)}
                   </span>
                   <CategoryIcon name={t.category?.name} />
@@ -267,9 +286,52 @@ export default function OverviewPage() {
         </ul>
       </Card>
 
-      <div className="col-span-12">
-        <CronSection />
-      </div>
+      {/* Recent investment movements */}
+      <Card className={cn(card, "col-span-12 gap-0 p-6 animate-fu lg:col-span-6")}>
+        <div className="flex items-center justify-between">
+          <p className="font-display text-base font-semibold">Recent investments</p>
+          <Link href="/investments" className="text-sm font-semibold text-positive">
+            View all →
+          </Link>
+        </div>
+        <ul className="mt-2 divide-y">
+          {investmentTx.isLoading ? (
+            <li className="py-4 text-sm text-muted-foreground">Loading…</li>
+          ) : (investmentTx.data ?? []).length === 0 ? (
+            <li className="py-8 text-center text-sm text-muted-foreground">
+              No investment movements yet.
+            </li>
+          ) : (
+            investmentTx.data?.slice(0, 5).map((t) => {
+              const gross = t.quantity * t.price;
+              const signed = t.side === "BUY" ? -(gross + t.fee) : gross - t.fee;
+              return (
+                <li key={t.id} className="flex items-center gap-3 py-2.5">
+                  <span className="w-20 shrink-0 font-mono text-xs whitespace-nowrap text-muted-foreground">
+                    {shortDate(t.date)}
+                  </span>
+                  <span className="flex size-9 items-center justify-center rounded-lg bg-accent text-accent-foreground">
+                    <TrendingUp className="size-4" />
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                    {INVESTMENT_SIDE_LABELS[t.side]} {t.ticker?.symbol ?? ""}
+                  </span>
+                  <span className="rounded-md bg-accent px-2 py-0.5 text-[11px] font-semibold text-accent-foreground">
+                    {t.cashAccount?.name ?? "Investment"}
+                  </span>
+                  <MoneyAmount
+                    value={signed}
+                    currency={t.ticker?.currency ?? currency}
+                    colored
+                    signed
+                    className="w-28 text-right font-mono text-sm font-semibold"
+                  />
+                </li>
+              );
+            })
+          )}
+        </ul>
+      </Card>
     </div>
   );
 }

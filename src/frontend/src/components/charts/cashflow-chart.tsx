@@ -29,9 +29,11 @@ function compactMoney(value: number, currency: string): string {
 export function CashFlowChart({
   data,
   currency,
+  className = "h-[260px] w-full",
 }: {
   data: { month: string; income: number; expense: number }[];
   currency: string;
+  className?: string;
 }) {
   const points = data.map((d) => ({
     month: monthLabel(`${d.month}-01`),
@@ -40,7 +42,7 @@ export function CashFlowChart({
   }));
 
   return (
-    <ChartContainer config={chartConfig} className="h-[260px] w-full">
+    <ChartContainer config={chartConfig} className={className}>
       <BarChart data={points} margin={{ left: 12, right: 12 }}>
         <CartesianGrid vertical={false} />
         <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} minTickGap={16} />

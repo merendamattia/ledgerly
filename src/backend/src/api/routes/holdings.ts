@@ -4,10 +4,15 @@ import type { Prisma } from "@prisma/client";
 import { requireAuth } from "../middlewares/auth.ts";
 import { holdingRepository } from "../../repositories/holding.ts";
 import { tickerRepository } from "../../repositories/ticker.ts";
-import { createHoldingSchema, updateHoldingSchema } from "../../schemas/index.ts";
+import {
+  createHoldingSchema,
+  updateHoldingSchema,
+  holdingReturnsQuerySchema,
+} from "../../schemas/index.ts";
 import { serializeHolding } from "../../utils/serialize.ts";
 import { computeInvestmentHistory } from "../../services/investmentHistory.ts";
 import { computeBenchmarkComparison } from "../../services/benchmark.ts";
+import { computeHoldingReturns } from "../../services/holdingReturns.ts";
 import { NotFoundError } from "../../core/errors.ts";
 import type { AppEnv } from "../types.ts";
 
@@ -24,6 +29,12 @@ export const holdingsRoutes = new Hono<AppEnv>()
   .get("/benchmark", async (c) => {
     const comparison = await computeBenchmarkComparison();
     return c.json(comparison);
+  })
+  .get("/returns", zValidator("query", holdingReturnsQuerySchema), async (c) => {
+    const fromStr = c.req.valid("query").from;
+    const from = fromStr ? new Date(`${fromStr}T00:00:00.000Z`) : undefined;
+    const returns = await computeHoldingReturns(from);
+    return c.json(returns);
   })
   .post("/", zValidator("json", createHoldingSchema), async (c) => {
     const input = c.req.valid("json");

@@ -26,7 +26,7 @@ import { AllocationChart } from "@/components/charts/allocation-chart";
 import { BenchmarkChart } from "@/components/charts/benchmark-chart";
 import { GeoExposureCard } from "@/components/geo-exposure-card";
 import { useDashboard, type DashboardData } from "@/hooks/use-dashboard";
-import { useInvestmentHistory, useBenchmark } from "@/hooks/use-investments";
+import { useInvestmentHistory, useBenchmark, useHoldingReturns } from "@/hooks/use-investments";
 import {
   useAccounts,
   useDeleteAccount,
@@ -66,6 +66,37 @@ function periodCutoff(period: string): string | null {
   return d.toISOString().slice(0, 10);
 }
 
+// Simple period-over-period returns (mirrors backend utils/stats.ts).
+function seriesReturns(values: number[]): number[] {
+  const out: number[] = [];
+  for (let i = 1; i < values.length; i++) {
+    const prev = values[i - 1];
+    out.push(prev !== 0 ? values[i] / prev - 1 : 0);
+  }
+  return out;
+}
+
+// Beta = cov(asset, bench) / var(bench), 0 if undefined.
+function betaOf(asset: number[], bench: number[]): number {
+  const n = Math.min(asset.length, bench.length);
+  if (n < 2) return 0;
+  let sa = 0;
+  let sb = 0;
+  for (let i = 0; i < n; i++) {
+    sa += asset[i];
+    sb += bench[i];
+  }
+  const ma = sa / n;
+  const mb = sb / n;
+  let cov = 0;
+  let varB = 0;
+  for (let i = 0; i < n; i++) {
+    cov += (asset[i] - ma) * (bench[i] - mb);
+    varB += (bench[i] - mb) ** 2;
+  }
+  return varB > 0 ? cov / varB : 0;
+}
+
 const CLASS_LABELS: Record<string, string> = { EQUITY: "Equity", ETF: "ETF", CRYPTO: "Crypto" };
 const CLASS_COLOR: Record<string, string> = {
   EQUITY: "var(--chart-1)",
@@ -83,17 +114,13 @@ const BAR_COLORS = [
 
 export default function InvestmentsPage() {
   const { data, isLoading } = useDashboard();
-  const [period, setPeriod] = useState<string>("1Y");
+  const [period, setPeriod] = useState<string>("YTD");
   const [classFilter, setClassFilter] = useState<string>("ALL");
   const [openPosition, setOpenPosition] = useState<Holding | null>(null);
 
   const nw = data?.netWorth;
   const currency = nw?.baseCurrency ?? "EUR";
   const holdings = useMemo(() => nw?.holdings ?? [], [nw]);
-  const invested = nw?.investments ?? 0;
-  const totalCost = holdings.reduce((s, h) => s + h.cost, 0);
-  const totalGain = holdings.reduce((s, h) => s + h.gain, 0);
-  const returnPct = totalCost > 0 ? (totalGain / totalCost) * 100 : 0;
 
   // Portfolio area series: real daily portfolio value (from the first buy),
   // computed server-side from price history. The period pill slices a date window.
@@ -110,15 +137,50 @@ export default function InvestmentsPage() {
     [periodWindow],
   );
 
-  const allocation = nw?.allocation ?? {};
-  const investmentAllocation = Object.fromEntries(
-    Object.entries(allocation).filter(([k]) => k !== "CASH"),
+  // Header stats scoped to the selected window. Value is the current portfolio
+  // value; the return is contribution-neutral (value/invested ratio, the same
+  // method the benchmark uses) so new buys inside the window don't inflate it.
+  const stats = useMemo(() => {
+    const s = periodWindow[0];
+    const e = periodWindow.at(-1);
+    const value = e?.value ?? nw?.investments ?? 0;
+    const invested = e?.invested ?? holdings.reduce((sum, h) => sum + h.cost, 0);
+    if (!s || !e || periodWindow.length < 2 || s.invested <= 0 || s.value <= 0) {
+      // Not enough history in the window — fall back to lifetime totals.
+      const cost = holdings.reduce((sum, h) => sum + h.cost, 0);
+      const gain = holdings.reduce((sum, h) => sum + h.gain, 0);
+      return { value, invested: cost, gain, pct: cost > 0 ? (gain / cost) * 100 : 0 };
+    }
+    const pct = ((e.value / e.invested) / (s.value / s.invested) - 1) * 100;
+    const gain = e.value - s.value - (e.invested - s.invested);
+    return { value, invested, gain, pct };
+  }, [periodWindow, nw, holdings]);
+
+  // Allocation by position: one slice per holding (every ETF, every crypto, …).
+  const investmentAllocation = useMemo(
+    () => Object.fromEntries(holdings.filter((h) => h.value > 0).map((h) => [h.holdingId, h.value])),
+    [holdings],
+  );
+  const allocationLabels = useMemo(
+    () => Object.fromEntries(holdings.map((h) => [h.holdingId, h.name])),
+    [holdings],
+  );
+
+  // Per-position market returns for the selected window — synced with the
+  // portfolio timeframe pills (omit `from` for Max → since-inception price).
+  const positionReturns = useHoldingReturns(periodCutoff(period) ?? undefined);
+  const returnRows = useMemo(
+    () => [...(positionReturns.data ?? [])].sort((a, b) => b.returnPct - a.returnPct).slice(0, 6),
+    [positionReturns.data],
+  );
+  const maxAbsReturn = useMemo(
+    () => Math.max(1, ...returnRows.map((r) => Math.abs(r.returnPct))),
+    [returnRows],
   );
 
   const filteredHoldings =
     classFilter === "ALL" ? holdings : holdings.filter((h) => h.type === classFilter);
   const classes = ["ALL", ...new Set(holdings.map((h) => h.type))];
-  const maxAbsReturn = Math.max(1, ...holdings.map((h) => Math.abs(h.gainPct)));
 
   return (
     <div className="grid grid-cols-12 gap-5">
@@ -129,24 +191,24 @@ export default function InvestmentsPage() {
             <p className="text-xs font-medium text-muted-foreground">Portfolio value</p>
             <div className="mt-1.5 flex items-baseline gap-3.5">
               <span className="font-mono text-4xl font-semibold tracking-tight tabular-nums">
-                {isLoading ? "…" : formatMoney(invested, currency)}
+                {isLoading ? "…" : formatMoney(stats.value, currency)}
               </span>
-              {totalCost > 0 ? (
+              {stats.invested > 0 ? (
                 <span
                   className={cn(
                     "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold",
-                    returnPct >= 0 ? "bg-positive/10 text-positive" : "bg-negative/10 text-negative",
+                    stats.pct >= 0 ? "bg-positive/10 text-positive" : "bg-negative/10 text-negative",
                   )}
                 >
-                  {formatPercent(returnPct)} total
+                  {formatPercent(stats.pct)} {period === "Max" ? "total" : period}
                 </span>
               ) : null}
             </div>
             <p className="mt-1.5 text-xs text-muted-foreground">
-              Invested {formatMoney(totalCost, currency)} · Return{" "}
-              <span className={totalGain >= 0 ? "text-positive" : "text-negative"}>
-                {totalGain >= 0 ? "+" : ""}
-                {formatMoney(totalGain, currency)}
+              Invested {formatMoney(stats.invested, currency)} · Return{" "}
+              <span className={stats.gain >= 0 ? "text-positive" : "text-negative"}>
+                {stats.gain >= 0 ? "+" : ""}
+                {formatMoney(stats.gain, currency)}
               </span>
             </p>
           </div>
@@ -181,9 +243,13 @@ export default function InvestmentsPage() {
 
       {/* Allocation by class — beside the chart */}
       <Card className={cn(card, "col-span-12 gap-0 p-6 animate-fu lg:col-span-4")}>
-        <p className="font-display text-base font-semibold">Allocation by class</p>
+        <p className="font-display text-base font-semibold">Allocation by position</p>
         <div className="mt-4">
-          <AllocationChart allocation={investmentAllocation} currency={currency} />
+          <AllocationChart
+            allocation={investmentAllocation}
+            labels={allocationLabels}
+            currency={currency}
+          />
         </div>
       </Card>
 
@@ -192,42 +258,39 @@ export default function InvestmentsPage() {
       <Card className={cn(card, "col-span-12 gap-0 p-6 animate-fu lg:col-span-4")}>
         <p className="font-display text-base font-semibold">Return by position</p>
         <div className="mt-4 flex flex-col gap-3.5">
-          {holdings.length === 0 ? (
+          {returnRows.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">No positions yet.</p>
           ) : (
-            [...holdings]
-              .sort((a, b) => b.gainPct - a.gainPct)
-              .slice(0, 6)
-              .map((h, i) => (
-                <div key={h.holdingId}>
-                  <div className="mb-1.5 flex items-center justify-between text-sm">
-                    <span className="truncate">{h.name}</span>
-                    <span
-                      className={cn(
-                        "font-mono font-semibold tabular-nums",
-                        h.gainPct >= 0 ? "text-positive" : "text-negative",
-                      )}
-                    >
-                      {formatPercent(h.gainPct)}
-                    </span>
-                  </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-muted">
-                    <div
-                      className="h-full rounded-full animate-grow"
-                      style={{
-                        width: `${(Math.abs(h.gainPct) / maxAbsReturn) * 100}%`,
-                        background: BAR_COLORS[i % BAR_COLORS.length],
-                      }}
-                    />
-                  </div>
+            returnRows.map((r, i) => (
+              <div key={r.holdingId}>
+                <div className="mb-1.5 flex items-center justify-between text-sm">
+                  <span className="truncate">{r.name}</span>
+                  <span
+                    className={cn(
+                      "font-mono font-semibold tabular-nums",
+                      r.returnPct >= 0 ? "text-positive" : "text-negative",
+                    )}
+                  >
+                    {formatPercent(r.returnPct)}
+                  </span>
                 </div>
-              ))
+                <div className="h-2 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full animate-grow"
+                    style={{
+                      width: `${(Math.abs(r.returnPct) / maxAbsReturn) * 100}%`,
+                      background: BAR_COLORS[i % BAR_COLORS.length],
+                    }}
+                  />
+                </div>
+              </div>
+            ))
           )}
         </div>
       </Card>
 
       {/* Portfolio vs benchmark */}
-      <BenchmarkCard className="col-span-12 lg:col-span-4" />
+      <BenchmarkCard className="col-span-12 lg:col-span-4" period={period} />
 
       {/* Geographic exposure (placeholder until data lands) */}
       <GeoExposureCard className="col-span-12 lg:col-span-4" />
@@ -305,16 +368,41 @@ export default function InvestmentsPage() {
 
 // Portfolio vs MSCI World (IWDA.AS). Real data when the benchmark ticker is
 // tracked; a placeholder otherwise.
-function BenchmarkCard({ className }: { className?: string }) {
+function BenchmarkCard({ className, period }: { className?: string; period: string }) {
   const { data, isLoading } = useBenchmark();
-  const available = data && data.available ? data : null;
+  const full = data && data.available ? data : null;
+
+  // Slice the full (lifetime) series to the selected window and recompute the
+  // stats client-side: rebase both lines to 100 at the window start, derive
+  // returns and beta from the windowed indices.
+  const available = useMemo(() => {
+    if (!full) return null;
+    const cutoff = periodCutoff(period);
+    let slice = cutoff ? full.series.filter((p) => p.date >= cutoff) : full.series;
+    if (slice.length < 2) slice = full.series; // fall back if window predates first point
+    const p0 = slice[0].portfolio;
+    const b0 = slice[0].benchmark;
+    const series = slice.map((p) => ({
+      date: p.date,
+      portfolio: (p.portfolio / p0) * 100,
+      benchmark: (p.benchmark / b0) * 100,
+    }));
+    const portfolioReturnPct = (slice.at(-1)!.portfolio / p0 - 1) * 100;
+    const benchmarkReturnPct = (slice.at(-1)!.benchmark / b0 - 1) * 100;
+    const beta = betaOf(
+      seriesReturns(slice.map((p) => p.portfolio)),
+      seriesReturns(slice.map((p) => p.benchmark)),
+    );
+    return { benchmarkName: full.benchmarkName, series, portfolioReturnPct, benchmarkReturnPct, beta };
+  }, [full, period]);
+
   const outperf = available
     ? available.portfolioReturnPct - available.benchmarkReturnPct
     : 0;
 
   return (
     <Card className={cn(card, "gap-0 p-6 animate-fu", className)}>
-      <div className="mb-1 flex items-start justify-between gap-3">
+      <div className="mb-1 flex flex-wrap items-start justify-between gap-2">
         <p className="font-display text-base font-semibold">Portfolio vs benchmark</p>
         {available ? (
           <span
@@ -328,6 +416,7 @@ function BenchmarkCard({ className }: { className?: string }) {
           </span>
         ) : null}
       </div>
+
 
       {isLoading ? (
         <div className="flex h-[200px] items-center justify-center text-sm text-muted-foreground">
@@ -539,6 +628,7 @@ function DebtsCard({ currency }: { currency: string }) {
     id: d.id,
     name: d.name,
     type: d.type,
+    note: d.note,
     currency: d.currency,
     value: d.amount,
   }));

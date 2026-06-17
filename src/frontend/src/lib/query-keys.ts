@@ -13,6 +13,7 @@ export const queryKeys = {
   holdings: ["holdings"] as const,
   investmentHistory: ["holdings", "history"] as const,
   investmentBenchmark: ["holdings", "benchmark"] as const,
+  investmentReturns: ["holdings", "returns"] as const,
   investmentTransactions: (filters?: Record<string, unknown>) =>
     ["investment-transactions", filters ?? {}] as const,
   debts: ["debts"] as const,
