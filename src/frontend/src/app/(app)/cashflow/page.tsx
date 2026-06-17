@@ -69,7 +69,7 @@ const BAR_COLORS = [
   "var(--chart-6)",
 ];
 
-const cardClass = "border shadow-card ring-0 p-6 gap-0";
+const cardClass = "p-5 gap-0";
 
 export default function CashFlowPage() {
   const [period, setPeriod] = useState<Period>("this-month");
@@ -124,14 +124,14 @@ export default function CashFlowPage() {
   const maxCategory = expenseByCategory[0]?.value || 1;
 
   return (
-    <div className="flex flex-col gap-5 animate-fu">
+    <div className="flex flex-col gap-4 animate-fu md:gap-5">
       <div className="flex flex-wrap items-center justify-end gap-2.5">
         <Select
           value={period}
           items={PERIOD_LABELS}
           onValueChange={(v) => setPeriod((v ?? "this-month") as Period)}
         >
-          <SelectTrigger className="h-10 w-[170px] rounded-xl border bg-card">
+          <SelectTrigger className="w-full bg-card sm:w-auto sm:min-w-[180px]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -144,7 +144,7 @@ export default function CashFlowPage() {
         </Select>
       </div>
 
-      <div className="grid gap-5 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-3 md:gap-5">
         <StatCard
           label={`Income · ${PERIOD_LABELS[period]}`}
           value={formatMoney(income, currency)}
@@ -170,7 +170,7 @@ export default function CashFlowPage() {
       </div>
 
       {/* Two equal-size charts side by side. */}
-      <div className="grid gap-5 lg:grid-cols-12">
+      <div className="grid gap-4 md:gap-5 lg:grid-cols-12">
         <Card className={`${cardClass} lg:col-span-6`}>
           <CardHeader className="px-0">
             <CardTitle className="font-display font-semibold">Monthly cash flow</CardTitle>
@@ -204,7 +204,7 @@ export default function CashFlowPage() {
       </div>
 
       {/* Breakdown on the left, room for a future chart on the right. */}
-      <div className="grid gap-5 lg:grid-cols-12">
+      <div className="grid gap-4 md:gap-5 lg:grid-cols-12">
         <Card className={`${cardClass} lg:col-span-6`}>
           <CardHeader className="px-0">
             <CardTitle className="font-display font-semibold">Where money goes</CardTitle>

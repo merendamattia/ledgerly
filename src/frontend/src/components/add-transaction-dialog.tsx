@@ -96,20 +96,25 @@ export function AddTransactionDialog({
   onImportFile?: (file: File) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [direction, setDirection] = useState<"INCOME" | "EXPENSE">("EXPENSE");
+  // In "full" mode the user picks between income, expense and an investment
+  // movement; "cashflow" mode is income/expense only.
+  const [kind, setKind] = useState<"INCOME" | "EXPENSE" | "INVESTMENT">("EXPENSE");
   const [categoryId, setCategoryId] = useState("");
   const [date, setDate] = useState(todayISO());
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
-  const categories = useCategories(direction);
+  const categories = useCategories(kind === "INVESTMENT" ? "EXPENSE" : kind);
   const create = useCreateTransaction();
   const meta = SHEET_META[mode];
+  const typeItems =
+    mode === "full" ? { ...DIRECTION_LABELS, INVESTMENT: "Investment" } : DIRECTION_LABELS;
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (kind === "INVESTMENT") return; // handled by the investment form
     create.mutate(
       {
-        direction,
+        direction: kind,
         categoryId: categoryId || null,
         date,
         amount: Number(amount),
@@ -160,95 +165,147 @@ export function AddTransactionDialog({
             }
           />
         ) : (
-          <FormShell
-            onSubmit={submit}
-            onCancel={() => setOpen(false)}
-            submitLabel="Save"
-            submitting={create.isPending}
-          >
-            <Field>
-              <FieldLabel htmlFor="direction">Direction</FieldLabel>
-              <Select
-                value={direction}
-                items={{ ...DIRECTION_LABELS, INVESTMENT: "Investment · soon" }}
-                onValueChange={(v) => {
-                  if ((v as string) === "INVESTMENT") return;
-                  setDirection((v ?? "EXPENSE") as typeof direction);
-                  setCategoryId("");
-                }}
-              >
-                <SelectTrigger id="direction">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="EXPENSE">Expense</SelectItem>
-                  <SelectItem value="INCOME">Income</SelectItem>
-                  {mode === "full" ? (
-                    <SelectItem value="INVESTMENT" disabled>
-                      Investment · soon
-                    </SelectItem>
-                  ) : null}
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="category">Category</FieldLabel>
-              <Select
-                value={categoryId}
-                items={categories.data?.map((c) => ({ value: c.id, label: c.name })) ?? []}
-                onValueChange={(v) => setCategoryId(v ?? "")}
-              >
-                <SelectTrigger id="category">
-                  <SelectValue placeholder="Select a category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.data?.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-            <div className="grid grid-cols-2 gap-4">
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div className="border-b px-6 py-4">
               <Field>
-                <FieldLabel htmlFor="date">Date</FieldLabel>
-                <Input
-                  id="date"
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  required
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="amount">Amount</FieldLabel>
-                <Input
-                  id="amount"
-                  type="number"
-                  step="0.01"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  required
-                />
+                <FieldLabel htmlFor="tx-type">Type</FieldLabel>
+                <Select
+                  value={kind}
+                  items={typeItems}
+                  onValueChange={(v) => {
+                    setKind((v ?? "EXPENSE") as typeof kind);
+                    setCategoryId("");
+                  }}
+                >
+                  <SelectTrigger id="tx-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="EXPENSE">Expense</SelectItem>
+                    <SelectItem value="INCOME">Income</SelectItem>
+                    {mode === "full" ? (
+                      <SelectItem value="INVESTMENT">Investment</SelectItem>
+                    ) : null}
+                  </SelectContent>
+                </Select>
               </Field>
             </div>
-            <Field>
-              <FieldLabel htmlFor="note">Note</FieldLabel>
-              <Textarea id="note" value={note} onChange={(e) => setNote(e.target.value)} />
-            </Field>
-            {onImportFile ? (
-              <CsvDropzone
-                onFile={(file) => {
-                  setOpen(false);
-                  onImportFile(file);
-                }}
-                label="Import several transactions via CSV"
-                helpText="Budjet CSV export — columns: type, category, date, amount, note"
+            {kind === "INVESTMENT" ? (
+              <InvestmentCreate
+                onDone={() => setOpen(false)}
+                onCancel={() => setOpen(false)}
               />
-            ) : null}
-          </FormShell>
+            ) : (
+              <FormShell
+                onSubmit={submit}
+                onCancel={() => setOpen(false)}
+                submitLabel="Save"
+                submitting={create.isPending}
+              >
+                <Field>
+                  <FieldLabel htmlFor="category">Category</FieldLabel>
+                  <Select
+                    value={categoryId}
+                    items={categories.data?.map((c) => ({ value: c.id, label: c.name })) ?? []}
+                    onValueChange={(v) => setCategoryId(v ?? "")}
+                  >
+                    <SelectTrigger id="category">
+                      <SelectValue placeholder="Select a category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.data?.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <div className="grid grid-cols-2 gap-4">
+                  <Field>
+                    <FieldLabel htmlFor="date">Date</FieldLabel>
+                    <Input
+                      id="date"
+                      type="date"
+                      value={date}
+                      onChange={(e) => setDate(e.target.value)}
+                      required
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="amount">Amount</FieldLabel>
+                    <Input
+                      id="amount"
+                      type="number"
+                      step="0.01"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      required
+                    />
+                  </Field>
+                </div>
+                <Field>
+                  <FieldLabel htmlFor="note">Note</FieldLabel>
+                  <Textarea id="note" value={note} onChange={(e) => setNote(e.target.value)} />
+                </Field>
+                {onImportFile ? (
+                  <CsvDropzone
+                    onFile={(file) => {
+                      setOpen(false);
+                      onImportFile(file);
+                    }}
+                    label="Import several transactions via CSV"
+                    helpText="Budjet CSV export — columns: type, category, date, amount, note"
+                  />
+                ) : null}
+              </FormShell>
+            )}
+          </div>
         )}
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+// Right-side drawer to add a buy/sell locked to one position. Opened from the
+// position drill-down (which closes first, so the two modals never overlap).
+export function AddMovementSheet({
+  ticker,
+  open,
+  onOpenChange,
+}: {
+  ticker: SelectedTicker;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const create = useCreateInvestmentTx();
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-lg">
+        <SheetHeader className="border-b p-6">
+          <SheetTitle className="font-display text-xl font-semibold tracking-tight">
+            New investment movement
+          </SheetTitle>
+          <SheetDescription>Record a buy or sell for {ticker.symbol}.</SheetDescription>
+        </SheetHeader>
+        <InvestmentMovementForm
+          lockedTicker={ticker}
+          submitting={create.isPending}
+          submitLabel="Save movement"
+          onCancel={() => onOpenChange(false)}
+          onSubmit={(tickerId, values) =>
+            create.mutate(
+              { tickerId, ...values },
+              {
+                onSuccess: () => {
+                  toast.success("Movement recorded");
+                  onOpenChange(false);
+                },
+                onError: (err) => toast.error(err.message),
+              },
+            )
+          }
+        />
       </SheetContent>
     </Sheet>
   );

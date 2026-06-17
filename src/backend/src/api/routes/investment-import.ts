@@ -1,7 +1,10 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { requireAuth } from "../middlewares/auth.ts";
-import { importInvestmentTxCommitSchema } from "../../schemas/index.ts";
+import {
+  importInvestmentTxCommitSchema,
+  investmentImportColumnMapSchema,
+} from "../../schemas/index.ts";
 import { investmentImportService } from "../../services/investmentImport.ts";
 import { parseInvestmentCsv } from "../../utils/investment-csv.ts";
 import { BadRequestError } from "../../core/errors.ts";
@@ -16,8 +19,17 @@ export const investmentImportRoutes = new Hono<AppEnv>()
   .post("/parse", async (c) => {
     const body = await c.req.parseBody();
     const file = body["file"];
+    const mappingRaw = body["mapping"];
     if (!(file instanceof File)) throw new BadRequestError("Expected a file upload");
-    const { rows, errors } = parseInvestmentCsv(await file.arrayBuffer());
+    let mapping;
+    if (typeof mappingRaw === "string" && mappingRaw.trim().length > 0) {
+      try {
+        mapping = investmentImportColumnMapSchema.parse(JSON.parse(mappingRaw));
+      } catch {
+        throw new BadRequestError("Invalid investment import mapping");
+      }
+    }
+    const { rows, errors } = parseInvestmentCsv(await file.arrayBuffer(), mapping);
     return c.json({ rows, errors });
   })
   .post("/commit", zValidator("json", importInvestmentTxCommitSchema), async (c) => {

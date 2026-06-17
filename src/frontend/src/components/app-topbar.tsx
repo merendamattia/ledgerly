@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Search } from "lucide-react";
 import { useSearch } from "@/components/search-context";
@@ -8,7 +9,25 @@ import { AddTransactionDialog, type AddMode } from "@/components/add-transaction
 import { ImportInvestmentTransactionsDialog } from "@/components/import-investment-transactions-dialog";
 import { ImportTransactionsDialog } from "@/components/import-transactions-dialog";
 import { Button } from "@/components/ui/button";
-import { SidebarTrigger } from "@/components/ui/sidebar";
+
+// Lime logo tile + ledger glyph, mirrored from the old sidebar header.
+function Logo() {
+  return (
+    <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+        <path
+          d="M5 3.5h14M5 12h14M5 20.5h14"
+          stroke="currentColor"
+          strokeWidth="2.4"
+          strokeLinecap="round"
+        />
+        <circle cx="9" cy="3.5" r="2" fill="currentColor" />
+        <circle cx="16" cy="12" r="2" fill="currentColor" />
+        <circle cx="11" cy="20.5" r="2" fill="currentColor" />
+      </svg>
+    </span>
+  );
+}
 
 type PageMeta = { title: string; subtitle: string };
 
@@ -56,50 +75,52 @@ export function AppTopbar() {
   const [importOpen, setImportOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
 
+  const searchField = (
+    <div className="relative">
+      <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+      <input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search transactions…"
+        className="h-9 w-full rounded-lg border bg-card pr-3 pl-9 text-base outline-none placeholder:text-muted-foreground focus:border-ring md:text-sm"
+      />
+    </div>
+  );
+
   return (
-    <header className="sticky top-0 z-10 flex items-center justify-between gap-6 border-b bg-background/80 px-4 py-4 backdrop-blur-md md:px-8">
-      <div className="flex items-center gap-3">
-        <SidebarTrigger className="md:hidden" />
-        {meta ? (
-          <div>
-            <h1 className="font-display text-xl font-semibold tracking-tight md:text-2xl">
-              {meta.title}
-            </h1>
-            {meta.subtitle ? (
-              <p className="mt-0.5 text-sm text-muted-foreground">{meta.subtitle}</p>
+    <header className="sticky top-0 z-10 border-b bg-background/80 px-4 py-3 backdrop-blur-md md:px-8 md:py-4">
+      <div className="flex items-center justify-between gap-3">
+        <Link href="/" className="flex min-w-0 items-center gap-2.5">
+          <Logo />
+          <div className="min-w-0">
+            <span className="block font-display text-lg font-bold tracking-tight md:text-xl">
+              Ledgerly
+            </span>
+            {meta ? (
+              <span className="block truncate text-xs text-muted-foreground">{meta.title}</span>
             ) : null}
           </div>
-        ) : null}
-      </div>
+        </Link>
 
-      <div className="flex items-center gap-3">
-        {showSearch ? (
-          <div className="relative hidden w-[230px] sm:block">
-            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search transactions…"
-              className="h-10 w-full rounded-xl border bg-card pr-3 pl-9 text-sm outline-none placeholder:text-muted-foreground focus:border-ring"
+        <div className="flex items-center gap-2">
+          {showSearch ? <div className="hidden w-56 sm:block">{searchField}</div> : null}
+
+          {addMode ? (
+            <AddTransactionDialog
+              mode={addMode}
+              onImportFile={(file) => {
+                setImportFile(file);
+                setImportOpen(true);
+              }}
+              trigger={
+                <Button className="gap-1.5">
+                  <span className="text-base leading-none">+</span>
+                  <span className="hidden sm:inline">{ADD_LABEL[addMode]}</span>
+                  <span className="sr-only sm:hidden">{ADD_LABEL[addMode]}</span>
+                </Button>
+              }
             />
-          </div>
-        ) : null}
-
-        {addMode ? (
-          <AddTransactionDialog
-            mode={addMode}
-            onImportFile={(file) => {
-              setImportFile(file);
-              setImportOpen(true);
-            }}
-            trigger={
-              <Button className="h-10 gap-1.5 rounded-xl px-4">
-                <span className="text-base leading-none">+</span>
-                {ADD_LABEL[addMode]}
-              </Button>
-            }
-          />
-        ) : null}
+          ) : null}
 
         {addMode === "investment" ? (
           <ImportInvestmentTransactionsDialog
@@ -120,7 +141,11 @@ export function AppTopbar() {
             initialFile={importFile}
           />
         ) : null}
+        </div>
       </div>
+
+      {/* On phones the search drops to a full-width row instead of vanishing. */}
+      {showSearch ? <div className="mt-3 sm:hidden">{searchField}</div> : null}
     </header>
   );
 }

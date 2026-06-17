@@ -12,12 +12,36 @@ type CommitInput = InferRequestType<typeof importApi.commit.$post>["json"];
 export type CommitRow = CommitInput["rows"][number];
 export type InvestmentImportResult = InferResponseType<typeof importApi.commit.$post, 201>;
 
+export type InvestmentImportColumnMap = {
+  ticker: number | null;
+  price: number | null;
+  quantity: number | null;
+  total: number | null;
+  date: number | null;
+  broker: number | null;
+  defaults: {
+    ticker?: string;
+    date?: string;
+    broker?: string;
+  };
+  skipHeader: boolean;
+};
+
+export type InvestmentParseInput = {
+  file: File;
+  mapping: InvestmentImportColumnMap;
+};
+
 // Step 1: upload the broker CSV/TSV and get parsed rows + parse errors back.
 // Nothing is persisted — the user reviews, maps tickers/brokers, and edits first.
 export function useParseInvestmentImport() {
   return useMutation({
-    mutationFn: async (file: File) =>
-      unwrap<ParseResp>(await importApi.parse.$post({ form: { file } })),
+    mutationFn: async ({ file, mapping }: InvestmentParseInput) =>
+      unwrap<ParseResp>(
+        await importApi.parse.$post({
+          form: { file, mapping: JSON.stringify(mapping) },
+        }),
+      ),
   });
 }
 

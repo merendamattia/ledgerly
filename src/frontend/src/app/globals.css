@@ -89,6 +89,10 @@
   --chart-5: #eba23c;
   --chart-6: #db5a3c;
   --radius: 0.75rem;
+  /* One card identity (DESIGN.md ~18px) and one control height so buttons,
+     inputs and selects share a baseline. */
+  --card-radius: 1.05rem;
+  --control-h: 2.25rem;
   --sidebar: #15160f;
   --sidebar-foreground: #a7a99a;
   --sidebar-primary: #c7f046;
@@ -215,4 +219,9 @@
   box-shadow:
     0 1px 2px rgba(20, 20, 15, 0.04),
     0 12px 32px -20px rgba(20, 20, 15, 0.18);
+}
+
+/* Respect the iOS home-indicator inset for the fixed mobile bottom nav. */
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
 }

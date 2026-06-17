@@ -11,6 +11,7 @@ export interface HoldingValuation {
   type: string;
   quantity: number;
   price: number;
+  avgCost: number; // per share, ticker currency
   priceDate: string | null;
   currency: string;
   value: number; // in base currency
@@ -72,6 +73,7 @@ export async function computeNetWorth(): Promise<NetWorth> {
       type: holding.ticker.type,
       quantity,
       price,
+      avgCost: Number(holding.avgCost),
       priceDate: quote?.date.toISOString().slice(0, 10) ?? null,
       currency: holding.ticker.currency,
       value,

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Pencil, Trash2, X } from "lucide-react";
+import { Pencil, Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -12,36 +12,47 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { MoneyAmount } from "@/components/money-amount";
 import {
   InvestmentMovementForm,
   type MovementValues,
 } from "@/components/add-transaction-dialog";
 import type { SelectedTicker } from "@/components/ticker-search";
+import { useDashboard, type DashboardData } from "@/hooks/use-dashboard";
 import {
   useInvestmentTransactions,
   useUpdateInvestmentTx,
   useDeleteInvestmentTx,
   type InvestmentTransaction,
 } from "@/hooks/use-investments";
-import { formatMoney, formatDate, INVESTMENT_SIDE_LABELS } from "@/lib/format";
+
+type Holding = DashboardData["netWorth"]["holdings"][number];
+import {
+  formatMoney,
+  formatNumber,
+  formatPercent,
+  formatDate,
+  INVESTMENT_SIDE_LABELS,
+} from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-// Drill-down for a single position: lists its buy/sell movements with inline
-// edit + delete. The holding (qty + avg cost) is recomputed by the backend.
+// Drill-down for a single position: a summary header (qty, avg cost, P/L …),
+// an inline add-movement form, and the buy/sell ledger with edit + delete.
+// The holding (qty + avg cost) is recomputed server-side after any change.
 export function PositionTransactionsDialog({
-  tickerId,
-  symbol,
-  name,
+  holding,
   open,
   onOpenChange,
+  onAddMovement,
 }: {
-  tickerId: string;
-  symbol: string;
-  name: string;
+  holding: Holding;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onAddMovement: () => void;
 }) {
-  const txs = useInvestmentTransactions({ tickerId });
+  const { data: dashboard } = useDashboard();
+  const baseCurrency = dashboard?.netWorth.baseCurrency ?? "EUR";
+  const txs = useInvestmentTransactions({ tickerId: holding.tickerId });
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const rows = txs.data ?? [];
@@ -50,32 +61,80 @@ export function PositionTransactionsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{name}</DialogTitle>
+          <DialogTitle>{holding.name}</DialogTitle>
           <DialogDescription>
-            {symbol} · {rows.length} {rows.length === 1 ? "movement" : "movements"}
+            {holding.symbol} · {rows.length} {rows.length === 1 ? "movement" : "movements"}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex max-h-[60vh] flex-col overflow-auto">
+        {/* Summary metrics */}
+        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-3">
+          <Stat label="Quantity" value={formatNumber(holding.quantity, 4)} />
+          <Stat label="Avg cost" value={formatMoney(holding.avgCost, holding.currency)} />
+          <Stat label="Last price" value={formatMoney(holding.price, holding.currency)} />
+          <Stat label="Invested" value={formatMoney(holding.cost, baseCurrency)} />
+          <Stat label="Market value" value={formatMoney(holding.value, baseCurrency)} />
+          <Stat
+            label="P/L"
+            value={
+              <span className="flex items-baseline gap-2">
+                <MoneyAmount value={holding.gain} currency={baseCurrency} colored signed />
+                <span
+                  className={cn(
+                    "text-[11px] tabular-nums",
+                    holding.gainPct >= 0 ? "text-positive" : "text-negative",
+                  )}
+                >
+                  {formatPercent(holding.gainPct)}
+                </span>
+              </span>
+            }
+          />
+        </div>
+
+        {/* Add movement — opens the right-side drawer (closes this dialog first) */}
+        <Button className="w-fit" onClick={onAddMovement}>
+          <Plus data-icon="inline-start" />
+          Add movement
+        </Button>
+
+        <div className="flex max-h-[50vh] flex-col overflow-auto">
           {txs.isLoading ? (
             <p className="py-8 text-center text-sm text-muted-foreground">Loading…</p>
           ) : rows.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">No movements yet.</p>
           ) : (
-            rows.map((tx) => (
-              <MovementRow
-                key={tx.id}
-                tx={tx}
-                editing={editingId === tx.id}
-                onEdit={() => setEditingId(tx.id)}
-                onCancel={() => setEditingId(null)}
-                onDone={() => setEditingId(null)}
-              />
-            ))
+            <>
+              <div className="sticky top-0 z-10 grid grid-cols-[64px_1fr_auto_auto] items-center gap-3 border-b bg-card py-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+                <span>Side</span>
+                <span>Quantity · Price</span>
+                <span className="text-right">Cash flow</span>
+                <span className="w-[72px]" aria-hidden />
+              </div>
+              {rows.map((tx) => (
+                <MovementRow
+                  key={tx.id}
+                  tx={tx}
+                  editing={editingId === tx.id}
+                  onEdit={() => setEditingId(tx.id)}
+                  onCancel={() => setEditingId(null)}
+                  onDone={() => setEditingId(null)}
+                />
+              ))}
+            </>
           )}
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="bg-card px-3.5 py-2.5">
+      <p className="text-[11px] font-medium text-muted-foreground">{label}</p>
+      <div className="mt-0.5 font-mono text-sm font-semibold tabular-nums">{value}</div>
+    </div>
   );
 }
 
@@ -141,26 +200,39 @@ function MovementRow({
     );
   }
 
+  const currency = tx.ticker?.currency ?? "USD";
+  const isBuy = tx.side === "BUY";
+  // Cash impact: a buy spends qty*price plus the fee; a sell brings in qty*price net of the fee.
+  const total = tx.quantity * tx.price + (isBuy ? tx.fee : -tx.fee);
+
   return (
-    <div className="grid grid-cols-[80px_56px_1fr_auto] items-center gap-3 border-b py-3 text-sm last:border-b-0">
-      <span className="text-xs text-muted-foreground">{formatDate(tx.date)}</span>
+    <div className="grid grid-cols-[64px_1fr_auto_auto] items-center gap-3 border-b py-3 text-sm last:border-b-0">
       <span
         className={cn(
-          "text-xs font-semibold",
-          tx.side === "BUY" ? "text-positive" : "text-negative",
+          "inline-flex w-fit items-center rounded-full px-2 py-0.5 text-[11px] font-semibold",
+          isBuy ? "bg-positive/10 text-positive" : "bg-negative/10 text-negative",
         )}
       >
         {INVESTMENT_SIDE_LABELS[tx.side] ?? tx.side}
       </span>
       <span className="min-w-0">
         <span className="block font-mono text-xs tabular-nums">
-          {tx.quantity} · {formatMoney(tx.price, tx.ticker?.currency ?? "USD")}
-          {tx.fee ? ` · fee ${formatMoney(tx.fee, tx.ticker?.currency ?? "USD")}` : ""}
+          {formatNumber(tx.quantity, 4)} · {formatMoney(tx.price, currency)}
+          {tx.fee ? ` · fee ${formatMoney(tx.fee, currency)}` : ""}
         </span>
         <span className="block truncate text-xs text-muted-foreground">
-          {tx.cashAccount?.name ?? "No account"}
+          {formatDate(tx.date)} · {tx.cashAccount?.name ?? "No account"}
           {tx.note ? ` · ${tx.note}` : ""}
         </span>
+      </span>
+      <span
+        className={cn(
+          "text-right font-mono text-sm font-semibold tabular-nums",
+          isBuy ? "text-negative" : "text-positive",
+        )}
+      >
+        {isBuy ? "−" : "+"}
+        {formatMoney(Math.abs(total), currency)}
       </span>
       <span className="flex items-center gap-1">
         <Button variant="ghost" size="icon" onClick={onEdit} aria-label="Edit movement">
