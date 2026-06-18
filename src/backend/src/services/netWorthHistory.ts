@@ -6,6 +6,8 @@ import { computeInvestmentHistory } from "./investmentHistory.ts";
 export interface NetWorthPoint {
   date: string; // yyyy-mm-dd
   cash: number;
+  credits: number;
+  otherAssets: number;
   investments: number;
   debts: number;
   totalValue: number;
@@ -35,6 +37,7 @@ export async function computeNetWorthHistory(): Promise<NetWorthPoint[]> {
     orderBy: { date: "asc" },
   });
   const accounts = await prisma.cashAccount.findMany();
+  const accountsById = new Map(accounts.map((a) => [a.id, a]));
   const debtsRows = await prisma.debt.findMany();
 
   const fxCache = new Map<string, number>();
@@ -96,11 +99,18 @@ export async function computeNetWorthHistory(): Promise<NetWorthPoint[]> {
     const dayMs = day.getTime();
 
     let cash = 0;
+    let credits = 0;
+    let otherAssets = 0;
     for (const [id, arr] of cashByAccount) {
       let p = ptr.get(`c:${id}`)!;
       while (p + 1 < arr.length && arr[p + 1].date <= dayMs) p++;
       ptr.set(`c:${id}`, p);
-      if (p >= 0) cash += arr[p].value;
+      if (p < 0) continue;
+
+      const account = accountsById.get(id);
+      if (account?.category === "CREDIT") credits += arr[p].value;
+      else if (account?.category === "OTHER_ASSET") otherAssets += arr[p].value;
+      else if (account?.type !== "BROKER") cash += arr[p].value;
     }
 
     let debts = 0;
@@ -115,9 +125,11 @@ export async function computeNetWorthHistory(): Promise<NetWorthPoint[]> {
     points.push({
       date: isoDay(day),
       cash,
+      credits,
+      otherAssets,
       investments,
       debts,
-      totalValue: cash + investments - debts,
+      totalValue: cash + credits + otherAssets + investments - debts,
     });
   }
   return points;

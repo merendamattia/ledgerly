@@ -31,7 +31,7 @@ type Period =
 const PERIOD_LABELS: Record<Period, string> = {
   "this-month": "This month",
   "last-month": "Last month",
-  "this-year": "This year",
+  "this-year": "Year to date",
   "12m": "Last 12 months",
   "24m": "Last 2 years",
   "36m": "Last 3 years",
@@ -72,7 +72,7 @@ const BAR_COLORS = [
 const cardClass = "p-5 gap-0";
 
 export default function CashFlowPage() {
-  const [period, setPeriod] = useState<Period>("this-month");
+  const [period, setPeriod] = useState<Period>("this-year");
   const settings = useSettings();
   const currency = settings.data?.baseCurrency ?? "EUR";
 

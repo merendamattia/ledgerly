@@ -38,11 +38,14 @@ import {
 function BaseCurrencyCard() {
   const settings = useSettings();
   const update = useUpdateSettings();
+  const current = settings.data?.baseCurrency ?? "EUR";
+  const currencies = [
+    { value: "EUR", label: "Euro" },
+    { value: "USD", label: "US dollar" },
+  ];
 
-  function submit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const form = new FormData(e.currentTarget);
-    const currency = String(form.get("currency") ?? "").toUpperCase();
+  function updateCurrency(currency: string) {
+    if (currency === current) return;
     update.mutate(
       { baseCurrency: currency },
       {
@@ -59,22 +62,29 @@ function BaseCurrencyCard() {
         <CardDescription>All values are converted to this currency.</CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={submit} className="flex items-end gap-3">
-          <Field className="w-40">
-            <FieldLabel htmlFor="currency">Currency</FieldLabel>
-            {/* Uncontrolled input reset via `key` once settings load. */}
-            <Input
-              id="currency"
-              name="currency"
-              key={settings.data?.baseCurrency ?? "EUR"}
-              defaultValue={settings.data?.baseCurrency ?? "EUR"}
-              maxLength={3}
-            />
-          </Field>
-          <Button type="submit" disabled={update.isPending}>
-            Save
-          </Button>
-        </form>
+        <div className="inline-grid grid-cols-2 gap-0.5 rounded-lg bg-muted p-0.5">
+          {currencies.map((currency) => {
+            const active = current === currency.value;
+            return (
+              <button
+                key={currency.value}
+                type="button"
+                onClick={() => updateCurrency(currency.value)}
+                disabled={update.isPending}
+                className={`rounded-md px-3 py-1.5 text-left text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+                  active
+                    ? "bg-card text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <span className="block font-mono text-[11px] font-semibold tabular-nums">
+                  {currency.value}
+                </span>
+                <span className="block">{currency.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </CardContent>
     </Card>
   );

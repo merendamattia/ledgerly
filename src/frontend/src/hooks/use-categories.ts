@@ -7,11 +7,12 @@ export type Category = InferResponseType<typeof api.categories.$get, 200>[number
 export type CreateCategoryInput = InferRequestType<typeof api.categories.$post>["json"];
 type UpdateCategoryInput = InferRequestType<(typeof api.categories)[":id"]["$put"]>["json"];
 
-export function useCategories(kind?: "INCOME" | "EXPENSE") {
+export function useCategories(kind?: "INCOME" | "EXPENSE", enabled = true) {
   return useQuery({
     queryKey: queryKeys.categories(kind),
     queryFn: async () =>
       unwrap<Category[]>(await api.categories.$get({ query: kind ? { kind } : {} })),
+    enabled,
   });
 }
 
