@@ -78,6 +78,8 @@ enum TickerType {
   EQUITY
   ETF
   CRYPTO
+  BOND
+  COMMODITY
 }
 
 enum CategoryKind {
@@ -101,6 +103,15 @@ enum CronStatus {
   FAILED
 }
 
+/// What a cash account represents in the net-worth breakdown. LIQUIDITY is the
+/// classic cash/bank balance; CREDIT is money owed to you (receivables); OTHER_ASSET
+/// is any other manually-tracked asset. All three are snapshot-managed identically.
+enum CashCategory {
+  LIQUIDITY
+  CREDIT
+  OTHER_ASSET
+}
+
 enum CronTrigger {
   CRON
   MANUAL
@@ -119,6 +130,7 @@ model CashAccount {
   id           String        @id @default(cuid())
   name         String
   type         String        @default("BANK")
+  category     CashCategory  @default(LIQUIDITY)
   currency     String        @default("EUR")
   balance      Decimal       @default(0) @db.Decimal(20, 2)
   createdAt    DateTime      @default(now())
@@ -179,6 +191,7 @@ model DebtSnapshot {
 model Ticker {
   id          String         @id @default(cuid())
   symbol      String         @unique
+  isin        String?
   name        String
   description String?
   type        TickerType
@@ -319,7 +332,9 @@ model CronRun {
   finishedAt     DateTime?
   status         CronStatus  @default(RUNNING)
   itemsProcessed Int         @default(0)
+  attempts       Int         @default(1)
   error          String?
+  log            String?
   triggeredBy    CronTrigger @default(CRON)
 
   @@index([jobId])

@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
-import { DataTable, type Column } from "@/components/data-table";
 import {
   useCronJobs,
   useCronRuns,
@@ -24,27 +23,74 @@ function statusVariant(status: string): "default" | "secondary" | "destructive" 
   return "secondary";
 }
 
-const runColumns: Column<CronRun>[] = [
-  {
-    header: "Status",
-    cell: (r) => <Badge variant={statusVariant(r.status)}>{r.status}</Badge>,
-  },
-  { header: "Trigger", cell: (r) => <Badge variant="secondary">{r.triggeredBy}</Badge> },
-  {
-    header: "Items",
-    align: "right",
-    cell: (r) => <span className="font-mono tabular-nums">{r.itemsProcessed}</span>,
-  },
-  {
-    header: "Duration",
-    align: "right",
-    cell: (r) => (
-      <span className="font-mono tabular-nums">{formatDuration(r.startedAt, r.finishedAt)}</span>
-    ),
-  },
-  { header: "Started", cell: (r) => formatDateTime(r.startedAt) },
-  { header: "Finished", cell: (r) => (r.finishedAt ? formatDateTime(r.finishedAt) : "—") },
-];
+// A single run, click-to-expand into its full execution detail (attempts, error
+// and the per-attempt log captured by the runner).
+function RunRow({ run }: { run: CronRun }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="rounded-md border">
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setOpen((v) => !v);
+          }
+        }}
+        className="flex cursor-pointer items-center gap-3 px-3 py-2 text-sm"
+      >
+        <ChevronDown
+          className={cn(
+            "size-3.5 shrink-0 text-muted-foreground transition-transform",
+            open && "rotate-180",
+          )}
+        />
+        <Badge variant={statusVariant(run.status)}>{run.status}</Badge>
+        <Badge variant="secondary">{run.triggeredBy}</Badge>
+        <span className="ml-auto font-mono text-xs text-muted-foreground tabular-nums">
+          {formatDateTime(run.startedAt)}
+        </span>
+      </div>
+      {open ? (
+        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 border-t px-4 py-3 text-xs">
+          <dt className="text-muted-foreground">Items processed</dt>
+          <dd className="font-mono tabular-nums">{run.itemsProcessed}</dd>
+          <dt className="text-muted-foreground">Attempts</dt>
+          <dd className="font-mono tabular-nums">{run.attempts}</dd>
+          <dt className="text-muted-foreground">Duration</dt>
+          <dd className="font-mono tabular-nums">
+            {formatDuration(run.startedAt, run.finishedAt)}
+          </dd>
+          <dt className="text-muted-foreground">Started</dt>
+          <dd className="font-mono tabular-nums">{formatDateTime(run.startedAt)}</dd>
+          <dt className="text-muted-foreground">Finished</dt>
+          <dd className="font-mono tabular-nums">
+            {run.finishedAt ? formatDateTime(run.finishedAt) : "—"}
+          </dd>
+          {run.error ? (
+            <>
+              <dt className="text-muted-foreground">Error</dt>
+              <dd className="font-mono text-destructive">{run.error}</dd>
+            </>
+          ) : null}
+          {run.log ? (
+            <>
+              <dt className="col-span-2 mt-1 text-muted-foreground">Log</dt>
+              <dd className="col-span-2">
+                <pre className="overflow-x-auto whitespace-pre-wrap rounded-md bg-muted p-2.5 font-mono text-[11px] leading-relaxed">
+                  {run.log}
+                </pre>
+              </dd>
+            </>
+          ) : null}
+        </dl>
+      ) : null}
+    </div>
+  );
+}
 
 function JobRow({
   job,
@@ -118,14 +164,14 @@ function JobRow({
         </div>
       </div>
       {open ? (
-        <div className="border-t px-4 py-3">
-          <DataTable
-            columns={runColumns}
-            data={runs}
-            getRowKey={(r) => r.id}
-            isLoading={isLoadingRuns}
-            emptyState={<span className="text-sm text-muted-foreground">No runs yet.</span>}
-          />
+        <div className="flex flex-col gap-2 border-t px-4 py-3">
+          {isLoadingRuns ? (
+            <span className="text-sm text-muted-foreground">Loading runs…</span>
+          ) : runs.length === 0 ? (
+            <span className="text-sm text-muted-foreground">No runs yet.</span>
+          ) : (
+            runs.map((r) => <RunRow key={r.id} run={r} />)
+          )}
         </div>
       ) : null}
     </div>

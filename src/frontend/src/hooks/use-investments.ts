@@ -40,6 +40,37 @@ export function useAddAsset() {
   });
 }
 
+export type AddManualAssetInput = InferRequestType<typeof api.tickers.manual.$post>["json"];
+export type SetManualPriceInput = InferRequestType<
+  (typeof api.tickers)[":id"]["price"]["$post"]
+>["json"];
+
+/** Add a manually-valued asset (bond/commodity Yahoo can't price). */
+export function useAddManualAsset() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (json: AddManualAssetInput) =>
+      unwrap<Ticker>(await api.tickers.manual.$post({ json })),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.tickers });
+      qc.invalidateQueries({ queryKey: queryKeys.dashboard });
+    },
+  });
+}
+
+/** Set/update the current price of a manually-valued asset. */
+export function useSetManualPrice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...json }: SetManualPriceInput & { id: string }) =>
+      unwrap<{ ok: boolean }>(await api.tickers[":id"].price.$post({ param: { id }, json })),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.dashboard });
+      qc.invalidateQueries({ queryKey: queryKeys.holdings });
+    },
+  });
+}
+
 export function useDeleteTicker() {
   const qc = useQueryClient();
   return useMutation({

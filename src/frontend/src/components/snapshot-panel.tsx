@@ -124,22 +124,25 @@ export function SnapshotPanel({
             </div>
           ) : (
             rows.map((r) => (
-              <div key={r.id} className="flex items-center gap-3 border-b py-3 last:border-b-0">
-                <span className="flex size-8 items-center justify-center rounded-lg bg-accent font-display text-xs font-semibold text-accent-foreground">
+              <div
+                key={r.id}
+                className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b py-3 last:border-b-0"
+              >
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-accent font-display text-xs font-semibold text-accent-foreground">
                   {r.name.slice(0, 1).toUpperCase()}
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold">{r.name}</p>
                   <p className="truncate text-xs text-muted-foreground">{r.note || r.type}</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex w-full items-center gap-2 sm:w-auto">
                   <span className="font-mono text-xs text-muted-foreground">{r.currency}</span>
                   <Input
                     type="number"
                     step="0.01"
                     value={valueOf(r.id, r.value)}
                     onChange={(e) => setDrafts((d) => ({ ...d, [r.id]: e.target.value }))}
-                    className="h-9 w-28 text-right font-mono"
+                    className="h-9 w-full text-right font-mono sm:w-28"
                   />
                   {rowAction?.(r)}
                 </div>

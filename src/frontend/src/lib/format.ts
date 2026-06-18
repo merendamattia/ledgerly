@@ -1,15 +1,24 @@
 // Formatting helpers shared across the UI.
 
+/**
+ * Decimal places for a money/number figure: 1 for large magnitudes (>1000), 2
+ * otherwise. Large numbers with two decimals read poorly on mobile, so we trim.
+ */
+const fractionDigits = (value: number): number => (Math.abs(value) > 1000 ? 0 : 2);
+
 export function formatMoney(value: number, currency = "EUR"): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency,
-    maximumFractionDigits: 2,
+    maximumFractionDigits: fractionDigits(value),
   }).format(value);
 }
 
 export function formatNumber(value: number, maximumFractionDigits = 2): string {
-  return new Intl.NumberFormat("en-US", { maximumFractionDigits }).format(value);
+  // When the caller leaves the default, apply the large-number rule; an explicit
+  // argument is always respected.
+  const digits = maximumFractionDigits === 2 ? fractionDigits(value) : maximumFractionDigits;
+  return new Intl.NumberFormat("en-US", { maximumFractionDigits: digits }).format(value);
 }
 
 /** Compact currency for tight spaces like chart axes, e.g. "€45k", "€2.0k". */
@@ -133,6 +142,8 @@ export const TICKER_TYPE_LABELS: Record<string, string> = {
   ETF: "ETF",
   EQUITY: "Equity",
   CRYPTO: "Crypto",
+  BOND: "Bond",
+  COMMODITY: "Commodity",
 };
 
 /** Human-readable labels for investment movement sides shown in selects. */

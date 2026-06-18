@@ -25,4 +25,12 @@ export const cashSnapshotRepository = {
       update: { balance },
     });
   },
+
+  findById(id: string) {
+    return prisma.cashSnapshot.findUnique({ where: { id } });
+  },
+
+  deleteById(id: string) {
+    return prisma.cashSnapshot.delete({ where: { id } });
+  },
 };

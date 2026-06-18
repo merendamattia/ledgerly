@@ -9,6 +9,7 @@ export interface HoldingValuation {
   symbol: string;
   name: string;
   type: string;
+  provider: string;
   quantity: number;
   price: number;
   avgCost: number; // per share, ticker currency
@@ -22,11 +23,13 @@ export interface HoldingValuation {
 
 export interface NetWorth {
   baseCurrency: string;
-  cash: number;
+  cash: number; // LIQUIDITY accounts only
+  credits: number; // CREDIT accounts (receivables)
+  otherAssets: number; // OTHER_ASSET accounts
   investments: number;
   debts: number;
   total: number;
-  allocation: Record<string, number>; // CASH + per TickerType, in base currency
+  allocation: Record<string, number>; // CASH/CREDIT/OTHER_ASSET + per TickerType, in base currency
   holdings: HoldingValuation[];
 }
 
@@ -38,18 +41,28 @@ export interface NetWorth {
 export async function computeNetWorth(): Promise<NetWorth> {
   const baseCurrency = await settingsRepository.baseCurrency();
 
-  // Cash accounts converted to base currency. The account's current cached
-  // balance is the live source of truth (snapshots are kept only for history).
+  // Cash accounts converted to base currency, split by category. The account's
+  // current cached balance is the live source of truth (snapshots are kept only
+  // for history). LIQUIDITY → cash, CREDIT → credits, OTHER_ASSET → otherAssets.
   const accounts = await prisma.cashAccount.findMany();
   let cash = 0;
+  let credits = 0;
+  let otherAssets = 0;
   for (const account of accounts) {
     const fx = await getFxRate(account.currency, baseCurrency);
-    cash += Number(account.balance) * fx;
+    const value = Number(account.balance) * fx;
+    if (account.category === "CREDIT") credits += value;
+    else if (account.category === "OTHER_ASSET") otherAssets += value;
+    else cash += value;
   }
 
   // Holdings valued at latest price, converted to base currency.
   const holdings = await prisma.holding.findMany({ include: { ticker: true } });
-  const allocation: Record<string, number> = { CASH: cash };
+  const allocation: Record<string, number> = {
+    CASH: cash,
+    CREDIT: credits,
+    OTHER_ASSET: otherAssets,
+  };
   const detail: HoldingValuation[] = [];
   let investments = 0;
 
@@ -71,6 +84,7 @@ export async function computeNetWorth(): Promise<NetWorth> {
       symbol: holding.ticker.symbol,
       name: holding.ticker.name,
       type: holding.ticker.type,
+      provider: holding.ticker.provider,
       quantity,
       price,
       avgCost: Number(holding.avgCost),
@@ -94,9 +108,11 @@ export async function computeNetWorth(): Promise<NetWorth> {
   return {
     baseCurrency,
     cash,
+    credits,
+    otherAssets,
     investments,
     debts,
-    total: cash + investments - debts,
+    total: cash + credits + otherAssets + investments - debts,
     allocation,
     holdings: detail,
   };

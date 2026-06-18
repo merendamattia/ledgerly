@@ -9,6 +9,7 @@ import {
   ArrowLeftRight,
   ListChecks,
   MoreHorizontal,
+  Upload,
   Settings,
   Database,
   Terminal,
@@ -34,6 +35,7 @@ const TABS = [
 ] as const;
 
 const MORE_LINKS = [
+  { href: "/imports", label: "Imports", icon: Upload },
   { href: "/settings", label: "Settings", icon: Settings },
   { href: "/database", label: "Database", icon: Database },
   { href: "/dev", label: "Dev", icon: Terminal },

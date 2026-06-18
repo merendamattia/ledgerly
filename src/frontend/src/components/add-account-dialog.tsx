@@ -18,13 +18,18 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { useCreateAccount, useUpdateAccount, type Account } from "@/hooks/use-accounts";
 
 // Create or edit a cash/bank account. Shared by the Accounts page and the
-// Liquidity panel. Pass `account` to edit an existing one.
+// Liquidity/Credits/Other-assets panels. Pass `account` to edit an existing one;
+// `category` places a new account in the right section (defaults to LIQUIDITY).
 export function AddAccountDialog({
   trigger,
   account,
+  category = "LIQUIDITY",
+  labels,
 }: {
   trigger?: ReactElement;
   account?: Account;
+  category?: Account["category"];
+  labels?: { title?: string; description?: string };
 }) {
   const editing = account != null;
   const [open, setOpen] = useState(false);
@@ -38,7 +43,10 @@ export function AddAccountDialog({
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    const payload = { name, type, currency, balance: Number(balance) };
+    // Editing keeps the account's existing category; creating uses the prop.
+    const payload = editing
+      ? { name, type, currency, balance: Number(balance) }
+      : { name, type, category, currency, balance: Number(balance) };
     const opts = {
       onSuccess: () => {
         toast.success(editing ? "Account updated" : "Account created");
@@ -68,8 +76,12 @@ export function AddAccountDialog({
       />
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{editing ? "Edit account" : "New account"}</DialogTitle>
-          <DialogDescription>Add a cash or bank account.</DialogDescription>
+          <DialogTitle>
+            {editing ? "Edit account" : (labels?.title ?? "New account")}
+          </DialogTitle>
+          <DialogDescription>
+            {labels?.description ?? "Add a cash or bank account."}
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit}>
           <FieldGroup>

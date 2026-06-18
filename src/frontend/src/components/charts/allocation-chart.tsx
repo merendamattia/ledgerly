@@ -22,9 +22,13 @@ const PALETTE = [
 // their own `labels` map (holdingId → name).
 const LABELS: Record<string, string> = {
   CASH: "Cash",
+  CREDIT: "Credits",
+  OTHER_ASSET: "Other assets",
   EQUITY: "Equity",
   ETF: "ETF",
   CRYPTO: "Crypto",
+  BOND: "Bonds",
+  COMMODITY: "Commodities",
 };
 
 export function AllocationChart({
@@ -38,6 +42,7 @@ export function AllocationChart({
 }) {
   const data = Object.entries(allocation)
     .filter(([, value]) => value > 0)
+    .sort(([, a], [, b]) => b - a)
     .map(([key, value], i) => ({
       key,
       name: labels?.[key] ?? LABELS[key] ?? key,

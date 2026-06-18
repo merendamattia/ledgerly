@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Hanken_Grotesk, Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
@@ -24,6 +24,20 @@ const mono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Ledgerly",
   description: "Personal net worth and expense tracker",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
+  },
+  appleWebApp: {
+    capable: true,
+    title: "Ledgerly",
+    statusBarStyle: "default",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#1c7a4d",
 };
 
 export default function RootLayout({

@@ -42,6 +42,8 @@ export default function OverviewPage() {
   const total = nw?.total ?? 0;
   const allocation = nw?.allocation ?? {};
   const liquidity = allocation["CASH"] ?? 0;
+  const credits = nw?.credits ?? 0;
+  const otherAssets = nw?.otherAssets ?? 0;
   const investments = nw?.investments ?? 0;
   const debts = nw?.debts ?? 0;
 
@@ -151,6 +153,22 @@ export default function OverviewPage() {
           {formatMoney(liquidity, currency)}
         </p>
       </Card>
+      {credits > 0 ? (
+        <Card className={cn("col-span-6 gap-0 p-5 animate-fu lg:col-span-3")}>
+          <p className="text-xs font-medium text-muted-foreground">Credits</p>
+          <p className="mt-2.5 font-mono text-2xl font-semibold tabular-nums">
+            {formatMoney(credits, currency)}
+          </p>
+        </Card>
+      ) : null}
+      {otherAssets > 0 ? (
+        <Card className={cn("col-span-6 gap-0 p-5 animate-fu lg:col-span-3")}>
+          <p className="text-xs font-medium text-muted-foreground">Other assets</p>
+          <p className="mt-2.5 font-mono text-2xl font-semibold tabular-nums">
+            {formatMoney(otherAssets, currency)}
+          </p>
+        </Card>
+      ) : null}
       <Card className={cn("col-span-6 gap-0 p-5 animate-fu lg:col-span-3")}>
         <p className="text-xs font-medium text-muted-foreground">Debts</p>
         <p

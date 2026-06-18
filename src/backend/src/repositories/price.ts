@@ -13,6 +13,15 @@ export const priceRepository = {
     return res.count;
   },
 
+  /** Insert or update a single daily close (used for manual price entry). */
+  upsert(tickerId: string, date: Date, close: number) {
+    return prisma.priceHistory.upsert({
+      where: { tickerId_date: { tickerId, date } },
+      create: { tickerId, date, close },
+      update: { close },
+    });
+  },
+
   /** Most recent stored date for a ticker, or null if none. */
   async latestDate(tickerId: string): Promise<Date | null> {
     const row = await prisma.priceHistory.findFirst({

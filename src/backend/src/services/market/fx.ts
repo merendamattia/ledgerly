@@ -27,6 +27,10 @@ export async function backfillFx(
     if (last) from = nextDay(last);
   }
 
+  // Nothing newer than today to fetch yet; a future start date makes the
+  // provider reject the range ("start date cannot be after end date").
+  if (from && from.getTime() > Date.now()) return 0;
+
   const bars = await fetchFxHistory(base, quote, from);
   return fxRepository.bulkInsert(base, quote, bars);
 }

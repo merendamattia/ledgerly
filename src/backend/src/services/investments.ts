@@ -2,6 +2,7 @@ import type { InvestmentSide, InvestmentTransaction } from "@prisma/client";
 import { investmentTransactionRepository } from "../repositories/investmentTransaction.ts";
 import { holdingRepository } from "../repositories/holding.ts";
 import { tickerRepository } from "../repositories/ticker.ts";
+import { ensureManualPriceAnchor } from "./tickers.ts";
 import { NotFoundError, ConflictError } from "../core/errors.ts";
 
 export interface InvestmentTxInput {
@@ -25,6 +26,11 @@ export type InvestmentTxUpdate = Omit<InvestmentTxInput, "tickerId">;
  */
 export async function recomputeHolding(tickerId: string): Promise<void> {
   const txs = await investmentTransactionRepository.listByTicker(tickerId);
+
+  // Anchor a manual asset's price at its purchase date (no-op otherwise) so a back-dated
+  // holding is valued from when it was bought rather than spiking on the day it was added.
+  // Runs on every write path (record/update/delete/import) since they all recompute here.
+  await ensureManualPriceAnchor(tickerId);
 
   let qty = 0;
   let costBasis = 0; // total cost of the currently-held shares, incl. fees

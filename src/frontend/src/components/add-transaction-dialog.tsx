@@ -164,7 +164,9 @@ function AccountPicker({
   const [name, setName] = useState("");
   const [currency, setCurrency] = useState("EUR");
 
-  const rows = accounts.data ?? [];
+  // Investment movements settle against a broker account only — never a liquid
+  // wallet, a credit or another asset. Scope the picker to brokers.
+  const rows = (accounts.data ?? []).filter((a: Account) => a.type === "BROKER");
 
   async function add() {
     const trimmed = name.trim();
@@ -394,7 +396,7 @@ export function AddTransactionDialog({
                     onChange={setCategoryId}
                   />
                 </Field>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <Field>
                     <FieldLabel htmlFor="date">Date</FieldLabel>
                     <Input
@@ -652,7 +654,7 @@ export function InvestmentMovementForm({
         />
       </Field>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field>
           <FieldLabel htmlFor="quantity">Quantity</FieldLabel>
           <Input
@@ -688,7 +690,7 @@ export function InvestmentMovementForm({
         </div>
       ) : null}
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field>
           <FieldLabel htmlFor="date">Date</FieldLabel>
           <Input

@@ -36,6 +36,8 @@ export async function createDailySnapshot(date: Date = new Date()) {
   const day = toUtcDate(date);
   return snapshotRepository.upsertForDate(day, netWorth.total, {
     cash: netWorth.cash,
+    credits: netWorth.credits,
+    otherAssets: netWorth.otherAssets,
     investments: netWorth.investments,
     debts: netWorth.debts,
     allocation: netWorth.allocation,
@@ -65,6 +67,22 @@ export async function createCashSnapshot(
 }
 
 /**
+ * Delete one cash snapshot and revert the account's cached `balance` to the most
+ * recent remaining snapshot (or 0 if none are left). Returns the deleted row, or
+ * null if the id doesn't exist.
+ */
+export async function deleteCashSnapshot(id: string) {
+  const snap = await cashSnapshotRepository.findById(id);
+  if (!snap) return null;
+  await cashSnapshotRepository.deleteById(id);
+  const latest = await cashSnapshotRepository.latestForAccount(snap.cashAccountId);
+  await cashAccountRepository.update(snap.cashAccountId, {
+    balance: latest ? Number(latest.balance) : 0,
+  });
+  return snap;
+}
+
+/**
  * Record a dated amount snapshot for one or more debts. Each entry upserts the
  * debt's snapshot for `date` and refreshes its cached `amount`.
  */
@@ -80,4 +98,20 @@ export async function createDebtSnapshot(
     snapshots.push(snap);
   }
   return snapshots;
+}
+
+/**
+ * Delete one debt snapshot and revert the debt's cached `amount` to the most
+ * recent remaining snapshot (or 0 if none are left). Returns the deleted row, or
+ * null if the id doesn't exist.
+ */
+export async function deleteDebtSnapshot(id: string) {
+  const snap = await debtSnapshotRepository.findById(id);
+  if (!snap) return null;
+  await debtSnapshotRepository.deleteById(id);
+  const latest = await debtSnapshotRepository.latestForDebt(snap.debtId);
+  await debtRepository.update(snap.debtId, {
+    amount: latest ? Number(latest.amount) : 0,
+  });
+  return snap;
 }

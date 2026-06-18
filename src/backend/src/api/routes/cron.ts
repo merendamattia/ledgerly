@@ -35,6 +35,9 @@ export const cronRoutes = new Hono<AppEnv>()
     if (!handler) throw new NotFoundError(`No runnable cron job with key: ${key}`);
 
     const triggeredBy = c.req.header("x-cron-secret") ? "CRON" : "MANUAL";
-    const run = await runTrackedJob(key, handler, triggeredBy);
+    // A user-triggered run does a single attempt so the HTTP request returns
+    // promptly; scheduled runs keep the default 5×/30s retry policy.
+    const options = triggeredBy === "MANUAL" ? { maxAttempts: 1 } : undefined;
+    const run = await runTrackedJob(key, handler, triggeredBy, options);
     return c.json(run);
   });
