@@ -28,6 +28,9 @@ export const yahooProvider: PriceProvider = {
 
   async fetchHistory(symbol: string, from?: Date): Promise<Bar[]> {
     const period1 = from ?? INCEPTION;
+    // A future start date makes Yahoo throw ("start date cannot be after end
+    // date"); there are no bars to return for a range that hasn't happened yet.
+    if (period1.getTime() > Date.now()) return [];
     const result = await yahooFinance.chart(symbol, { period1, interval: "1d" });
     const bars: Bar[] = [];
     for (const quote of result.quotes) {
@@ -43,15 +46,17 @@ export const yahooProvider: PriceProvider = {
 
   async search(query: string): Promise<SearchCandidate[]> {
     const result = await yahooFinance.search(query, { quotesCount: 10, newsCount: 0 });
-    // Keep equities, ETFs and crypto. Yahoo serves crypto as "<COIN>-USD" pairs
-    // (quoteType CRYPTOCURRENCY), which we expose under our own CRYPTO type.
+    // An ISIN-shaped query (2 letters, 9 alphanumerics, 1 check digit) — Yahoo
+    // resolves these to a listing whose quoteType may be unusual (e.g. a BTP), so
+    // we keep all results for ISIN lookups and default the unknown ones to BOND.
+    const isin = query.trim().toUpperCase();
+    const isIsin = /^[A-Z]{2}[A-Z0-9]{9}[0-9]$/.test(isin);
+
     const matches = result.quotes.filter(
-      (q): q is typeof q & {
-        symbol: string;
-        quoteType: "EQUITY" | "ETF" | "CRYPTOCURRENCY";
-      } =>
+      (q): q is typeof q & { symbol: string; quoteType: string } =>
         "symbol" in q &&
-        (q.quoteType === "EQUITY" || q.quoteType === "ETF" || q.quoteType === "CRYPTOCURRENCY"),
+        typeof (q as { symbol?: unknown }).symbol === "string" &&
+        (mapQuoteType((q as { quoteType?: string }).quoteType) !== null || isIsin),
     );
     if (matches.length === 0) return [];
 
@@ -68,11 +73,30 @@ export const yahooProvider: PriceProvider = {
       return {
         symbol: m.symbol,
         name: String(name),
-        type: m.quoteType === "CRYPTOCURRENCY" ? "CRYPTO" : m.quoteType,
+        // Unknown quote types only survive the filter for ISIN lookups → BOND.
+        type: mapQuoteType(m.quoteType) ?? "BOND",
         exchange,
         currency: q?.currency,
         price: q?.regularMarketPrice,
+        isin: isIsin ? isin : undefined,
       } satisfies SearchCandidate;
     });
   },
 };
+
+// Map a Yahoo quoteType to our TickerType, or null if we don't track it. Crypto
+// is served as "<COIN>-USD" pairs (CRYPTOCURRENCY); commodities as futures.
+function mapQuoteType(quoteType: string | undefined): SearchCandidate["type"] | null {
+  switch (quoteType) {
+    case "EQUITY":
+      return "EQUITY";
+    case "ETF":
+      return "ETF";
+    case "CRYPTOCURRENCY":
+      return "CRYPTO";
+    case "FUTURE":
+      return "COMMODITY";
+    default:
+      return null;
+  }
+}

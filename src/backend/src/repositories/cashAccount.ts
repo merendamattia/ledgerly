@@ -1,10 +1,13 @@
-import type { Prisma } from "@prisma/client";
+import type { CashCategory, Prisma } from "@prisma/client";
 import { prisma } from "../core/db.ts";
 
 // Data access for cash accounts.
 export const cashAccountRepository = {
-  list() {
-    return prisma.cashAccount.findMany({ orderBy: { createdAt: "asc" } });
+  list(category?: CashCategory) {
+    return prisma.cashAccount.findMany({
+      where: category ? { category } : undefined,
+      orderBy: { createdAt: "asc" },
+    });
   },
 
   findById(id: string) {

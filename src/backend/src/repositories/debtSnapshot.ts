@@ -25,4 +25,12 @@ export const debtSnapshotRepository = {
       update: { amount },
     });
   },
+
+  findById(id: string) {
+    return prisma.debtSnapshot.findUnique({ where: { id } });
+  },
+
+  deleteById(id: string) {
+    return prisma.debtSnapshot.delete({ where: { id } });
+  },
 };

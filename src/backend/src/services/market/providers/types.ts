@@ -16,7 +16,7 @@ export interface InstrumentMeta {
 export interface SearchCandidate {
   symbol: string;
   name: string;
-  type: "EQUITY" | "ETF" | "CRYPTO";
+  type: "EQUITY" | "ETF" | "CRYPTO" | "BOND" | "COMMODITY";
   exchange?: string;
   currency?: string;
   price?: number;

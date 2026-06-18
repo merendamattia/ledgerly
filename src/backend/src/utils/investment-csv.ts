@@ -65,13 +65,13 @@ const legacyColumnMap: InvestmentImportColumnMap = {
 };
 
 /** Decode raw bytes as UTF-8 and strip a leading BOM if present. */
-function decode(bytes: Uint8Array | ArrayBuffer): string {
+export function decode(bytes: Uint8Array | ArrayBuffer): string {
   const text = new TextDecoder("utf-8").decode(bytes);
   return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
 }
 
 /** Pick the field delimiter from the header line. */
-function detectDelimiter(headerLine: string): RegExp {
+export function detectDelimiter(headerLine: string): RegExp {
   if (headerLine.includes("\t")) return /\t/;
   if (headerLine.includes(";")) return /;/;
   if (headerLine.includes(",")) return /,/;
@@ -84,7 +84,7 @@ function detectDelimiter(headerLine: string): RegExp {
  * euro sign / NBSP / spaces, drop the thousands dots, turn the decimal comma into
  * a point.
  */
-function parseLocaleNumber(raw: string): number {
+export function parseLocaleNumber(raw: string): number {
   const cleaned = raw
     .replace(/[^0-9.,]/g, "")
     .trim();
@@ -129,7 +129,7 @@ function resolveTextField(
   return null;
 }
 
-function parseInvestmentDate(raw: string): Date | null {
+export function parseInvestmentDate(raw: string): Date | null {
   const local = parseDate(raw, "dd/MM/yyyy", new Date());
   if (isValid(local)) return local;
   const iso = parseISO(raw);

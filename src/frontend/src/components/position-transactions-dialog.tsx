@@ -4,6 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Pencil, Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +24,7 @@ import {
   useInvestmentTransactions,
   useUpdateInvestmentTx,
   useDeleteInvestmentTx,
+  useSetManualPrice,
   type InvestmentTransaction,
 } from "@/hooks/use-investments";
 
@@ -92,6 +94,16 @@ export function PositionTransactionsDialog({
           />
         </div>
 
+        {/* Manually-valued assets (bonds/commodities) have no provider feed, so
+            the price is set by hand here. */}
+        {holding.provider === "manual" ? (
+          <ManualPriceEditor
+            tickerId={holding.tickerId}
+            currency={holding.currency}
+            current={holding.price}
+          />
+        ) : null}
+
         {/* Add movement — opens the right-side drawer (closes this dialog first) */}
         <Button className="w-fit" onClick={onAddMovement}>
           <Plus data-icon="inline-start" />
@@ -126,6 +138,52 @@ export function PositionTransactionsDialog({
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// Inline current-price editor for a manually-valued asset. Writes today's price.
+function ManualPriceEditor({
+  tickerId,
+  currency,
+  current,
+}: {
+  tickerId: string;
+  currency: string;
+  current: number;
+}) {
+  const setPrice = useSetManualPrice();
+  const [value, setValue] = useState(String(current));
+
+  return (
+    <div className="flex flex-wrap items-end gap-2 rounded-xl border bg-accent/30 px-3 py-2.5">
+      <div className="flex flex-col gap-1">
+        <span className="text-[11px] font-medium text-muted-foreground">
+          Current price ({currency})
+        </span>
+        <Input
+          type="number"
+          step="any"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          className="h-9 w-32 font-mono"
+        />
+      </div>
+      <Button
+        size="sm"
+        disabled={setPrice.isPending || !value}
+        onClick={() =>
+          setPrice.mutate(
+            { id: tickerId, price: Number(value) },
+            {
+              onSuccess: () => toast.success("Price updated"),
+              onError: (e) => toast.error(e.message),
+            },
+          )
+        }
+      >
+        Update price
+      </Button>
+    </div>
   );
 }
 

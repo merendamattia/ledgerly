@@ -9,7 +9,9 @@ import { createDailySnapshot, createDailyBalanceSnapshots } from "../snapshot.ts
  * Returns the number of tickers processed.
  */
 export async function runNightlyPrices(): Promise<number> {
-  const tickers = await tickerRepository.listAll();
+  // Manually-valued assets (provider "manual") have no external source — their
+  // prices are entered by the user, so skip them here.
+  const tickers = (await tickerRepository.listAll()).filter((t) => t.provider !== "manual");
   for (const ticker of tickers) {
     await backfillTicker(ticker, { incremental: true });
   }

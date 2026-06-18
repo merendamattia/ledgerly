@@ -3,7 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { requireAuth } from "../middlewares/auth.ts";
 import { cashAccountRepository } from "../../repositories/cashAccount.ts";
 import { cashSnapshotRepository } from "../../repositories/cashSnapshot.ts";
-import { createCashSnapshot } from "../../services/snapshot.ts";
+import { createCashSnapshot, deleteCashSnapshot } from "../../services/snapshot.ts";
 import {
   createAccountSchema,
   createCashSnapshotSchema,
@@ -27,6 +27,12 @@ export const accountsRoutes = new Hono<AppEnv>()
     const { date, entries } = c.req.valid("json");
     const snapshots = await createCashSnapshot(date, entries);
     return c.json(snapshots.map(serializeCashSnapshot), 201);
+  })
+  .delete("/snapshots/:id", async (c) => {
+    const id = c.req.param("id");
+    const deleted = await deleteCashSnapshot(id);
+    if (!deleted) throw new NotFoundError("Cash snapshot not found");
+    return c.json({ ok: true });
   })
   .post("/", zValidator("json", createAccountSchema), async (c) => {
     const input = c.req.valid("json");

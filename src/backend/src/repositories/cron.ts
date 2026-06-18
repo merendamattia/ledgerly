@@ -31,10 +31,22 @@ export const cronRepository = {
     });
   },
 
-  finishRun(id: string, status: CronStatus, itemsProcessed: number, error?: string) {
+  finishRun(
+    id: string,
+    status: CronStatus,
+    itemsProcessed: number,
+    extra?: { attempts?: number; error?: string | null; log?: string },
+  ) {
     return prisma.cronRun.update({
       where: { id },
-      data: { status, itemsProcessed, error, finishedAt: new Date() },
+      data: {
+        status,
+        itemsProcessed,
+        error: extra?.error ?? null,
+        attempts: extra?.attempts,
+        log: extra?.log,
+        finishedAt: new Date(),
+      },
     });
   },
 

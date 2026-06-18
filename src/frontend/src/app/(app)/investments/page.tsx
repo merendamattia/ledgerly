@@ -20,6 +20,7 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { PositionTransactionsDialog } from "@/components/position-transactions-dialog";
 import { AddMovementSheet } from "@/components/add-transaction-dialog";
 import { SnapshotPanel } from "@/components/snapshot-panel";
+import type { SelectedTicker } from "@/components/ticker-search";
 import { AddAccountDialog } from "@/components/add-account-dialog";
 import { MoneyAmount } from "@/components/money-amount";
 import { NetWorthChart } from "@/components/charts/net-worth-chart";
@@ -301,7 +302,13 @@ export default function InvestmentsPage() {
       <GeoExposureCard className="col-span-12 lg:col-span-4" />
 
       {/* Liquidity panel + snapshot history */}
-      <LiquidityPanel currency={currency} />
+      <CashCategoryPanel category="LIQUIDITY" currency={currency} />
+
+      {/* Credits (receivables) */}
+      <CashCategoryPanel category="CREDIT" currency={currency} />
+
+      {/* Other assets */}
+      <CashCategoryPanel category="OTHER_ASSET" currency={currency} />
 
       {/* Debts */}
       <DebtsCard currency={currency} />
@@ -390,7 +397,7 @@ export default function InvestmentsPage() {
             tickerId: addPosition.tickerId,
             symbol: addPosition.symbol,
             name: addPosition.name,
-            type: addPosition.type as "EQUITY" | "ETF" | "CRYPTO",
+            type: addPosition.type as SelectedTicker["type"],
             currency: addPosition.currency,
           }}
           open={addPosition !== null}
@@ -622,17 +629,76 @@ function PositionRow({
 const addActionClass =
   "flex w-fit items-center gap-1.5 text-sm font-semibold text-[#5b7d10] hover:underline";
 
-// Liquidity: editable cash balances + dated snapshot + history chart.
-// Broker accounts are excluded — they hold investments, not liquidity.
-function LiquidityPanel({ currency }: { currency: string }) {
+// Per-category copy for the three cash-account sections. They share one panel;
+// only labels and the category filter differ.
+type CashCategory = "LIQUIDITY" | "CREDIT" | "OTHER_ASSET";
+const CASH_PANEL_COPY: Record<
+  CashCategory,
+  {
+    title: string;
+    subtitle: string;
+    totalLabel: string;
+    emptyText: string;
+    historyTitle: string;
+    historySubtitle: string;
+    dialogTitle: string;
+    dialogDescription: string;
+  }
+> = {
+  LIQUIDITY: {
+    title: "Liquidity · Cash accounts",
+    subtitle: "Update balances and save a dated snapshot",
+    totalLabel: "Total liquidity",
+    emptyText: "No cash accounts yet — add one to start tracking liquidity.",
+    historyTitle: "Snapshot history",
+    historySubtitle: "Liquidity over time",
+    dialogTitle: "New cash account",
+    dialogDescription: "Add a cash or bank account.",
+  },
+  CREDIT: {
+    title: "Credits · Receivables",
+    subtitle: "Update amounts owed to you and save a dated snapshot",
+    totalLabel: "Total credits",
+    emptyText: "No credits yet — add one to track money owed to you.",
+    historyTitle: "Snapshot history",
+    historySubtitle: "Credits over time",
+    dialogTitle: "New credit",
+    dialogDescription: "Add a receivable (money owed to you).",
+  },
+  OTHER_ASSET: {
+    title: "Other assets",
+    subtitle: "Update values and save a dated snapshot",
+    totalLabel: "Total other assets",
+    emptyText: "No other assets yet — add anything outside the rest.",
+    historyTitle: "Snapshot history",
+    historySubtitle: "Other assets over time",
+    dialogTitle: "New asset",
+    dialogDescription: "Add any other asset tracked by value.",
+  },
+};
+
+// Generic editable balances + dated snapshot + history panel for one cash
+// category (Liquidity / Credits / Other assets). Broker accounts are excluded —
+// they hold investments, not liquidity.
+function CashCategoryPanel({
+  category,
+  currency,
+}: {
+  category: CashCategory;
+  currency: string;
+}) {
   const accounts = useAccounts();
   const snapshots = useCashSnapshots();
   const createSnapshot = useCreateCashSnapshot();
   const del = useDeleteAccount();
+  const copy = CASH_PANEL_COPY[category];
 
-  const cashAccounts = (accounts.data ?? []).filter((a) => a.type !== "BROKER");
-  const accountsById = new Map(cashAccounts.map((a) => [a.id, a]));
-  const rows = cashAccounts.map((a) => ({
+  const categoryAccounts = (accounts.data ?? []).filter(
+    (a) => a.category === category && a.type !== "BROKER",
+  );
+  const accountIds = new Set(categoryAccounts.map((a) => a.id));
+  const accountsById = new Map(categoryAccounts.map((a) => [a.id, a]));
+  const rows = categoryAccounts.map((a) => ({
     id: a.id,
     name: a.name,
     type: a.type,
@@ -640,27 +706,31 @@ function LiquidityPanel({ currency }: { currency: string }) {
     value: a.balance,
   }));
 
-  // Aggregate snapshots into a per-date liquidity total for the history card.
+  // Aggregate this category's snapshots into a per-date total for the history card.
   const history = useMemo(() => {
     const byDate = new Map<string, number>();
     for (const s of snapshots.data ?? []) {
+      if (!accountIds.has(s.cashAccountId)) continue;
       byDate.set(String(s.date), (byDate.get(String(s.date)) ?? 0) + s.balance);
     }
     return [...byDate.entries()]
       .map(([date, total]) => ({ date, total }))
       .sort((a, b) => a.date.localeCompare(b.date));
-  }, [snapshots.data]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [snapshots.data, category]);
 
   return (
     <SnapshotPanel
-      title="Liquidity · Cash accounts"
-      subtitle="Update balances and save a dated snapshot"
-      totalLabel="Total liquidity"
+      title={copy.title}
+      subtitle={copy.subtitle}
+      totalLabel={copy.totalLabel}
       rows={rows}
       isLoading={accounts.isLoading}
-      emptyText="No cash accounts yet — add one to start tracking liquidity."
+      emptyText={copy.emptyText}
       addAction={
         <AddAccountDialog
+          category={category}
+          labels={{ title: copy.dialogTitle, description: copy.dialogDescription }}
           trigger={
             <button type="button" className={addActionClass}>
               <Plus className="size-4" />
@@ -713,8 +783,8 @@ function LiquidityPanel({ currency }: { currency: string }) {
         )
       }
       history={history}
-      historyTitle="Snapshot history"
-      historySubtitle="Liquidity over time"
+      historyTitle={copy.historyTitle}
+      historySubtitle={copy.historySubtitle}
       currency={currency}
     />
   );

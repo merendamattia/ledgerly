@@ -3,7 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { requireAuth } from "../middlewares/auth.ts";
 import { debtRepository } from "../../repositories/debt.ts";
 import { debtSnapshotRepository } from "../../repositories/debtSnapshot.ts";
-import { createDebtSnapshot } from "../../services/snapshot.ts";
+import { createDebtSnapshot, deleteDebtSnapshot } from "../../services/snapshot.ts";
 import {
   createDebtSchema,
   createDebtSnapshotSchema,
@@ -27,6 +27,12 @@ export const debtsRoutes = new Hono<AppEnv>()
     const { date, entries } = c.req.valid("json");
     const snapshots = await createDebtSnapshot(date, entries);
     return c.json(snapshots.map(serializeDebtSnapshot), 201);
+  })
+  .delete("/snapshots/:id", async (c) => {
+    const id = c.req.param("id");
+    const deleted = await deleteDebtSnapshot(id);
+    if (!deleted) throw new NotFoundError("Debt snapshot not found");
+    return c.json({ ok: true });
   })
   .post("/", zValidator("json", createDebtSchema), async (c) => {
     const debt = await debtRepository.create(c.req.valid("json"));

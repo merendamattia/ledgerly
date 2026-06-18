@@ -73,3 +73,16 @@ export function useCreateCashSnapshot() {
     },
   });
 }
+
+export function useDeleteCashSnapshot() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) =>
+      unwrap<{ ok: boolean }>(await api.accounts.snapshots[":id"].$delete({ param: { id } })),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.cashSnapshots });
+      qc.invalidateQueries({ queryKey: queryKeys.accounts });
+      qc.invalidateQueries({ queryKey: queryKeys.dashboard });
+    },
+  });
+}

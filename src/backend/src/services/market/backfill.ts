@@ -28,6 +28,17 @@ export async function backfillTicker(
     if (last) from = nextDay(last);
   }
 
+  // Nothing newer than today to fetch yet (latest stored close is today/future).
+  // Asking the provider for a future start date errors ("start date cannot be
+  // after end date"); just report no new rows.
+  if (from && from.getTime() > Date.now()) {
+    logger.info("Backfill skipped — already up to date", {
+      symbol: ticker.symbol,
+      from: from.toISOString(),
+    });
+    return 0;
+  }
+
   const bars = await provider.fetchHistory(ticker.symbol, from);
   const inserted = await priceRepository.bulkInsert(ticker.id, bars);
 

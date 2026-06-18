@@ -2,16 +2,35 @@ import { z } from "zod";
 
 // Input validation schemas (used by @hono/zod-validator at the API boundary).
 
-export const tickerTypeSchema = z.enum(["EQUITY", "ETF", "CRYPTO"]);
+export const tickerTypeSchema = z.enum(["EQUITY", "ETF", "CRYPTO", "BOND", "COMMODITY"]);
 export const categoryKindSchema = z.enum(["INCOME", "EXPENSE"]);
 export const txDirectionSchema = z.enum(["INCOME", "EXPENSE"]);
 export const investmentSideSchema = z.enum(["BUY", "SELL"]);
+export const cashCategorySchema = z.enum(["LIQUIDITY", "CREDIT", "OTHER_ASSET"]);
 export const investmentImportFieldSchema = z.enum(["ticker", "price", "quantity", "total", "date", "broker"]);
 
 // --- Assets / tickers -------------------------------------------------------
 export const addAssetSchema = z.object({
   symbol: z.string().trim().min(1).max(32),
   type: tickerTypeSchema,
+  isin: z.string().trim().length(12).toUpperCase().optional(),
+});
+
+// Manually-tracked asset (a bond/commodity Yahoo can't price). The user supplies
+// the metadata and an initial price; no provider backfill runs for it.
+export const addManualAssetSchema = z.object({
+  symbol: z.string().trim().min(1).max(32),
+  name: z.string().trim().min(1).max(120),
+  type: tickerTypeSchema,
+  currency: z.string().trim().length(3).toUpperCase(),
+  isin: z.string().trim().length(12).toUpperCase().optional(),
+  price: z.number().nonnegative(),
+});
+
+// Set/update the current price of a manually-tracked asset.
+export const setManualPriceSchema = z.object({
+  price: z.number().nonnegative(),
+  date: z.coerce.date().optional(),
 });
 
 export const tickerSearchSchema = z.object({
@@ -81,6 +100,33 @@ export const createDebtSchema = z.object({
 
 export const updateDebtSchema = createDebtSchema.partial();
 
+// --- Bulk snapshot import (date,account1,account2,… CSV/TSV) -----------------
+// Each non-date column maps to a target: skip it, point it at an existing cash
+// account / debt, or create a new one. `index` is the column position in the file.
+export const snapshotImportColumnSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("skip"), index: z.number().int().nonnegative() }),
+  z.object({
+    action: z.literal("existing"),
+    index: z.number().int().nonnegative(),
+    kind: z.enum(["CASH", "DEBT"]),
+    id: z.string().min(1),
+  }),
+  z.object({
+    action: z.literal("create"),
+    index: z.number().int().nonnegative(),
+    name: z.string().trim().min(1).max(80),
+    // A new cash account in one of the three categories, or a new debt.
+    kind: z.enum(["LIQUIDITY", "CREDIT", "OTHER_ASSET", "DEBT"]),
+    currency: z.string().trim().length(3).toUpperCase(),
+  }),
+]);
+
+export const snapshotImportCommitSchema = z.object({
+  dateColumn: z.number().int().nonnegative(),
+  columns: z.array(snapshotImportColumnSchema),
+  rows: z.array(z.array(z.string())).min(1).max(10000),
+});
+
 // --- Cash snapshots (dated balances) ----------------------------------------
 export const createCashSnapshotSchema = z.object({
   date: z.coerce.date(),
@@ -115,6 +161,7 @@ export const updateHoldingSchema = z.object({
 export const createAccountSchema = z.object({
   name: z.string().trim().min(1).max(80),
   type: z.string().trim().min(1).max(40).default("BANK"),
+  category: cashCategorySchema.default("LIQUIDITY"),
   currency: z.string().trim().length(3).toUpperCase(),
   balance: z.number().default(0),
 });

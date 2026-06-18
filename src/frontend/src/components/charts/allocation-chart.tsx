@@ -22,9 +22,13 @@ const PALETTE = [
 // their own `labels` map (holdingId → name).
 const LABELS: Record<string, string> = {
   CASH: "Cash",
+  CREDIT: "Credits",
+  OTHER_ASSET: "Other assets",
   EQUITY: "Equity",
   ETF: "ETF",
   CRYPTO: "Crypto",
+  BOND: "Bonds",
+  COMMODITY: "Commodities",
 };
 
 export function AllocationChart({

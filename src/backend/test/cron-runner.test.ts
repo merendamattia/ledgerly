@@ -39,8 +39,45 @@ test("failing job records FAILED with the error message", async () => {
       throw new Error("boom");
     },
     "CRON",
+    { maxAttempts: 1 },
   );
   expect(run.status).toBe("FAILED");
   expect(run.error).toContain("boom");
   expect(run.finishedAt).not.toBeNull();
+  expect(run.attempts).toBe(1);
+});
+
+test("a failing job retries up to maxAttempts and logs each attempt", async () => {
+  let calls = 0;
+  const run = await runTrackedJob(
+    "nightly-prices",
+    async () => {
+      calls += 1;
+      throw new Error("still broken");
+    },
+    "CRON",
+    { maxAttempts: 3, retryDelayMs: 0 },
+  );
+  expect(calls).toBe(3);
+  expect(run.status).toBe("FAILED");
+  expect(run.attempts).toBe(3);
+  expect(run.log).toContain("attempt 1/3");
+  expect(run.log).toContain("attempt 3/3");
+});
+
+test("a job that recovers on a later attempt records SUCCESS", async () => {
+  let calls = 0;
+  const run = await runTrackedJob(
+    "fx-rates",
+    async () => {
+      calls += 1;
+      if (calls < 2) throw new Error("transient");
+      return 5;
+    },
+    "CRON",
+    { maxAttempts: 5, retryDelayMs: 0 },
+  );
+  expect(run.status).toBe("SUCCESS");
+  expect(run.itemsProcessed).toBe(5);
+  expect(run.attempts).toBe(2);
 });
