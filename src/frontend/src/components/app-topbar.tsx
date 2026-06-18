@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Search } from "lucide-react";
@@ -10,21 +11,18 @@ import { ImportInvestmentTransactionsDialog } from "@/components/import-investme
 import { ImportTransactionsDialog } from "@/components/import-transactions-dialog";
 import { Button } from "@/components/ui/button";
 
-// Lime logo tile + ledger glyph, mirrored from the old sidebar header.
 function Logo() {
   return (
-    <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-        <path
-          d="M5 3.5h14M5 12h14M5 20.5h14"
-          stroke="currentColor"
-          strokeWidth="2.4"
-          strokeLinecap="round"
-        />
-        <circle cx="9" cy="3.5" r="2" fill="currentColor" />
-        <circle cx="16" cy="12" r="2" fill="currentColor" />
-        <circle cx="11" cy="20.5" r="2" fill="currentColor" />
-      </svg>
+    <span className="flex size-10 shrink-0 items-center justify-center">
+      <Image
+        src="/icons/icon-192.png"
+        alt=""
+        width={192}
+        height={192}
+        priority
+        unoptimized
+        className="size-10 rounded-lg object-cover"
+      />
     </span>
   );
 }
