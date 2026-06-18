@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactElement, type ReactNode } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,9 +27,16 @@ export function ConfirmDialog({
   confirmLabel?: string;
   onConfirm: () => void;
 }) {
+  const [open, setOpen] = useState(false);
+
+  function confirm() {
+    setOpen(false);
+    onConfirm();
+  }
+
   return (
-    <AlertDialog>
-      <AlertDialogTrigger render={trigger as React.ReactElement} />
+    <AlertDialog open={open} onOpenChange={setOpen}>
+      <AlertDialogTrigger render={trigger as ReactElement} />
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
@@ -37,7 +44,7 @@ export function ConfirmDialog({
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirm}>{confirmLabel}</AlertDialogAction>
+          <AlertDialogAction onClick={confirm}>{confirmLabel}</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

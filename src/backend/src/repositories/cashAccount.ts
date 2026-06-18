@@ -22,6 +22,13 @@ export const cashAccountRepository = {
     return prisma.cashAccount.update({ where: { id }, data });
   },
 
+  resetBalances(ids: string[]) {
+    return prisma.cashAccount.updateMany({
+      where: { id: { in: ids } },
+      data: { balance: 0 },
+    });
+  },
+
   delete(id: string) {
     return prisma.cashAccount.delete({ where: { id } });
   },

@@ -33,4 +33,15 @@ export const debtSnapshotRepository = {
   deleteById(id: string) {
     return prisma.debtSnapshot.delete({ where: { id } });
   },
+
+  debtIdsWithSnapshots() {
+    return prisma.debtSnapshot.findMany({
+      distinct: ["debtId"],
+      select: { debtId: true },
+    });
+  },
+
+  deleteAll() {
+    return prisma.debtSnapshot.deleteMany();
+  },
 };

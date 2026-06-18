@@ -1,3 +1,4 @@
+import type { CashCategory } from "@prisma/client";
 import { prisma } from "../core/db.ts";
 
 // Data access for dated cash-account balance snapshots.
@@ -32,5 +33,19 @@ export const cashSnapshotRepository = {
 
   deleteById(id: string) {
     return prisma.cashSnapshot.delete({ where: { id } });
+  },
+
+  accountIdsByCategory(category: CashCategory) {
+    return prisma.cashSnapshot.findMany({
+      where: { cashAccount: { category } },
+      distinct: ["cashAccountId"],
+      select: { cashAccountId: true },
+    });
+  },
+
+  deleteByAccountCategory(category: CashCategory) {
+    return prisma.cashSnapshot.deleteMany({
+      where: { cashAccount: { category } },
+    });
   },
 };

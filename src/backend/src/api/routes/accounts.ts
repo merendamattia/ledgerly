@@ -3,14 +3,19 @@ import { zValidator } from "@hono/zod-validator";
 import { requireAuth } from "../middlewares/auth.ts";
 import { cashAccountRepository } from "../../repositories/cashAccount.ts";
 import { cashSnapshotRepository } from "../../repositories/cashSnapshot.ts";
-import { createCashSnapshot, deleteCashSnapshot } from "../../services/snapshot.ts";
 import {
+  createCashSnapshot,
+  deleteCashSnapshot,
+  deleteCashSnapshotsByCategory,
+} from "../../services/snapshot.ts";
+import {
+  cashCategorySchema,
   createAccountSchema,
   createCashSnapshotSchema,
   updateAccountSchema,
 } from "../../schemas/index.ts";
 import { serializeAccount, serializeCashSnapshot } from "../../utils/serialize.ts";
-import { NotFoundError } from "../../core/errors.ts";
+import { BadRequestError, NotFoundError } from "../../core/errors.ts";
 import type { AppEnv } from "../types.ts";
 
 export const accountsRoutes = new Hono<AppEnv>()
@@ -27,6 +32,12 @@ export const accountsRoutes = new Hono<AppEnv>()
     const { date, entries } = c.req.valid("json");
     const snapshots = await createCashSnapshot(date, entries);
     return c.json(snapshots.map(serializeCashSnapshot), 201);
+  })
+  .delete("/snapshots/categories/:category", async (c) => {
+    const parsed = cashCategorySchema.safeParse(c.req.param("category"));
+    if (!parsed.success) throw new BadRequestError("Invalid cash snapshot category");
+    const result = await deleteCashSnapshotsByCategory(parsed.data);
+    return c.json(result);
   })
   .delete("/snapshots/:id", async (c) => {
     const id = c.req.param("id");
