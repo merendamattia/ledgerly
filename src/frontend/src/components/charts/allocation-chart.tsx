@@ -42,6 +42,7 @@ export function AllocationChart({
 }) {
   const data = Object.entries(allocation)
     .filter(([, value]) => value > 0)
+    .sort(([, a], [, b]) => b - a)
     .map(([key, value], i) => ({
       key,
       name: labels?.[key] ?? LABELS[key] ?? key,
