@@ -11,17 +11,114 @@ import { AllocationChart } from "@/components/charts/allocation-chart";
 import { CashFlowChart } from "@/components/charts/cashflow-chart";
 import { useDashboard, useNetWorthHistory, type DashboardData } from "@/hooks/use-dashboard";
 import { useInvestmentTransactions } from "@/hooks/use-investments";
-import { formatMoney, formatPercent, numericDate, INVESTMENT_SIDE_LABELS } from "@/lib/format";
+import { useAccounts, useCashSnapshots } from "@/hooks/use-accounts";
+import {
+  formatMoney,
+  formatNumber,
+  formatPercent,
+  numericDate,
+  INVESTMENT_SIDE_LABELS,
+} from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 type RecentTx = DashboardData["recentTransactions"][number];
+type KpiDelta = { label: string; tone: "positive" | "negative" | "muted" };
+type TrendPoint = { date: string; total: number };
 
 const PERIODS = [
-  { value: "30", label: "1M" },
-  { value: "90", label: "3M" },
-  { value: "365", label: "1Y" },
-  { value: "9999", label: "Max" },
+  { value: "1M", label: "1M" },
+  { value: "3M", label: "3M" },
+  { value: "YTD", label: "YTD" },
+  { value: "1Y", label: "1Y" },
+  { value: "Max", label: "Max" },
 ] as const;
+const PERIOD_DAYS: Record<string, number> = { "1M": 30, "3M": 90, "1Y": 365 };
+
+function periodCutoff(period: string): string | null {
+  if (period === "Max") return null;
+  const d = new Date();
+  d.setUTCHours(0, 0, 0, 0);
+  if (period === "YTD") return `${d.getUTCFullYear()}-01-01`;
+  const days = PERIOD_DAYS[period] ?? 365;
+  d.setUTCDate(d.getUTCDate() - days);
+  return d.toISOString().slice(0, 10);
+}
+
+function currentMonthStartISO(): string {
+  const d = new Date();
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-01`;
+}
+
+function signedMoney(value: number, currency: string): string {
+  if (value === 0) return formatMoney(0, currency);
+  return `${value > 0 ? "+" : "−"}${formatMoney(Math.abs(value), currency)}`;
+}
+
+function trendValues(values: number[], current: number): number[] {
+  const finite = values.filter((v) => Number.isFinite(v));
+  const withCurrent = finite.at(-1) === current ? finite : [...finite, current];
+  return withCurrent.slice(-10);
+}
+
+function snapshotTrendValues(points: TrendPoint[]): number[] {
+  return points
+    .map((p) => p.total)
+    .filter((v) => Number.isFinite(v))
+    .slice(-10);
+}
+
+function MiniSparkline({
+  values,
+  color,
+}: {
+  values: number[];
+  color: string;
+}) {
+  if (values.length < 2) return null;
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const span = max - min || 1;
+  const points = values
+    .map((value, index) => {
+      const x = (index / (values.length - 1)) * 120;
+      const y = 30 - ((value - min) / span) * 24 + 3;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
+
+  return (
+    <svg
+      viewBox="0 0 120 36"
+      preserveAspectRatio="none"
+      aria-hidden="true"
+      className="hidden h-7 w-20 shrink-0 sm:block"
+    >
+      <polyline
+        points={points}
+        fill="none"
+        stroke={color}
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function KpiDeltaLine({ delta }: { delta: KpiDelta }) {
+  return (
+    <span
+      className={cn(
+        "mt-1 block text-xs font-semibold",
+        delta.tone === "positive" && "text-positive",
+        delta.tone === "negative" && "text-negative",
+        delta.tone === "muted" && "text-muted-foreground",
+      )}
+    >
+      {delta.label}
+    </span>
+  );
+}
 
 const BAR_COLORS = [
   "var(--chart-1)",
@@ -35,15 +132,15 @@ const BAR_COLORS = [
 export default function OverviewPage() {
   const { data, isLoading } = useDashboard();
   const investmentTx = useInvestmentTransactions({ limit: 5 });
-  const [period, setPeriod] = useState<string>("365");
+  const accounts = useAccounts();
+  const cashSnapshots = useCashSnapshots();
+  const [period, setPeriod] = useState<string>("YTD");
 
   const nw = data?.netWorth;
   const currency = nw?.baseCurrency ?? "EUR";
   const total = nw?.total ?? 0;
   const allocation = nw?.allocation ?? {};
   const liquidity = allocation["CASH"] ?? 0;
-  const credits = nw?.credits ?? 0;
-  const otherAssets = nw?.otherAssets ?? 0;
   const investments = nw?.investments ?? 0;
   const debts = nw?.debts ?? 0;
 
@@ -54,7 +151,10 @@ export default function OverviewPage() {
   const nwHistory = useNetWorthHistory();
   const sliced = useMemo(() => {
     const pts = (nwHistory.data ?? []).map((p) => ({ date: p.date, totalValue: p.totalValue }));
-    return pts.slice(Math.max(0, pts.length - Number(period)));
+    const cutoff = periodCutoff(period);
+    if (!cutoff) return pts;
+    const window = pts.filter((p) => p.date >= cutoff);
+    return window.length >= 2 ? window : pts;
   }, [nwHistory.data, period]);
 
   const nwDelta = useMemo(() => {
@@ -65,6 +165,86 @@ export default function OverviewPage() {
     const pct = ((last - first) / first) * 100;
     return { abs: last - first, pct };
   }, [sliced]);
+
+  const kpiDeltas = useMemo(() => {
+    const previous = [...(nwHistory.data ?? [])]
+      .reverse()
+      .find((p) => p.date < currentMonthStartISO());
+    const missing: KpiDelta = { label: "No previous month data", tone: "muted" };
+    if (!previous) {
+      return {
+        investments: missing,
+        debts: missing,
+      };
+    }
+
+    const investmentsDelta = investments - previous.investments;
+    const investmentsPct =
+      previous.investments > 0 ? (investmentsDelta / previous.investments) * 100 : null;
+    const debtsDelta = debts - previous.debts;
+
+    return {
+      investments: {
+        label: `${investmentsPct == null ? "" : `${formatPercent(investmentsPct)} · `}${signedMoney(
+          investmentsDelta,
+          currency,
+        )} this month`,
+        tone: investmentsDelta >= 0 ? "positive" : "negative",
+      },
+      debts: {
+        label: `${signedMoney(debtsDelta, currency)} this month`,
+        tone: debtsDelta <= 0 ? "positive" : "negative",
+      },
+    } satisfies Record<"investments" | "debts", KpiDelta>;
+  }, [nwHistory.data, investments, debts, currency]);
+
+  const liquiditySnapshotHistory = useMemo<TrendPoint[]>(() => {
+    const liquidityAccountIds = new Set(
+      (accounts.data ?? [])
+        .filter((a) => a.category === "LIQUIDITY" && a.type !== "BROKER")
+        .map((a) => a.id),
+    );
+    const byDate = new Map<string, number>();
+    for (const snapshot of cashSnapshots.data ?? []) {
+      if (!liquidityAccountIds.has(snapshot.cashAccountId)) continue;
+      byDate.set(String(snapshot.date), (byDate.get(String(snapshot.date)) ?? 0) + snapshot.balance);
+    }
+    return [...byDate.entries()]
+      .map(([date, total]) => ({ date, total }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [accounts.data, cashSnapshots.data]);
+
+  const liquiditySnapshotDelta = useMemo<KpiDelta>(() => {
+    const latest = liquiditySnapshotHistory.at(-1);
+    const previous = [...liquiditySnapshotHistory]
+      .reverse()
+      .find((point) => point.date < currentMonthStartISO());
+    if (!latest || !previous) {
+      return { label: "No previous month data", tone: "muted" };
+    }
+    if (latest.date < currentMonthStartISO()) {
+      return { label: "No current month snapshot", tone: "muted" };
+    }
+    const delta = latest.total - previous.total;
+    return {
+      label: `${signedMoney(delta, currency)} this month`,
+      tone: delta >= 0 ? "positive" : "negative",
+    };
+  }, [liquiditySnapshotHistory, currency]);
+
+  const kpiSparklines = useMemo(() => {
+    const points = nwHistory.data ?? [];
+    return {
+      investments: trendValues(
+        points.map((p) => p.investments),
+        investments,
+      ),
+      debts: trendValues(
+        points.map((p) => p.debts),
+        debts,
+      ),
+    };
+  }, [nwHistory.data, investments, debts]);
 
   const series = data?.cashFlowSeries ?? [];
   const expenseByCategory = useMemo(() => {
@@ -142,35 +322,33 @@ export default function OverviewPage() {
 
       {/* KPI row — Investments · Liquidity · Debts · Cash flow + Savings */}
       <Card className={cn("col-span-6 gap-0 p-5 animate-fu lg:col-span-3")}>
-        <p className="text-xs font-medium text-muted-foreground">Investments</p>
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs font-medium text-muted-foreground">Investments</p>
+          <MiniSparkline values={kpiSparklines.investments} color="var(--positive)" />
+        </div>
         <p className="mt-2.5 font-mono text-2xl font-semibold tabular-nums">
           {formatMoney(investments, currency)}
         </p>
+        <KpiDeltaLine delta={kpiDeltas.investments} />
       </Card>
       <Card className={cn("col-span-6 gap-0 p-5 animate-fu lg:col-span-3")}>
-        <p className="text-xs font-medium text-muted-foreground">Liquidity</p>
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs font-medium text-muted-foreground">Liquidity</p>
+          <MiniSparkline
+            values={snapshotTrendValues(liquiditySnapshotHistory)}
+            color="var(--chart-3)"
+          />
+        </div>
         <p className="mt-2.5 font-mono text-2xl font-semibold tabular-nums">
           {formatMoney(liquidity, currency)}
         </p>
+        <KpiDeltaLine delta={liquiditySnapshotDelta} />
       </Card>
-      {credits > 0 ? (
-        <Card className={cn("col-span-6 gap-0 p-5 animate-fu lg:col-span-3")}>
-          <p className="text-xs font-medium text-muted-foreground">Credits</p>
-          <p className="mt-2.5 font-mono text-2xl font-semibold tabular-nums">
-            {formatMoney(credits, currency)}
-          </p>
-        </Card>
-      ) : null}
-      {otherAssets > 0 ? (
-        <Card className={cn("col-span-6 gap-0 p-5 animate-fu lg:col-span-3")}>
-          <p className="text-xs font-medium text-muted-foreground">Other assets</p>
-          <p className="mt-2.5 font-mono text-2xl font-semibold tabular-nums">
-            {formatMoney(otherAssets, currency)}
-          </p>
-        </Card>
-      ) : null}
       <Card className={cn("col-span-6 gap-0 p-5 animate-fu lg:col-span-3")}>
-        <p className="text-xs font-medium text-muted-foreground">Debts</p>
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs font-medium text-muted-foreground">Debts</p>
+          <MiniSparkline values={kpiSparklines.debts} color="var(--negative)" />
+        </div>
         <p
           className={cn(
             "mt-2.5 font-mono text-2xl font-semibold tabular-nums",
@@ -180,6 +358,7 @@ export default function OverviewPage() {
           {debts > 0 ? "−" : ""}
           {formatMoney(debts, currency)}
         </p>
+        <KpiDeltaLine delta={kpiDeltas.debts} />
       </Card>
       {/* Monthly cash flow + savings rate: dark ink card (they're related) */}
       <Card
@@ -317,6 +496,7 @@ export default function OverviewPage() {
             investmentTx.data?.slice(0, 5).map((t) => {
               const gross = t.quantity * t.price;
               const signed = t.side === "BUY" ? -(gross + t.fee) : gross - t.fee;
+              const txCurrency = t.ticker?.currency ?? currency;
               return (
                 <li key={t.id} className="flex items-center gap-3 py-2.5">
                   <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-foreground">
@@ -326,15 +506,17 @@ export default function OverviewPage() {
                     <p className="truncate text-sm font-medium">
                       {INVESTMENT_SIDE_LABELS[t.side]} {t.ticker?.symbol ?? ""}
                     </p>
-                    <p className="font-mono text-xs text-muted-foreground">{numericDate(t.date)}</p>
+                    <p className="truncate font-mono text-xs text-muted-foreground">
+                      {numericDate(t.date)} · Qty {formatNumber(t.quantity, 4)} @{" "}
+                      {formatMoney(t.price, txCurrency)}
+                    </p>
                   </div>
-                  <MoneyAmount
-                    value={signed}
-                    currency={t.ticker?.currency ?? currency}
-                    colored
-                    signed
-                    className="shrink-0 font-mono text-sm font-semibold"
-                  />
+                  <span className="shrink-0 text-right font-mono text-sm font-semibold tabular-nums">
+                    <span className={signed >= 0 ? "text-positive" : "text-negative"}>
+                      {signed >= 0 ? "+" : ""}
+                      {formatMoney(signed, txCurrency)}
+                    </span>
+                  </span>
                 </li>
               );
             })

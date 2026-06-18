@@ -53,7 +53,7 @@ export async function computeNetWorth(): Promise<NetWorth> {
     const value = Number(account.balance) * fx;
     if (account.category === "CREDIT") credits += value;
     else if (account.category === "OTHER_ASSET") otherAssets += value;
-    else cash += value;
+    else if (account.type !== "BROKER") cash += value;
   }
 
   // Holdings valued at latest price, converted to base currency.

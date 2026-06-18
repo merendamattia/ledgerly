@@ -301,18 +301,6 @@ export default function InvestmentsPage() {
       {/* Geographic exposure (placeholder until data lands) */}
       <GeoExposureCard className="col-span-12 lg:col-span-4" />
 
-      {/* Liquidity panel + snapshot history */}
-      <CashCategoryPanel category="LIQUIDITY" currency={currency} />
-
-      {/* Credits (receivables) */}
-      <CashCategoryPanel category="CREDIT" currency={currency} />
-
-      {/* Other assets */}
-      <CashCategoryPanel category="OTHER_ASSET" currency={currency} />
-
-      {/* Debts */}
-      <DebtsCard currency={currency} />
-
       {/* Positions table */}
       <Card className={cn("col-span-12 gap-0 p-5 animate-fu")}>
         <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
@@ -376,6 +364,18 @@ export default function InvestmentsPage() {
           </div>
         </div>
       </Card>
+
+      {/* Liquidity panel + snapshot history */}
+      <CashCategoryPanel category="LIQUIDITY" currency={currency} />
+
+      {/* Credits (receivables) */}
+      <CashCategoryPanel category="CREDIT" currency={currency} />
+
+      {/* Other assets */}
+      <CashCategoryPanel category="OTHER_ASSET" currency={currency} />
+
+      {/* Debts */}
+      <DebtsCard currency={currency} />
 
       {openPosition ? (
         <PositionTransactionsDialog

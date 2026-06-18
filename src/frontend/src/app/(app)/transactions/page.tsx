@@ -25,6 +25,7 @@ import {
   useInvestmentTransactions,
   type InvestmentTransaction,
 } from "@/hooks/use-investments";
+import { useCategories } from "@/hooks/use-categories";
 import { formatMoney, numericDate, INVESTMENT_SIDE_LABELS } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -42,14 +43,15 @@ const FILTERS: { value: Filter; label: string }[] = [
 ];
 
 // Desktop: a ledger-style CSS grid. Below md each row collapses to a stacked
-// card (description + amount on top, date / category / account beneath).
-const GRID_COLS = "grid-cols-[78px_minmax(0,1.5fr)_130px_140px_120px]";
+// card (description + amount on top, date / category beneath).
+const GRID_COLS = "grid-cols-[78px_minmax(0,1.6fr)_140px_120px]";
 const ROW_DESKTOP = cn("hidden items-center px-5 py-3.5 text-sm md:grid", GRID_COLS);
 const ROW_MOBILE = "flex items-center gap-3 px-4 py-3 md:hidden";
 
 export default function TransactionsPage() {
   const [filter, setFilter] = useState<Filter>("ALL");
   const [month, setMonth] = useState<string>("all");
+  const [categoryId, setCategoryId] = useState<string>("all");
   const [limit, setLimit] = useState(PAGE_SIZE);
   const [detailTx, setDetailTx] = useState<Transaction | null>(null);
   const [invTx, setInvTx] = useState<InvestmentTransaction | null>(null);
@@ -80,10 +82,33 @@ export default function TransactionsPage() {
     return { from: iso(new Date(y, m - 1, 1)), to: iso(new Date(y, m, 0)) };
   }, [month]);
 
+  const categoryKind = filter === "INCOME" || filter === "EXPENSE" ? filter : undefined;
+  const categories = useCategories(categoryKind, categoryKind !== undefined);
+  const categoryOptions = useMemo(
+    () => [
+      { value: "all", label: "All categories" },
+      ...(categories.data ?? [])
+        .slice()
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((c) => ({ value: c.id, label: c.name })),
+    ],
+    [categories.data],
+  );
+  const categoryItems = useMemo(
+    () => Object.fromEntries(categoryOptions.map((o) => [o.value, o.label])),
+    [categoryOptions],
+  );
+
   const filters: TransactionFilters = {
     direction: filter === "INCOME" || filter === "EXPENSE" ? filter : undefined,
     from: range.from,
     to: range.to,
+    categoryId:
+      filter === "INCOME" || filter === "EXPENSE"
+        ? categoryId === "all"
+          ? undefined
+          : categoryId
+        : undefined,
     limit,
   };
 
@@ -129,6 +154,7 @@ export default function TransactionsPage() {
                 type="button"
                 onClick={() => {
                   setFilter(f.value);
+                  setCategoryId("all");
                   setLimit(PAGE_SIZE);
                 }}
                 className={cn(
@@ -144,19 +170,51 @@ export default function TransactionsPage() {
           })}
         </div>
 
-        <Select value={month} items={monthItems} onValueChange={(v) => setMonth(v ?? "all")}>
-          <SelectTrigger className="w-full gap-2 bg-card sm:w-auto">
-            <Calendar className="size-4 text-muted-foreground" />
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {monthOptions.map((o) => (
-              <SelectItem key={o.value} value={o.value}>
-                {o.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          {categoryKind ? (
+            <Select
+              value={categoryId}
+              items={categoryItems}
+              onValueChange={(v) => {
+                setCategoryId(v ?? "all");
+                setLimit(PAGE_SIZE);
+              }}
+            >
+              <SelectTrigger className="w-full bg-card sm:w-[180px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {categoryOptions.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : null}
+
+          <Select
+            value={month}
+            items={monthItems}
+            onValueChange={(v) => {
+              setMonth(v ?? "all");
+              setCategoryId("all");
+              setLimit(PAGE_SIZE);
+            }}
+          >
+            <SelectTrigger className="w-full gap-2 bg-card sm:w-auto">
+              <Calendar className="size-4 text-muted-foreground" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {monthOptions.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Table card */}
@@ -170,7 +228,6 @@ export default function TransactionsPage() {
           <span>Date</span>
           <span>Description</span>
           <span>Category</span>
-          <span>Account</span>
           <span className="text-right">Amount</span>
         </div>
 
@@ -221,7 +278,6 @@ export default function TransactionsPage() {
                         Investment
                       </span>
                     </span>
-                    <span className="truncate text-muted-foreground">{t.ticker?.name ?? "—"}</span>
                     <span className="text-right">{amount}</span>
                   </div>
                   <div className={ROW_MOBILE}>
@@ -280,7 +336,6 @@ export default function TransactionsPage() {
                   <span>
                     <CategoryBadge name={t.category?.name} />
                   </span>
-                  <span className="truncate text-muted-foreground">—</span>
                   <span className="text-right">{amount}</span>
                 </div>
                 <div className={ROW_MOBILE}>
