@@ -83,3 +83,15 @@ export function useDeleteDebtSnapshot() {
     },
   });
 }
+
+export function useDeleteAllDebtSnapshots() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => unwrap<{ deleted: number }>(await api.debts.snapshots.$delete()),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.debtSnapshots });
+      qc.invalidateQueries({ queryKey: queryKeys.debts });
+      qc.invalidateQueries({ queryKey: queryKeys.dashboard });
+    },
+  });
+}

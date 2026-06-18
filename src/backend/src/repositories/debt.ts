@@ -19,6 +19,13 @@ export const debtRepository = {
     return prisma.debt.update({ where: { id }, data });
   },
 
+  resetAmounts(ids: string[]) {
+    return prisma.debt.updateMany({
+      where: { id: { in: ids } },
+      data: { amount: 0 },
+    });
+  },
+
   delete(id: string) {
     return prisma.debt.delete({ where: { id } });
   },

@@ -1,3 +1,4 @@
+import type { CashCategory } from "@prisma/client";
 import { snapshotRepository } from "../repositories/snapshot.ts";
 import { cashSnapshotRepository } from "../repositories/cashSnapshot.ts";
 import { cashAccountRepository } from "../repositories/cashAccount.ts";
@@ -83,6 +84,21 @@ export async function deleteCashSnapshot(id: string) {
 }
 
 /**
+ * Delete every cash snapshot for accounts in `category`, then reset only those
+ * accounts that actually had snapshots. After this operation they have no
+ * remaining dated source of truth, so their cached balance becomes 0.
+ */
+export async function deleteCashSnapshotsByCategory(category: CashCategory) {
+  const accountIds = (await cashSnapshotRepository.accountIdsByCategory(category)).map(
+    (row) => row.cashAccountId,
+  );
+  if (accountIds.length === 0) return { deleted: 0 };
+  const result = await cashSnapshotRepository.deleteByAccountCategory(category);
+  await cashAccountRepository.resetBalances(accountIds);
+  return { deleted: result.count };
+}
+
+/**
  * Record a dated amount snapshot for one or more debts. Each entry upserts the
  * debt's snapshot for `date` and refreshes its cached `amount`.
  */
@@ -114,4 +130,16 @@ export async function deleteDebtSnapshot(id: string) {
     amount: latest ? Number(latest.amount) : 0,
   });
   return snap;
+}
+
+/**
+ * Delete every debt snapshot and reset only debts that had at least one
+ * snapshot. Once the history is gone, no dated amount remains to cache.
+ */
+export async function deleteAllDebtSnapshots() {
+  const debtIds = (await debtSnapshotRepository.debtIdsWithSnapshots()).map((row) => row.debtId);
+  if (debtIds.length === 0) return { deleted: 0 };
+  const result = await debtSnapshotRepository.deleteAll();
+  await debtRepository.resetAmounts(debtIds);
+  return { deleted: result.count };
 }
