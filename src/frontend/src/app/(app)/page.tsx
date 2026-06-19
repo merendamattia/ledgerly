@@ -6,6 +6,7 @@ import { ArrowUpRight, TrendingUp } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { MoneyAmount } from "@/components/money-amount";
 import { CategoryIcon } from "@/components/category-badge";
+import { DayGroupedList } from "@/components/day-grouped-list";
 import { NetWorthChart } from "@/components/charts/net-worth-chart";
 import { AllocationChart } from "@/components/charts/allocation-chart";
 import { CashFlowChart } from "@/components/charts/cashflow-chart";
@@ -16,7 +17,6 @@ import {
   formatMoney,
   formatNumber,
   formatPercent,
-  numericDate,
   INVESTMENT_SIDE_LABELS,
 } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -441,40 +441,44 @@ export default function OverviewPage() {
       {/* Recent expenses & income */}
       <Card className={cn("col-span-12 gap-0 p-5 animate-fu lg:col-span-6")}>
         <div className="flex items-center justify-between">
-          <p className="font-display text-base font-semibold">Recent expenses</p>
+          <p className="font-display text-base font-semibold">Recent movements</p>
           <Link href="/transactions" className="text-sm font-semibold text-positive">
             View all →
           </Link>
         </div>
-        <ul className="mt-2 divide-y">
+        <div className="mt-2">
           {isLoading ? (
-            <li className="py-4 text-sm text-muted-foreground">Loading…</li>
+            <p className="py-4 text-sm text-muted-foreground">Loading…</p>
           ) : (data?.recentTransactions ?? []).length === 0 ? (
-            <li className="py-8 text-center text-sm text-muted-foreground">No transactions yet.</li>
+            <p className="py-8 text-center text-sm text-muted-foreground">No transactions yet.</p>
           ) : (
-            data?.recentTransactions.slice(0, 5).map((t: RecentTx) => {
-              const signed = t.direction === "EXPENSE" ? -t.amount : t.amount;
-              return (
-                <li key={t.id} className="flex items-center gap-3 py-2.5">
-                  <CategoryIcon name={t.category?.name} />
+            <DayGroupedList
+              items={data?.recentTransactions.slice(0, 5) ?? []}
+              getKey={(t) => t.id}
+              getDate={(t) => t.date}
+              renderItem={(t: RecentTx) => (
+                <>
+                  <CategoryIcon name={t.category?.name} className="size-9 rounded-full" />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">
-                      {t.note || t.category?.name || "Transaction"}
+                    <p className="truncate font-medium capitalize">
+                      {t.category?.name || "Transaction"}
                     </p>
-                    <p className="font-mono text-xs text-muted-foreground">{numericDate(t.date)}</p>
+                    {t.note ? (
+                      <p className="truncate text-xs text-muted-foreground">{t.note}</p>
+                    ) : null}
                   </div>
                   <MoneyAmount
-                    value={signed}
+                    value={t.direction === "EXPENSE" ? -t.amount : t.amount}
                     currency={currency}
                     colored
                     signed
-                    className="shrink-0 font-mono text-sm font-semibold"
+                    className="shrink-0 font-mono font-semibold"
                   />
-                </li>
-              );
-            })
+                </>
+              )}
+            />
           )}
-        </ul>
+        </div>
       </Card>
 
       {/* Recent investment movements */}
@@ -485,43 +489,50 @@ export default function OverviewPage() {
             View all →
           </Link>
         </div>
-        <ul className="mt-2 divide-y">
+        <div className="mt-2">
           {investmentTx.isLoading ? (
-            <li className="py-4 text-sm text-muted-foreground">Loading…</li>
+            <p className="py-4 text-sm text-muted-foreground">Loading…</p>
           ) : (investmentTx.data ?? []).length === 0 ? (
-            <li className="py-8 text-center text-sm text-muted-foreground">
+            <p className="py-8 text-center text-sm text-muted-foreground">
               No investment movements yet.
-            </li>
+            </p>
           ) : (
-            investmentTx.data?.slice(0, 5).map((t) => {
-              const gross = t.quantity * t.price;
-              const signed = t.side === "BUY" ? -(gross + t.fee) : gross - t.fee;
-              const txCurrency = t.ticker?.currency ?? currency;
-              return (
-                <li key={t.id} className="flex items-center gap-3 py-2.5">
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-foreground">
-                    <TrendingUp className="size-4" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">
-                      {INVESTMENT_SIDE_LABELS[t.side]} {t.ticker?.symbol ?? ""}
-                    </p>
-                    <p className="truncate font-mono text-xs text-muted-foreground">
-                      {numericDate(t.date)} · Qty {formatNumber(t.quantity, 4)} @{" "}
-                      {formatMoney(t.price, txCurrency)}
-                    </p>
-                  </div>
-                  <span className="shrink-0 text-right font-mono text-sm font-semibold tabular-nums">
-                    <span className={signed >= 0 ? "text-positive" : "text-negative"}>
-                      {signed >= 0 ? "+" : ""}
-                      {formatMoney(signed, txCurrency)}
+            <DayGroupedList
+              items={investmentTx.data?.slice(0, 4) ?? []}
+              getKey={(t) => t.id}
+              getDate={(t) => t.date}
+              renderItem={(t) => {
+                const gross = t.quantity * t.price;
+                const signed = t.side === "BUY" ? -(gross + t.fee) : gross - t.fee;
+                const txCurrency = t.ticker?.currency ?? currency;
+                return (
+                  <>
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground">
+                      <TrendingUp className="size-4" />
                     </span>
-                  </span>
-                </li>
-              );
-            })
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium">
+                        {INVESTMENT_SIDE_LABELS[t.side]} {t.ticker?.symbol ?? ""}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {t.ticker?.name ? `${t.ticker.name} · ` : ""}
+                        <span className="font-mono">
+                          Qty {formatNumber(t.quantity, 4)} @ {formatMoney(t.price, txCurrency)}
+                        </span>
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-right font-mono font-semibold tabular-nums">
+                      <span className={signed >= 0 ? "text-positive" : "text-negative"}>
+                        {signed >= 0 ? "+" : ""}
+                        {formatMoney(signed, txCurrency)}
+                      </span>
+                    </span>
+                  </>
+                );
+              }}
+            />
           )}
-        </ul>
+        </div>
       </Card>
     </div>
   );

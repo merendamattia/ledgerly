@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import { Calendar } from "lucide-react";
 import { MoneyAmount } from "@/components/money-amount";
-import { CategoryIcon, CategoryBadge } from "@/components/category-badge";
+import { CategoryIcon } from "@/components/category-badge";
+import { DayGroupedList } from "@/components/day-grouped-list";
 import { TransactionDetailDialog } from "@/components/transaction-detail-dialog";
 import { InvestmentTxDialog } from "@/components/investment-tx-dialog";
 import { Button } from "@/components/ui/button";
@@ -26,7 +27,7 @@ import {
   type InvestmentTransaction,
 } from "@/hooks/use-investments";
 import { useCategories } from "@/hooks/use-categories";
-import { formatMoney, numericDate, INVESTMENT_SIDE_LABELS } from "@/lib/format";
+import { formatMoney, INVESTMENT_SIDE_LABELS } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 50;
@@ -41,12 +42,6 @@ const FILTERS: { value: Filter; label: string }[] = [
   { value: "EXPENSE", label: "Expense" },
   { value: "INVESTMENT", label: "Investments" },
 ];
-
-// Desktop: a ledger-style CSS grid. Below md each row collapses to a stacked
-// card (description + amount on top, date / category beneath).
-const GRID_COLS = "grid-cols-[78px_minmax(0,1.6fr)_140px_120px]";
-const ROW_DESKTOP = cn("hidden items-center px-5 py-3.5 text-sm md:grid", GRID_COLS);
-const ROW_MOBILE = "flex items-center gap-3 px-4 py-3 md:hidden";
 
 export default function TransactionsPage() {
   const [filter, setFilter] = useState<Filter>("ALL");
@@ -217,146 +212,84 @@ export default function TransactionsPage() {
         </div>
       </div>
 
-      {/* Table card */}
-      <div className="overflow-hidden rounded-[var(--card-radius)] border bg-card shadow-card">
-        <div
-          className={cn(
-            ROW_DESKTOP,
-            "border-b bg-[#FCFBF7] py-3 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase",
-          )}
-        >
-          <span>Date</span>
-          <span>Description</span>
-          <span>Category</span>
-          <span className="text-right">Amount</span>
-        </div>
-
+      {/* Day-grouped movements card */}
+      <div className="overflow-hidden rounded-[var(--card-radius)] border bg-card px-5 pt-3 pb-1 shadow-card">
         {filter === "INVESTMENT" ? (
           investments.isLoading ? (
-            <div className="px-5 py-10 text-center text-sm text-muted-foreground">Loading…</div>
+            <div className="py-10 text-center text-sm text-muted-foreground">Loading…</div>
           ) : investmentRows.length === 0 ? (
-            <div className="px-5 py-12 text-center text-sm text-muted-foreground">
+            <div className="py-12 text-center text-sm text-muted-foreground">
               No investment movements yet.
             </div>
           ) : (
-            investmentRows.map((t) => {
-              const gross = t.quantity * t.price;
-              const signed = t.side === "BUY" ? -(gross + t.fee) : gross - t.fee;
-              const tile = (
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-accent font-display text-[11px] font-semibold text-accent-foreground">
-                  {(t.ticker?.symbol ?? "?").slice(0, 2).toUpperCase()}
-                </span>
-              );
-              const amount = (
-                <span
-                  className={cn(
-                    "font-mono font-semibold tabular-nums",
-                    signed >= 0 ? "text-positive" : "text-negative",
-                  )}
-                >
-                  {signed >= 0 ? "+" : ""}
-                  {formatMoney(signed, t.ticker?.currency ?? currency)}
-                </span>
-              );
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => setInvTx(t)}
-                  className="block w-full border-b border-background text-left transition-colors last:border-b-0 hover:bg-muted/50"
-                >
-                  <div className={ROW_DESKTOP}>
-                    <span className="font-mono text-xs text-muted-foreground">{numericDate(t.date)}</span>
-                    <span className="flex min-w-0 items-center gap-3">
-                      {tile}
+            <DayGroupedList
+              items={investmentRows}
+              getKey={(t) => t.id}
+              getDate={(t) => t.date}
+              onItemClick={setInvTx}
+              renderItem={(t) => {
+                const gross = t.quantity * t.price;
+                const signed = t.side === "BUY" ? -(gross + t.fee) : gross - t.fee;
+                return (
+                  <>
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent font-display text-[11px] font-semibold text-accent-foreground">
+                      {(t.ticker?.symbol ?? "?").slice(0, 2).toUpperCase()}
+                    </span>
+                    <div className="flex min-w-0 flex-1 flex-col">
                       <span className="truncate font-medium">
                         {INVESTMENT_SIDE_LABELS[t.side]} {t.ticker?.symbol ?? ""}
                       </span>
-                    </span>
-                    <span>
-                      <span className="rounded-md bg-accent px-2 py-0.5 text-[11px] font-semibold text-accent-foreground">
-                        Investment
+                      <span className="truncate text-xs text-muted-foreground">
+                        {t.ticker?.name ?? "Investment"}
                       </span>
-                    </span>
-                    <span className="text-right">{amount}</span>
-                  </div>
-                  <div className={ROW_MOBILE}>
-                    {tile}
-                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                      <div className="flex items-baseline justify-between gap-2">
-                        <span className="truncate text-sm font-medium">
-                          {INVESTMENT_SIDE_LABELS[t.side]} {t.ticker?.symbol ?? ""}
-                        </span>
-                        {amount}
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span className="font-mono">{numericDate(t.date)}</span>
-                        <span aria-hidden>·</span>
-                        <span className="truncate">{t.ticker?.name ?? "Investment"}</span>
-                      </div>
                     </div>
-                  </div>
-                </button>
-              );
-            })
+                    <span
+                      className={cn(
+                        "shrink-0 font-mono font-semibold tabular-nums",
+                        signed >= 0 ? "text-positive" : "text-negative",
+                      )}
+                    >
+                      {signed >= 0 ? "+" : ""}
+                      {formatMoney(signed, t.ticker?.currency ?? currency)}
+                    </span>
+                  </>
+                );
+              }}
+            />
           )
         ) : isLoading ? (
-          <div className="px-5 py-10 text-center text-sm text-muted-foreground">Loading…</div>
+          <div className="py-10 text-center text-sm text-muted-foreground">Loading…</div>
         ) : rows.length === 0 ? (
-          <div className="px-5 py-12 text-center text-sm text-muted-foreground">
+          <div className="py-12 text-center text-sm text-muted-foreground">
             No transactions for this filter.
           </div>
         ) : (
-          rows.map((t) => {
-            const signed = t.direction === "EXPENSE" ? -t.amount : t.amount;
-            const amount = (
-              <MoneyAmount
-                value={signed}
-                currency={currency}
-                colored
-                signed
-                className="font-mono font-semibold"
-              />
-            );
-            return (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => setDetailTx(t)}
-                className="block w-full border-b border-background text-left transition-colors last:border-b-0 hover:bg-muted/50"
-              >
-                <div className={ROW_DESKTOP}>
-                  <span className="font-mono text-xs text-muted-foreground">{numericDate(t.date)}</span>
-                  <span className="flex min-w-0 items-center gap-3">
-                    <CategoryIcon name={t.category?.name} />
-                    <span className="truncate font-medium">
-                      {t.note || t.category?.name || "Transaction"}
-                    </span>
+          <DayGroupedList
+            items={rows}
+            getKey={(t) => t.id}
+            getDate={(t) => t.date}
+            onItemClick={setDetailTx}
+            renderItem={(t) => (
+              <>
+                <CategoryIcon name={t.category?.name} className="size-9 rounded-full" />
+                <div className="flex min-w-0 flex-1 flex-col">
+                  <span className="truncate font-medium capitalize">
+                    {t.category?.name || "Transaction"}
                   </span>
-                  <span>
-                    <CategoryBadge name={t.category?.name} />
-                  </span>
-                  <span className="text-right">{amount}</span>
+                  {t.note ? (
+                    <span className="truncate text-xs text-muted-foreground">{t.note}</span>
+                  ) : null}
                 </div>
-                <div className={ROW_MOBILE}>
-                  <CategoryIcon name={t.category?.name} />
-                  <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <div className="flex items-baseline justify-between gap-2">
-                      <span className="truncate text-sm font-medium">
-                        {t.note || t.category?.name || "Transaction"}
-                      </span>
-                      {amount}
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span className="font-mono">{numericDate(t.date)}</span>
-                      <span aria-hidden>·</span>
-                      <CategoryBadge name={t.category?.name} />
-                    </div>
-                  </div>
-                </div>
-              </button>
-            );
-          })
+                <MoneyAmount
+                  value={t.direction === "EXPENSE" ? -t.amount : t.amount}
+                  currency={currency}
+                  colored
+                  signed
+                  className="shrink-0 font-mono font-semibold"
+                />
+              </>
+            )}
+          />
         )}
       </div>
 

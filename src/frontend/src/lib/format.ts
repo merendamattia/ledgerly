@@ -87,6 +87,45 @@ export function numericDate(value: string | Date): string {
   return `${day}/${month}/${d.getFullYear()}`;
 }
 
+/** Long, uppercase day label, e.g. "FRIDAY 19 JUNE 2026" — used as list day headers. */
+export function longDate(value: string | Date): string {
+  const d = typeof value === "string" ? new Date(value) : value;
+  return new Intl.DateTimeFormat("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  })
+    .format(d)
+    .toUpperCase();
+}
+
+/**
+ * Bucket items into ordered day groups, preserving input order (callers pass
+ * newest-first lists). Each group carries a `key` (local yyyy-mm-dd, avoids the
+ * UTC off-by-one) and a `label` from {@link longDate}.
+ */
+export function groupByDay<T>(
+  items: T[],
+  getDate: (item: T) => string | Date,
+): { key: string; label: string; items: T[] }[] {
+  const groups: { key: string; label: string; items: T[] }[] = [];
+  const byKey = new Map<string, { key: string; label: string; items: T[] }>();
+  for (const item of items) {
+    const raw = getDate(item);
+    const d = typeof raw === "string" ? new Date(raw) : raw;
+    const key = localISO(d);
+    let group = byKey.get(key);
+    if (!group) {
+      group = { key, label: longDate(d), items: [] };
+      byKey.set(key, group);
+      groups.push(group);
+    }
+    group.items.push(item);
+  }
+  return groups;
+}
+
 /** Compact day label with year, e.g. "15 Jun '26" — used on chart axes/rows. */
 export function shortDate(value: string | Date): string {
   const d = typeof value === "string" ? new Date(value) : value;
