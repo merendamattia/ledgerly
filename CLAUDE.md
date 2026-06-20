@@ -66,7 +66,7 @@ it must be the public backend URL.
 
 The nightly jobs run **in-process** in the backend (`services/cron/scheduler.ts`, croner). The
 scheduler registers one croner per seeded `CronJob` that has a schedule + a handler: `nightly-prices`
-(prices, 02:00), `fx-rates` (FX incl. EUR/USD, 02:00) and `snapshots` (net worth + cash + debt,
+(prices, 02:20), `fx-rates` (FX incl. EUR/USD, 02:00) and `snapshots` (net worth + cash + debt,
 03:00, after prices/FX). Per-job schedules live in the DB seed; `CRON_TIMEZONE` (`Europe/Rome`)
 applies to all (`CRON_SCHEDULE` is legacy/unused). **No Coolify scheduled task is needed.**
 `POST /api/cron/:key/run` (with `x-cron-secret` or a user session) remains only for manual triggers.

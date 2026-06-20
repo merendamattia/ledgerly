@@ -16,7 +16,7 @@ const CRON_JOBS: { key: string; name: string; description: string; schedule: str
     key: "nightly-prices",
     name: "Nightly price update",
     description: "Downloads the missing daily closes for every tracked ticker.",
-    schedule: "0 2 * * *",
+    schedule: "20 2 * * *",
   },
   {
     key: "fx-rates",

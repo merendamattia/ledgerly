@@ -8,7 +8,7 @@ import { cronHandlers } from "./jobs.ts";
 /**
  * In-process scheduler. Runs inside the backend so the deployment needs no external
  * scheduled task. Registers one croner per DB cron job that has both a schedule and a
- * registered handler — schedules live in the seed (e.g. prices/FX at 02:00, snapshots
+ * registered handler — schedules live in the seed (e.g. prices at 02:20, FX at 02:00, snapshots
  * at 03:00); the timezone comes from CRON_TIMEZONE. Every fire reuses runTrackedJob, so
  * each run is recorded as a CronRun (triggeredBy CRON) exactly like a manual HTTP trigger.
  *

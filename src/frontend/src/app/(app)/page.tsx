@@ -2,11 +2,12 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowUpRight, TrendingUp } from "lucide-react";
+import { TrendingUp } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { MoneyAmount } from "@/components/money-amount";
 import { CategoryIcon } from "@/components/category-badge";
 import { DayGroupedList } from "@/components/day-grouped-list";
+import { PeriodPerformance } from "@/components/period-performance";
 import { NetWorthChart } from "@/components/charts/net-worth-chart";
 import { AllocationChart } from "@/components/charts/allocation-chart";
 import { CashFlowChart } from "@/components/charts/cashflow-chart";
@@ -269,20 +270,15 @@ export default function OverviewPage() {
                 {isLoading ? "…" : formatMoney(total, currency)}
               </span>
               {nwDelta ? (
-                <span
-                  className={cn(
-                    "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold",
-                    nwDelta.pct >= 0
-                      ? "bg-positive/10 text-positive"
-                      : "bg-negative/10 text-negative",
-                  )}
-                >
-                  <ArrowUpRight className="size-3.5" />
-                  {formatPercent(nwDelta.pct)}
-                </span>
+                <PeriodPerformance
+                  pct={nwDelta.pct}
+                  amount={nwDelta.abs}
+                  currency={currency}
+                  period={period}
+                  label="Change"
+                />
               ) : null}
             </div>
-            <p className="mt-1.5 text-xs text-muted-foreground">over the selected period</p>
           </div>
           <div className="flex gap-0.5 self-start rounded-lg bg-muted p-0.5">
             {PERIODS.map((p) => (
