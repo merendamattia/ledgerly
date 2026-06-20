@@ -18,7 +18,7 @@ services:
       CRON_SECRET: ${CRON_SECRET}
       FRONTEND_URL: ${FRONTEND_URL}                # public frontend URL (CORS)
       PORT: 3001
-      # Optional overrides (defaults: enabled, "0 2 * * *", Europe/Rome):
+      # CRON_SCHEDULE is legacy/unused; per-job schedules are seeded in cron_job.
       CRON_ENABLED: ${CRON_ENABLED:-true}
       CRON_SCHEDULE: ${CRON_SCHEDULE:-0 2 * * *}
       CRON_TIMEZONE: ${CRON_TIMEZONE:-Europe/Rome}

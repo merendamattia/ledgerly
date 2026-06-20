@@ -116,8 +116,9 @@ Set the environment variables (see [`.env.production.example`](./.env.production
 - `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `CRON_SECRET`,
   `FRONTEND_URL`, `NEXT_PUBLIC_API_URL`.
 
-The **nightly price job runs in-process** in the backend (croner, 02:00 `Europe/Rome` by default;
-override with `CRON_SCHEDULE` / `CRON_TIMEZONE`). **No Coolify scheduled task is required.** The
+The **nightly price job runs in-process** in the backend (croner, 02:20 `Europe/Rome` by default;
+per-job schedules come from the seeded `CronJob` rows, while `CRON_TIMEZONE` sets the timezone).
+**No Coolify scheduled task is required.** The
 HTTP endpoint stays available for a manual trigger:
 
 ```bash
