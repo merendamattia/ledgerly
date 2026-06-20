@@ -23,6 +23,7 @@ import { SnapshotPanel } from "@/components/snapshot-panel";
 import type { SelectedTicker } from "@/components/ticker-search";
 import { AddAccountDialog } from "@/components/add-account-dialog";
 import { MoneyAmount } from "@/components/money-amount";
+import { PeriodPerformance } from "@/components/period-performance";
 import { NetWorthChart } from "@/components/charts/net-worth-chart";
 import { AllocationChart } from "@/components/charts/allocation-chart";
 import { BenchmarkChart } from "@/components/charts/benchmark-chart";
@@ -200,22 +201,16 @@ export default function InvestmentsPage() {
                 {isLoading ? "…" : formatMoney(stats.value, currency)}
               </span>
               {stats.invested > 0 ? (
-                <span
-                  className={cn(
-                    "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold",
-                    stats.pct >= 0 ? "bg-positive/10 text-positive" : "bg-negative/10 text-negative",
-                  )}
-                >
-                  {formatPercent(stats.pct)} {period === "Max" ? "total" : period}
-                </span>
+                <PeriodPerformance
+                  pct={stats.pct}
+                  amount={stats.gain}
+                  currency={currency}
+                  period={period}
+                />
               ) : null}
             </div>
             <p className="mt-1.5 text-xs text-muted-foreground">
-              Invested {formatMoney(stats.invested, currency)} · Return{" "}
-              <span className={stats.gain >= 0 ? "text-positive" : "text-negative"}>
-                {stats.gain >= 0 ? "+" : ""}
-                {formatMoney(stats.gain, currency)}
-              </span>
+              Invested {formatMoney(stats.invested, currency)}
             </p>
           </div>
           <div className="flex gap-0.5 self-start rounded-lg bg-muted p-0.5">
