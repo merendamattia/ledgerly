@@ -6,6 +6,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Search } from "lucide-react";
 import { useSearch } from "@/components/search-context";
+import { useCashflowPeriod } from "@/components/cashflow/period-context";
+import { PeriodPicker } from "@/components/cashflow/period-picker";
+import { periodOptions, resolvePeriod } from "@/components/cashflow/periods";
 import { AddTransactionDialog, type AddMode } from "@/components/add-transaction-dialog";
 import { ImportInvestmentTransactionsDialog } from "@/components/import-investment-transactions-dialog";
 import { ImportTransactionsDialog } from "@/components/import-transactions-dialog";
@@ -62,11 +65,27 @@ const ADD_LABEL: Record<AddMode, string> = {
   investment: "Add investment",
 };
 
+// Period selector for the cashflow route, rendered in the topbar next to the
+// "+ Add" button (state lives in CashflowPeriodProvider, read by the page).
+function CashflowPeriodControl() {
+  const { period, setPeriod } = useCashflowPeriod();
+  return (
+    <PeriodPicker
+      value={period}
+      label={resolvePeriod(period).label}
+      options={periodOptions()}
+      onChange={setPeriod}
+      triggerClassName="w-auto min-w-0 max-w-[170px] px-3.5 py-2 sm:min-w-0"
+    />
+  );
+}
+
 export function AppTopbar() {
   const pathname = usePathname();
   const { query, setQuery } = useSearch();
   const meta = metaFor(pathname);
   const showSearch = pathname.startsWith("/transactions");
+  const showPeriod = pathname.startsWith("/cashflow");
   const addMode = addModeFor(pathname);
   // A CSV dropped inside the Add drawer is handed off to the matching import
   // flow: investment movements vs. income/expense transactions.
@@ -102,6 +121,8 @@ export function AppTopbar() {
 
         <div className="flex items-center gap-2">
           {showSearch ? <div className="hidden w-56 sm:block">{searchField}</div> : null}
+
+          {showPeriod ? <CashflowPeriodControl /> : null}
 
           {addMode ? (
             <AddTransactionDialog
