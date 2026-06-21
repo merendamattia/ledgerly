@@ -206,7 +206,7 @@ function DetailContent({
               signed
               className="text-2xl font-semibold"
             />
-            <CategoryBadge name={tx.category?.name} />
+            <CategoryBadge name={tx.category?.name} emoji={tx.category?.emoji} />
           </div>
           <dl className="grid grid-cols-[5rem_1fr] gap-x-6 gap-y-2.5 text-sm">
             <dt className="text-muted-foreground">Direction</dt>

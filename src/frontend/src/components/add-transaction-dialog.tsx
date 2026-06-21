@@ -17,7 +17,6 @@ import {
 import { Field, FieldLabel } from "@/components/ui/field";
 import { CategoryIcon } from "@/components/category-badge";
 import { TickerSearch, type SelectedTicker } from "@/components/ticker-search";
-import { CsvDropzone } from "@/components/csv-dropzone";
 import { useCategories, type Category } from "@/hooks/use-categories";
 import { useCreateTransaction } from "@/hooks/use-expenses";
 import { useCreateInvestmentTx } from "@/hooks/use-investments";
@@ -27,19 +26,18 @@ import { cn } from "@/lib/utils";
 
 type Kind = "INCOME" | "EXPENSE" | "INVESTMENT";
 
-// Shared shell: a scrollable field area + a pinned footer (Cancel + submit),
-// matching the design drawer. Used by every form in the Add drawer.
+// Shared shell: a scrollable field area + a pinned footer with one full-width
+// submit, matching the design drawer. Used by every form in the Add drawer.
+// (No Cancel — closing the drawer already discards the in-progress entry.)
 function FormShell({
   children,
   onSubmit,
-  onCancel,
   submitLabel,
   submitting,
   canSubmit = true,
 }: {
   children: React.ReactNode;
   onSubmit: (e: React.FormEvent) => void;
-  onCancel?: () => void;
   submitLabel: string;
   submitting: boolean;
   canSubmit?: boolean;
@@ -47,15 +45,8 @@ function FormShell({
   return (
     <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
       <div className="flex flex-1 flex-col gap-5 overflow-y-auto px-6 py-5">{children}</div>
-      <div className="sticky bottom-0 flex items-center justify-between gap-3 border-t bg-card/95 px-6 py-4 backdrop-blur-sm">
-        {onCancel ? (
-          <Button type="button" variant="ghost" onClick={onCancel}>
-            Cancel
-          </Button>
-        ) : (
-          <span />
-        )}
-        <Button type="submit" disabled={submitting || !canSubmit}>
+      <div className="sticky bottom-0 border-t bg-card/95 px-6 py-4 backdrop-blur-sm">
+        <Button type="submit" size="lg" className="w-full" disabled={submitting || !canSubmit}>
           {submitLabel}
         </Button>
       </div>
@@ -139,7 +130,7 @@ function CategoryPicker({
                 : "border-transparent bg-secondary/60 hover:bg-secondary",
             )}
           >
-            <CategoryIcon name={c.name} />
+            <CategoryIcon name={c.name} emoji={c.emoji} />
             <span className="min-w-0 flex-1 truncate text-sm font-medium capitalize">{c.name}</span>
             {selected ? <Check className="size-4 shrink-0 text-foreground" /> : null}
           </button>
@@ -277,22 +268,19 @@ const SHEET_META: Record<AddMode, { title: string; description: string }> = {
   cashflow: { title: "New transaction", description: "Record an income or an expense." },
   investment: {
     title: "New investment movement",
-    description: "Record a buy or sell, or import several from a CSV.",
+    description: "Record a buy or sell.",
   },
 };
 
 // Shared "new transaction" drawer. Slides in from the right; the `mode` scopes
 // which directions are offered. Pass a custom `trigger` or fall back to a
-// default button. In investment mode, `onImportFile` receives a dropped CSV and
-// hands it off to the import flow.
+// default button. Bulk CSV import lives on the dedicated /imports page.
 export function AddTransactionDialog({
   trigger,
   mode = "full",
-  onImportFile,
 }: {
   trigger?: ReactElement;
   mode?: AddMode;
-  onImportFile?: (file: File) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<Kind>("EXPENSE");
@@ -351,18 +339,7 @@ export function AddTransactionDialog({
           <SheetDescription>{meta.description}</SheetDescription>
         </SheetHeader>
         {mode === "investment" ? (
-          <InvestmentCreate
-            onDone={() => setOpen(false)}
-            onCancel={() => setOpen(false)}
-            onImportFile={
-              onImportFile
-                ? (file) => {
-                    setOpen(false);
-                    onImportFile(file);
-                  }
-                : undefined
-            }
-          />
+          <InvestmentCreate onDone={() => setOpen(false)} />
         ) : (
           <div className="flex min-h-0 flex-1 flex-col">
             <div className="border-b px-6 py-4">
@@ -379,14 +356,9 @@ export function AddTransactionDialog({
               </Field>
             </div>
             {kind === "INVESTMENT" ? (
-              <InvestmentCreate onDone={() => setOpen(false)} onCancel={() => setOpen(false)} />
+              <InvestmentCreate onDone={() => setOpen(false)} />
             ) : (
-              <FormShell
-                onSubmit={submit}
-                onCancel={() => setOpen(false)}
-                submitLabel="Save"
-                submitting={create.isPending}
-              >
+              <FormShell onSubmit={submit} submitLabel="Save" submitting={create.isPending}>
                 <Field>
                   <FieldLabel>Category</FieldLabel>
                   <CategoryPicker
@@ -424,16 +396,6 @@ export function AddTransactionDialog({
                   <FieldLabel htmlFor="note">Note</FieldLabel>
                   <Textarea id="note" value={note} onChange={(e) => setNote(e.target.value)} />
                 </Field>
-                {onImportFile ? (
-                  <CsvDropzone
-                    onFile={(file) => {
-                      setOpen(false);
-                      onImportFile(file);
-                    }}
-                    label="Import several transactions via CSV"
-                    helpText="Budjet CSV export — columns: type, category, date, amount, note"
-                  />
-                ) : null}
               </FormShell>
             )}
           </div>
@@ -471,7 +433,6 @@ export function AddMovementSheet({
           lockedTicker={ticker}
           submitting={create.isPending}
           submitLabel="Save movement"
-          onCancel={() => onOpenChange(false)}
           onSubmit={(tickerId, values) =>
             create.mutate(
               { tickerId, ...values },
@@ -490,22 +451,12 @@ export function AddMovementSheet({
   );
 }
 
-// Create wrapper: the shared movement form wired to the create mutation, plus a
-// CSV drag-and-drop that hands the file off to the import flow.
-function InvestmentCreate({
-  onDone,
-  onCancel,
-  onImportFile,
-}: {
-  onDone: () => void;
-  onCancel?: () => void;
-  onImportFile?: (file: File) => void;
-}) {
+// Create wrapper: the shared movement form wired to the create mutation.
+function InvestmentCreate({ onDone }: { onDone: () => void }) {
   const create = useCreateInvestmentTx();
   return (
     <InvestmentMovementForm
       submitting={create.isPending}
-      onCancel={onCancel}
       submitLabel="Save movement"
       onSubmit={(tickerId, values) =>
         create.mutate(
@@ -519,15 +470,7 @@ function InvestmentCreate({
           },
         )
       }
-    >
-      {onImportFile ? (
-        <CsvDropzone
-          onFile={onImportFile}
-          label="Import several movements via CSV"
-          helpText="CSV columns: ticker, side, qty, price, date, fee"
-        />
-      ) : null}
-    </InvestmentMovementForm>
+    />
   );
 }
 
@@ -550,8 +493,6 @@ export function InvestmentMovementForm({
   onSubmit,
   submitting,
   submitLabel = "Save",
-  onCancel,
-  children,
 }: {
   lockedTicker?: SelectedTicker;
   initial?: {
@@ -566,8 +507,6 @@ export function InvestmentMovementForm({
   onSubmit: (tickerId: string, values: MovementValues) => void;
   submitting: boolean;
   submitLabel?: string;
-  onCancel?: () => void;
-  children?: React.ReactNode;
 }) {
   const [ticker, setTicker] = useState<SelectedTicker | null>(lockedTicker ?? null);
   const [side, setSide] = useState<"BUY" | "SELL">(initial?.side ?? "BUY");
@@ -608,7 +547,6 @@ export function InvestmentMovementForm({
   return (
     <FormShell
       onSubmit={submit}
-      onCancel={onCancel}
       submitLabel={submitLabel}
       submitting={submitting}
       canSubmit={!!ticker}
@@ -720,8 +658,6 @@ export function InvestmentMovementForm({
         <FieldLabel htmlFor="inv-note">Note</FieldLabel>
         <Textarea id="inv-note" value={note} onChange={(e) => setNote(e.target.value)} />
       </Field>
-
-      {children}
     </FormShell>
   );
 }

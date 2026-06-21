@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -10,8 +9,6 @@ import { useCashflowPeriod } from "@/components/cashflow/period-context";
 import { PeriodPicker } from "@/components/cashflow/period-picker";
 import { periodOptions, resolvePeriod } from "@/components/cashflow/periods";
 import { AddTransactionDialog, type AddMode } from "@/components/add-transaction-dialog";
-import { ImportInvestmentTransactionsDialog } from "@/components/import-investment-transactions-dialog";
-import { ImportTransactionsDialog } from "@/components/import-transactions-dialog";
 import { Button } from "@/components/ui/button";
 
 function Logo() {
@@ -87,10 +84,6 @@ export function AppTopbar() {
   const showSearch = pathname.startsWith("/transactions");
   const showPeriod = pathname.startsWith("/cashflow");
   const addMode = addModeFor(pathname);
-  // A CSV dropped inside the Add drawer is handed off to the matching import
-  // flow: investment movements vs. income/expense transactions.
-  const [importOpen, setImportOpen] = useState(false);
-  const [importFile, setImportFile] = useState<File | null>(null);
 
   const searchField = (
     <div className="relative">
@@ -127,10 +120,6 @@ export function AppTopbar() {
           {addMode ? (
             <AddTransactionDialog
               mode={addMode}
-              onImportFile={(file) => {
-                setImportFile(file);
-                setImportOpen(true);
-              }}
               trigger={
                 <Button className="gap-1.5">
                   <span className="text-base leading-none">+</span>
@@ -140,26 +129,6 @@ export function AppTopbar() {
               }
             />
           ) : null}
-
-        {addMode === "investment" ? (
-          <ImportInvestmentTransactionsDialog
-            open={importOpen}
-            onOpenChange={(o) => {
-              setImportOpen(o);
-              if (!o) setImportFile(null);
-            }}
-            initialFile={importFile}
-          />
-        ) : addMode === "full" || addMode === "cashflow" ? (
-          <ImportTransactionsDialog
-            open={importOpen}
-            onOpenChange={(o) => {
-              setImportOpen(o);
-              if (!o) setImportFile(null);
-            }}
-            initialFile={importFile}
-          />
-        ) : null}
         </div>
       </div>
 

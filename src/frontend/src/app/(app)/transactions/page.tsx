@@ -271,7 +271,7 @@ export default function TransactionsPage() {
             onItemClick={setDetailTx}
             renderItem={(t) => (
               <>
-                <CategoryIcon name={t.category?.name} className="size-9 rounded-full" />
+                <CategoryIcon name={t.category?.name} emoji={t.category?.emoji} className="size-9 rounded-full text-lg" />
                 <div className="flex min-w-0 flex-1 flex-col">
                   <span className="truncate font-medium capitalize">
                     {t.category?.name || "Transaction"}

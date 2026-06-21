@@ -172,6 +172,7 @@ export const updateAccountSchema = createAccountSchema.partial();
 export const createCategorySchema = z.object({
   name: z.string().trim().min(1).max(60),
   kind: categoryKindSchema,
+  emoji: z.string().trim().min(1).max(16).optional(),
 });
 
 export const updateCategorySchema = createCategorySchema.partial();

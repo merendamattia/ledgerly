@@ -25,6 +25,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { EmojiPickerField } from "@/components/emoji-picker-field";
+import { CategoryIcon, emojiFor } from "@/components/category-badge";
 import { DIRECTION_LABELS } from "@/lib/format";
 import { useSettings, useUpdateSettings } from "@/hooks/use-settings";
 import {
@@ -93,12 +95,13 @@ function BaseCurrencyCard() {
 function EditCategoryDialog({ category }: { category: Category }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(category.name);
+  const [emoji, setEmoji] = useState(category.emoji ?? emojiFor(category.name));
   const update = useUpdateCategory();
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     update.mutate(
-      { id: category.id, name },
+      { id: category.id, name, emoji },
       {
         onSuccess: () => {
           toast.success("Category updated");
@@ -125,6 +128,10 @@ function EditCategoryDialog({ category }: { category: Category }) {
         <form onSubmit={submit}>
           <FieldGroup>
             <Field>
+              <FieldLabel>Emoji</FieldLabel>
+              <EmojiPickerField value={emoji} onChange={setEmoji} />
+            </Field>
+            <Field>
               <FieldLabel htmlFor="edit-cat-name">Name</FieldLabel>
               <Input
                 id="edit-cat-name"
@@ -149,7 +156,10 @@ function CategoryRow({ category }: { category: Category }) {
   const del = useDeleteCategory();
   return (
     <div className="flex items-center justify-between gap-1 rounded-lg border bg-card px-3 py-2">
-      <span className="min-w-0 truncate text-sm font-medium">{category.name}</span>
+      <div className="flex min-w-0 items-center gap-2">
+        <CategoryIcon name={category.name} emoji={category.emoji} className="size-7" />
+        <span className="min-w-0 truncate text-sm font-medium">{category.name}</span>
+      </div>
       <div className="flex shrink-0 items-center">
         <EditCategoryDialog category={category} />
         <ConfirmDialog
@@ -190,16 +200,18 @@ function CategoriesCard() {
   const categories = useCategories();
   const create = useCreateCategory();
   const [name, setName] = useState("");
+  const [emoji, setEmoji] = useState("");
   const [kind, setKind] = useState<"INCOME" | "EXPENSE">("EXPENSE");
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     create.mutate(
-      { name, kind },
+      { name, kind, emoji: emoji || emojiFor(name) },
       {
         onSuccess: () => {
           toast.success("Category added");
           setName("");
+          setEmoji("");
         },
         onError: (err) => toast.error(err.message),
       },
@@ -218,6 +230,10 @@ function CategoriesCard() {
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
         <form onSubmit={submit} className="flex flex-wrap items-end gap-3">
+          <Field className="w-auto">
+            <FieldLabel>Emoji</FieldLabel>
+            <EmojiPickerField value={emoji || emojiFor(name)} onChange={setEmoji} />
+          </Field>
           <Field className="w-56">
             <FieldLabel htmlFor="cat-name">Name</FieldLabel>
             <Input id="cat-name" value={name} onChange={(e) => setName(e.target.value)} required />

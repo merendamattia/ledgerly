@@ -416,7 +416,7 @@ export default function OverviewPage() {
               getDate={(t) => t.date}
               renderItem={(t: RecentTx) => (
                 <>
-                  <CategoryIcon name={t.category?.name} className="size-9 rounded-full" />
+                  <CategoryIcon name={t.category?.name} emoji={t.category?.emoji} className="size-9 rounded-full text-lg" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium capitalize">
                       {t.category?.name || "Transaction"}

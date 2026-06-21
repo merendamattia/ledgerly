@@ -16,6 +16,7 @@
     "chartjs-chart-sankey": "^0.14.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "frimousse": "^0.3.0",
     "hono": "^4.12.25",
     "ledgerly-backend": "workspace:*",
     "lucide-react": "^1.18.0",
