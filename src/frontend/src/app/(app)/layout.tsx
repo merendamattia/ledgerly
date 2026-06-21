@@ -14,7 +14,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <div className="flex min-h-svh flex-col bg-background">
             <AppTopbar />
             {/* pb leaves room for the fixed bottom tab bar (present at all sizes). */}
-            <main className="flex-1 p-4 pb-24 md:p-6 lg:p-8 lg:pb-24">{children}</main>
+            <main className="flex-1 p-4 pb-32 md:p-6 md:pb-32 lg:p-8 lg:pb-32">{children}</main>
             <AppBottomNav />
           </div>
         </CashflowPeriodProvider>
