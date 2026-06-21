@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { defaultEmojiForCategory } from "../src/utils/category.ts";
 
 // Idempotent seed: base settings, default categories, and cron job definitions.
 // The single admin user is created at backend startup (see src/core/auth bootstrap),
@@ -54,6 +55,16 @@ async function main() {
     if (!existing) {
       await prisma.category.create({ data: category });
     }
+  }
+
+  // Backfill a default emoji for any existing category that has none, so the UI
+  // shows a real emoji instead of the generic fallback.
+  const withoutEmoji = await prisma.category.findMany({ where: { emoji: null } });
+  for (const category of withoutEmoji) {
+    await prisma.category.update({
+      where: { id: category.id },
+      data: { emoji: defaultEmojiForCategory(category.name) },
+    });
   }
 
   // Cron job definitions.

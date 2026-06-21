@@ -274,6 +274,7 @@ model Category {
   id           String        @id @default(cuid())
   name         String
   kind         CategoryKind
+  emoji        String?
   createdAt    DateTime      @default(now())
   transactions Transaction[]
 

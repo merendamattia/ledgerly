@@ -6,6 +6,7 @@ import { TrendingUp } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { MoneyAmount } from "@/components/money-amount";
 import { CategoryIcon } from "@/components/category-badge";
+import { CategoryBreakdownCard } from "@/components/category-breakdown";
 import { DayGroupedList } from "@/components/day-grouped-list";
 import { PeriodPerformance } from "@/components/period-performance";
 import { NetWorthChart } from "@/components/charts/net-worth-chart";
@@ -120,15 +121,6 @@ function KpiDeltaLine({ delta }: { delta: KpiDelta }) {
     </span>
   );
 }
-
-const BAR_COLORS = [
-  "var(--chart-1)",
-  "var(--chart-2)",
-  "var(--chart-3)",
-  "var(--chart-4)",
-  "var(--chart-5)",
-  "var(--chart-6)",
-];
 
 export default function OverviewPage() {
   const { data, isLoading } = useDashboard();
@@ -256,7 +248,6 @@ export default function OverviewPage() {
       .sort((a, b) => b.value - a.value);
   }, [data?.categoryBreakdownMonth]);
   const expenseTotal = expenseByCategory.reduce((s, c) => s + c.value, 0);
-  const maxCategory = expenseByCategory[0]?.value || 1;
 
   return (
     <div className="grid grid-cols-12 gap-4 md:gap-5">
@@ -387,52 +378,23 @@ export default function OverviewPage() {
       </Card>
 
       {/* Expenses by category */}
-      <Card className={cn("col-span-12 gap-0 p-5 animate-fu lg:col-span-5")}>
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="font-display text-base font-semibold">Expenses by category</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">This month</p>
-          </div>
-          {expenseByCategory.length > 6 ? (
+      <CategoryBreakdownCard
+        className="col-span-12 p-5 animate-fu lg:col-span-5"
+        title="Expenses by category"
+        subtitle="This month"
+        items={expenseByCategory}
+        total={expenseTotal}
+        totalLabel="Total expenses"
+        currency={currency}
+        emptyText="No expenses yet."
+        action={
+          expenseByCategory.length > 6 ? (
             <Link href="/cashflow" className="text-sm font-semibold text-positive">
               View all →
             </Link>
-          ) : null}
-        </div>
-        <div className="mt-4 flex flex-col gap-4">
-          {expenseByCategory.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">No expenses yet.</p>
-          ) : (
-            expenseByCategory.slice(0, 6).map((c, i) => (
-              <div key={c.name}>
-                <div className="mb-1.5 flex items-center justify-between text-sm">
-                  <span>{c.name}</span>
-                  <span className="font-mono text-muted-foreground">
-                    {formatMoney(c.value, currency)}
-                  </span>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full rounded-full animate-grow"
-                    style={{
-                      width: `${(c.value / maxCategory) * 100}%`,
-                      background: BAR_COLORS[i % BAR_COLORS.length],
-                    }}
-                  />
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-        {expenseTotal > 0 ? (
-          <div className="mt-4 flex items-center justify-between border-t pt-4">
-            <span className="text-sm font-medium text-muted-foreground">Total expenses</span>
-            <span className="font-mono text-base font-semibold">
-              {formatMoney(expenseTotal, currency)}
-            </span>
-          </div>
-        ) : null}
-      </Card>
+          ) : null
+        }
+      />
 
       {/* Recent expenses & income */}
       <Card className={cn("col-span-12 gap-0 p-5 animate-fu lg:col-span-6")}>
@@ -454,7 +416,7 @@ export default function OverviewPage() {
               getDate={(t) => t.date}
               renderItem={(t: RecentTx) => (
                 <>
-                  <CategoryIcon name={t.category?.name} className="size-9 rounded-full" />
+                  <CategoryIcon name={t.category?.name} emoji={t.category?.emoji} className="size-9 rounded-full text-lg" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium capitalize">
                       {t.category?.name || "Transaction"}
