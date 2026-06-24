@@ -1,12 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Calendar } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Calendar, Repeat } from "lucide-react";
 import { MoneyAmount } from "@/components/money-amount";
+import { StatCard } from "@/components/stat-card";
 import { CategoryIcon } from "@/components/category-badge";
+import { TagChips } from "@/components/tag-input";
 import { DayGroupedList } from "@/components/day-grouped-list";
 import { TransactionDetailDialog } from "@/components/transaction-detail-dialog";
 import { InvestmentTxDialog } from "@/components/investment-tx-dialog";
+import { UpcomingRecurring } from "@/components/cashflow/upcoming-recurring";
+import { RecurringList } from "@/components/recurring-list";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -16,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useSearch } from "@/components/search-context";
+import { extractTags } from "@/lib/tags";
 import { useSettings } from "@/hooks/use-settings";
 import {
   useExpenses,
@@ -30,7 +35,10 @@ import { useCategories } from "@/hooks/use-categories";
 import { formatMoney, INVESTMENT_SIDE_LABELS } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-const PAGE_SIZE = 50;
+// Keep the initial list short so the page stays clean: 10 rows on desktop, 5 on
+// mobile. "Load more" reveals another page.
+const PAGE_DESKTOP = 10;
+const PAGE_MOBILE = 5;
 
 // The "Investments" filter is shown for parity with the design; investment
 // movements (buy/sell) are not yet recorded as transactions, so it yields none.
@@ -47,11 +55,27 @@ export default function TransactionsPage() {
   const [filter, setFilter] = useState<Filter>("ALL");
   const [month, setMonth] = useState<string>("all");
   const [categoryId, setCategoryId] = useState<string>("all");
-  const [limit, setLimit] = useState(PAGE_SIZE);
+  const [pageSize, setPageSize] = useState(PAGE_DESKTOP);
+  const [limit, setLimit] = useState(PAGE_DESKTOP);
+  const [showAllTags, setShowAllTags] = useState(false);
+
+  // Track viewport to size the page (lg breakpoint = 1024px); reset the visible
+  // window when it changes.
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const apply = () => {
+      const size = mq.matches ? PAGE_DESKTOP : PAGE_MOBILE;
+      setPageSize(size);
+      setLimit(size);
+    };
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
   const [detailTx, setDetailTx] = useState<Transaction | null>(null);
   const [invTx, setInvTx] = useState<InvestmentTransaction | null>(null);
 
-  const { query } = useSearch();
+  const { query, setQuery } = useSearch();
   const settings = useSettings();
   const currency = settings.data?.baseCurrency ?? "EUR";
 
@@ -94,6 +118,10 @@ export default function TransactionsPage() {
     [categoryOptions],
   );
 
+  // A tag search (query starting with "#") fetches the full set for the selected
+  // period, so every tagged movement in that period shows (not just the page).
+  const tagActive = query.trim().startsWith("#");
+
   const filters: TransactionFilters = {
     direction: filter === "INCOME" || filter === "EXPENSE" ? filter : undefined,
     from: range.from,
@@ -104,10 +132,37 @@ export default function TransactionsPage() {
           ? undefined
           : categoryId
         : undefined,
-    limit,
+    limit: tagActive ? 5000 : limit,
   };
 
   const { data, isLoading } = useExpenses(filters);
+
+  // Distinct tags within the selected period (most recent first) for the quick
+  // filter — so changing the month only surfaces tags from that month.
+  const tagSource = useExpenses({ from: range.from, to: range.to, limit: 5000 });
+  const allTags = useMemo(() => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const t of tagSource.data ?? []) {
+      for (const tag of extractTags(t.note)) {
+        const key = tag.toLowerCase();
+        if (!seen.has(key)) {
+          seen.add(key);
+          out.push(tag);
+        }
+      }
+    }
+    return out;
+  }, [tagSource.data]);
+  const activeTag = tagActive ? query.trim().slice(1).toLowerCase() : null;
+
+  // Clicking a tag lists every tagged income/expense in the selected period
+  // (month filter kept). Resets type/category so both directions are included.
+  function applyTag(tag: string) {
+    setFilter("ALL");
+    setCategoryId("all");
+    setQuery(`#${tag}`);
+  }
   const investments = useInvestmentTransactions({ limit: filter === "INVESTMENT" ? limit : 1 });
 
   const rows = useMemo(() => {
@@ -121,6 +176,13 @@ export default function TransactionsPage() {
         (t.category?.name ?? "").toLowerCase().includes(q),
     );
   }, [data, query, filter]);
+
+  // Net balance of the currently-shown rows — surfaced when a tag is active so a
+  // tag (e.g. a trip city) reads as a single signed total.
+  const tagNet = useMemo(
+    () => rows.reduce((s, t) => s + (t.direction === "EXPENSE" ? -t.amount : t.amount), 0),
+    [rows],
+  );
 
   const investmentRows = useMemo(() => {
     if (filter !== "INVESTMENT") return [];
@@ -138,7 +200,7 @@ export default function TransactionsPage() {
 
   return (
     <div className="flex flex-col gap-5 animate-fu">
-      {/* Filter segmented control + period select */}
+      {/* Filters: full-width top bar */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="grid grid-cols-4 gap-0.5 rounded-lg bg-muted p-0.5 sm:inline-flex">
           {FILTERS.map((f) => {
@@ -150,7 +212,7 @@ export default function TransactionsPage() {
                 onClick={() => {
                   setFilter(f.value);
                   setCategoryId("all");
-                  setLimit(PAGE_SIZE);
+                  setLimit(pageSize);
                 }}
                 className={cn(
                   "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
@@ -172,7 +234,7 @@ export default function TransactionsPage() {
               items={categoryItems}
               onValueChange={(v) => {
                 setCategoryId(v ?? "all");
-                setLimit(PAGE_SIZE);
+                setLimit(pageSize);
               }}
             >
               <SelectTrigger className="w-full bg-card sm:w-[180px]">
@@ -194,7 +256,7 @@ export default function TransactionsPage() {
             onValueChange={(v) => {
               setMonth(v ?? "all");
               setCategoryId("all");
-              setLimit(PAGE_SIZE);
+              setLimit(pageSize);
             }}
           >
             <SelectTrigger className="w-full gap-2 bg-card sm:w-auto">
@@ -212,8 +274,53 @@ export default function TransactionsPage() {
         </div>
       </div>
 
-      {/* Day-grouped movements card */}
-      <div className="overflow-hidden rounded-[var(--card-radius)] border bg-card px-5 pt-3 pb-1 shadow-card">
+      {/* Tag quick-filter: click a tag to list every tagged movement (all time). */}
+      {allTags.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="mr-1 text-xs font-medium text-muted-foreground">Tags</span>
+          {(showAllTags ? allTags : allTags.slice(0, 12)).map((tag) => {
+            const active = activeTag === tag.toLowerCase();
+            return (
+              <button
+                key={tag.toLowerCase()}
+                type="button"
+                onClick={() => applyTag(tag)}
+                className={cn(
+                  "rounded-md px-2 py-0.5 text-xs font-medium transition-colors",
+                  active
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-secondary text-secondary-foreground hover:bg-muted",
+                )}
+              >
+                #{tag}
+              </button>
+            );
+          })}
+          {allTags.length > 12 ? (
+            <button
+              type="button"
+              onClick={() => setShowAllTags((v) => !v)}
+              className="rounded-md px-2 py-0.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {showAllTags ? "Show less" : `+${allTags.length - 12} more`}
+            </button>
+          ) : null}
+          {tagActive ? (
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              className="rounded-md px-2 py-0.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Clear
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
+        <div className="flex flex-col gap-5 lg:col-span-9">
+          {/* Day-grouped movements card */}
+          <div className="overflow-hidden rounded-[var(--card-radius)] border bg-card px-5 pt-3 pb-1 shadow-card">
         {filter === "INVESTMENT" ? (
           investments.isLoading ? (
             <div className="py-10 text-center text-sm text-muted-foreground">Loading…</div>
@@ -272,13 +379,17 @@ export default function TransactionsPage() {
             renderItem={(t) => (
               <>
                 <CategoryIcon name={t.category?.name} emoji={t.category?.emoji} className="size-9 rounded-full text-lg" />
-                <div className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate font-medium capitalize">
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span className="flex items-center gap-1.5 truncate font-medium capitalize">
                     {t.category?.name || "Transaction"}
+                    {t.recurringExpenseId ? (
+                      <Repeat className="size-3.5 shrink-0 text-muted-foreground" aria-label="Recurring" />
+                    ) : null}
                   </span>
                   {t.note ? (
                     <span className="truncate text-xs text-muted-foreground">{t.note}</span>
                   ) : null}
+                  <TagChips note={t.note} onTagClick={(tag) => setQuery(`#${tag}`)} />
                 </div>
                 <MoneyAmount
                   value={t.direction === "EXPENSE" ? -t.amount : t.amount}
@@ -293,13 +404,31 @@ export default function TransactionsPage() {
         )}
       </div>
 
-      {hasMore ? (
-        <div className="flex justify-center">
-          <Button variant="outline" onClick={() => setLimit((l) => l + PAGE_SIZE)}>
-            Load more
-          </Button>
+          {hasMore ? (
+            <div className="flex justify-center">
+              <Button onClick={() => setLimit((l) => l + pageSize)}>
+                Load more
+              </Button>
+            </div>
+          ) : null}
         </div>
-      ) : null}
+
+        {/* Recurring sidebar: upcoming forecast + full management, sticky on scroll. */}
+        <aside className="lg:col-span-3">
+          <div className="flex flex-col gap-5 lg:sticky lg:top-4">
+            {tagActive && activeTag ? (
+              <StatCard
+                label={`Tag · #${activeTag}`}
+                value={<MoneyAmount value={tagNet} currency={currency} colored signed />}
+                accent={tagNet < 0 ? "negative" : "positive"}
+                delta={{ label: `${rows.length} ${rows.length === 1 ? "movement" : "movements"}` }}
+              />
+            ) : null}
+            <UpcomingRecurring currency={currency} />
+            <RecurringList currency={currency} />
+          </div>
+        </aside>
+      </div>
 
       <TransactionDetailDialog
         transaction={detailTx}

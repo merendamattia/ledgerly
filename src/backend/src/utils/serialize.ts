@@ -6,6 +6,7 @@ import type {
   DebtSnapshot,
   Holding,
   InvestmentTransaction,
+  RecurringExpense,
   Ticker,
   Transaction,
 } from "@prisma/client";
@@ -32,6 +33,15 @@ export function serializeTransaction(t: Transaction & { category?: Category | nu
   return {
     ...t,
     amount: Number(t.amount),
+  };
+}
+
+export function serializeRecurringExpense(
+  r: RecurringExpense & { category?: Category | null },
+) {
+  return {
+    ...r,
+    amount: Number(r.amount),
   };
 }
 

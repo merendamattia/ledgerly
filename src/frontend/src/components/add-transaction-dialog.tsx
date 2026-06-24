@@ -15,10 +15,14 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Field, FieldLabel } from "@/components/ui/field";
+import { TagInput } from "@/components/tag-input";
+import { RecurringFields, validateRecurring } from "@/components/recurring-fields";
 import { CategoryIcon } from "@/components/category-badge";
 import { TickerSearch, type SelectedTicker } from "@/components/ticker-search";
 import { useCategories, type Category } from "@/hooks/use-categories";
 import { useCreateTransaction } from "@/hooks/use-expenses";
+import { useCreateRecurringExpense } from "@/hooks/use-recurring";
+import type { RecurEndMode, RecurInterval } from "@/lib/recurring";
 import { useCreateInvestmentTx } from "@/hooks/use-investments";
 import { useAccounts, useCreateAccount, type Account } from "@/hooks/use-accounts";
 import { todayISO, formatMoney } from "@/lib/format";
@@ -98,7 +102,7 @@ const KIND_OPTIONS: { value: Kind; label: string; icon: ComponentType<{ classNam
 
 // Beige tappable category chips with the design's tinted icon. Selecting toggles;
 // the list is already scoped to the chosen kind, so the other set never shows.
-function CategoryPicker({
+export function CategoryPicker({
   categories,
   isLoading,
   value,
@@ -288,14 +292,57 @@ export function AddTransactionDialog({
   const [date, setDate] = useState(todayISO());
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
+  // Optional "make this recurring" path: off by default; when on, the movement
+  // becomes a recurring rule (the date acts as the start date).
+  const [recurring, setRecurring] = useState(false);
+  const [intervalUnit, setIntervalUnit] = useState<RecurInterval>("MONTH");
+  const [intervalCount, setIntervalCount] = useState("1");
+  const [endMode, setEndMode] = useState<RecurEndMode>("NEVER");
+  const [maxOccurrences, setMaxOccurrences] = useState("12");
+  const [endDate, setEndDate] = useState("");
   const categories = useCategories(kind === "INVESTMENT" ? "EXPENSE" : kind);
   const create = useCreateTransaction();
+  const createRecurring = useCreateRecurringExpense();
   const meta = SHEET_META[mode];
   const kindOptions = mode === "full" ? KIND_OPTIONS : KIND_OPTIONS.filter((o) => o.value !== "INVESTMENT");
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (kind === "INVESTMENT") return; // handled by the investment form
+
+    if (recurring) {
+      const err = validateRecurring(endMode, maxOccurrences, endDate);
+      if (err) {
+        toast.error(err);
+        return;
+      }
+      createRecurring.mutate(
+        {
+          direction: kind,
+          categoryId: categoryId || null,
+          amount: Number(amount),
+          note: note || null,
+          intervalUnit,
+          intervalCount: Number(intervalCount),
+          startDate: date,
+          endMode,
+          maxOccurrences: endMode === "AFTER_OCCURRENCES" ? Number(maxOccurrences) : null,
+          endDate: endMode === "ON_DATE" ? endDate : null,
+        },
+        {
+          onSuccess: () => {
+            toast.success("Recurring created");
+            setOpen(false);
+            setAmount("");
+            setNote("");
+            setRecurring(false);
+          },
+          onError: (err) => toast.error(err.message),
+        },
+      );
+      return;
+    }
+
     create.mutate(
       {
         direction: kind,
@@ -358,7 +405,11 @@ export function AddTransactionDialog({
             {kind === "INVESTMENT" ? (
               <InvestmentCreate onDone={() => setOpen(false)} />
             ) : (
-              <FormShell onSubmit={submit} submitLabel="Save" submitting={create.isPending}>
+              <FormShell
+                onSubmit={submit}
+                submitLabel={recurring ? "Create recurring" : "Save"}
+                submitting={create.isPending || createRecurring.isPending}
+              >
                 <Field>
                   <FieldLabel>Category</FieldLabel>
                   <CategoryPicker
@@ -396,6 +447,36 @@ export function AddTransactionDialog({
                   <FieldLabel htmlFor="note">Note</FieldLabel>
                   <Textarea id="note" value={note} onChange={(e) => setNote(e.target.value)} />
                 </Field>
+                <Field>
+                  <FieldLabel>Tags</FieldLabel>
+                  <TagInput note={note} onNoteChange={setNote} />
+                </Field>
+                <Field>
+                  <FieldLabel>Recurring</FieldLabel>
+                  <Segment
+                    options={[
+                      { value: "no", label: "One-off" },
+                      { value: "yes", label: "Recurring" },
+                    ]}
+                    value={recurring ? "yes" : "no"}
+                    onChange={(v) => setRecurring(v === "yes")}
+                  />
+                </Field>
+                {recurring ? (
+                  <RecurringFields
+                    startDate={date}
+                    intervalUnit={intervalUnit}
+                    setIntervalUnit={setIntervalUnit}
+                    intervalCount={intervalCount}
+                    setIntervalCount={setIntervalCount}
+                    endMode={endMode}
+                    setEndMode={setEndMode}
+                    maxOccurrences={maxOccurrences}
+                    setMaxOccurrences={setMaxOccurrences}
+                    endDate={endDate}
+                    setEndDate={setEndDate}
+                  />
+                ) : null}
               </FormShell>
             )}
           </div>

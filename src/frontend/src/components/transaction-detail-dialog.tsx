@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Repeat, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CategoryBadge } from "@/components/category-badge";
+import { TagInput, TagChips } from "@/components/tag-input";
 import { MoneyAmount } from "@/components/money-amount";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useCategories } from "@/hooks/use-categories";
@@ -186,6 +187,10 @@ function DetailContent({
               <FieldLabel htmlFor="detail-note">Note</FieldLabel>
               <Input id="detail-note" value={note} onChange={(e) => setNote(e.target.value)} />
             </Field>
+            <Field>
+              <FieldLabel>Tags</FieldLabel>
+              <TagInput note={note} onNoteChange={setNote} />
+            </Field>
             <DialogFooter>
               <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
                 Cancel
@@ -199,15 +204,27 @@ function DetailContent({
       ) : (
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between gap-3">
-            <MoneyAmount
-              value={signed}
-              currency={currency}
-              colored
-              signed
-              className="text-2xl font-semibold"
-            />
+            <div className="flex items-center gap-2">
+              <MoneyAmount
+                value={signed}
+                currency={currency}
+                colored
+                signed
+                className="text-2xl font-semibold"
+              />
+              {tx.recurringExpenseId ? (
+                <span
+                  title="Recurring"
+                  className="inline-flex items-center gap-1 rounded-md bg-secondary px-1.5 py-0.5 text-[11px] font-medium text-secondary-foreground"
+                >
+                  <Repeat className="size-3" />
+                  Recurring
+                </span>
+              ) : null}
+            </div>
             <CategoryBadge name={tx.category?.name} emoji={tx.category?.emoji} />
           </div>
+          <TagChips note={tx.note} />
           <dl className="grid grid-cols-[5rem_1fr] gap-x-6 gap-y-2.5 text-sm">
             <dt className="text-muted-foreground">Direction</dt>
             <dd>{DIRECTION_LABELS[tx.direction]}</dd>
