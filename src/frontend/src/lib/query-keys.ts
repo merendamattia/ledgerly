@@ -8,6 +8,7 @@ export const queryKeys = {
   accounts: ["accounts"] as const,
   categories: (kind?: string) => (kind ? (["categories", kind] as const) : (["categories"] as const)),
   expenses: (filters?: TransactionFilters) => ["expenses", filters ?? {}] as const,
+  recurringExpenses: ["recurring-expenses"] as const,
   tickers: ["tickers"] as const,
   tickerSearch: (q: string, type?: string) => ["tickers", "search", q, type ?? ""] as const,
   holdings: ["holdings"] as const,

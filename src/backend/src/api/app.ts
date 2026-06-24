@@ -10,6 +10,7 @@ import { settingsRoutes } from "./routes/settings.ts";
 import { accountsRoutes } from "./routes/accounts.ts";
 import { categoriesRoutes } from "./routes/categories.ts";
 import { expensesRoutes } from "./routes/expenses.ts";
+import { recurringRoutes } from "./routes/recurring.ts";
 import { importRoutes } from "./routes/import.ts";
 import { tickersRoutes } from "./routes/tickers.ts";
 import { holdingsRoutes } from "./routes/holdings.ts";
@@ -63,6 +64,7 @@ const routes = app
   .route("/accounts", accountsRoutes)
   .route("/categories", categoriesRoutes)
   .route("/expenses", expensesRoutes)
+  .route("/recurring-expenses", recurringRoutes)
   .route("/expenses/import", importRoutes)
   .route("/tickers", tickersRoutes)
   .route("/holdings", holdingsRoutes)

@@ -202,6 +202,38 @@ export const importCommitSchema = z.object({
   rows: z.array(importRowSchema).min(1),
 });
 
+// --- Recurring expenses -----------------------------------------------------
+export const recurIntervalSchema = z.enum(["DAY", "WEEK", "MONTH"]);
+export const recurEndModeSchema = z.enum(["NEVER", "AFTER_OCCURRENCES", "ON_DATE"]);
+
+const recurringBaseSchema = z.object({
+  categoryId: z.string().min(1).nullable().optional(),
+  amount: z.number().positive(),
+  direction: txDirectionSchema,
+  note: z.string().trim().max(280).nullable().optional(),
+  intervalUnit: recurIntervalSchema,
+  intervalCount: z.coerce.number().int().min(1).max(365),
+  startDate: z.coerce.date(),
+  endMode: recurEndModeSchema.default("NEVER"),
+  maxOccurrences: z.coerce.number().int().min(1).max(1000).nullable().optional(),
+  endDate: z.coerce.date().nullable().optional(),
+  enabled: z.boolean().optional(),
+});
+
+// AFTER_OCCURRENCES needs a count; ON_DATE needs an end date. Only enforced on
+// create — partial updates may omit endMode and tweak a single field.
+export const createRecurringSchema = recurringBaseSchema
+  .refine((v) => v.endMode !== "AFTER_OCCURRENCES" || v.maxOccurrences != null, {
+    message: "maxOccurrences is required when endMode is AFTER_OCCURRENCES",
+    path: ["maxOccurrences"],
+  })
+  .refine((v) => v.endMode !== "ON_DATE" || v.endDate != null, {
+    message: "endDate is required when endMode is ON_DATE",
+    path: ["endDate"],
+  });
+
+export const updateRecurringSchema = recurringBaseSchema.partial();
+
 export const transactionFiltersSchema = z.object({
   from: z.coerce.date().optional(),
   to: z.coerce.date().optional(),

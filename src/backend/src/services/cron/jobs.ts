@@ -3,6 +3,7 @@ import { settingsRepository } from "../../repositories/settings.ts";
 import { backfillTicker } from "../market/backfill.ts";
 import { backfillFx } from "../market/fx.ts";
 import { createDailySnapshot, createDailyBalanceSnapshots } from "../snapshot.ts";
+import { generateDue } from "../recurring.ts";
 
 /**
  * Nightly price job: for every tracked ticker, fetch the missing daily closes.
@@ -75,9 +76,18 @@ export async function runSnapshots(): Promise<number> {
   return 1;
 }
 
+/**
+ * Recurring-expenses job: book a movement for every due occurrence of every
+ * enabled recurring rule. Returns the number of movements created.
+ */
+export async function runRecurring(): Promise<number> {
+  return generateDue(new Date());
+}
+
 // Jobs that can be triggered by key via POST /api/cron/:key/run.
 export const cronHandlers: Record<string, () => Promise<number>> = {
   "nightly-prices": runNightlyPrices,
   "fx-rates": runFxRates,
   snapshots: runSnapshots,
+  "recurring-expenses": runRecurring,
 };

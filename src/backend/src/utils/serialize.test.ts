@@ -25,6 +25,7 @@ test("serializeTransaction converts Decimal amount to a number", () => {
     amount: new Prisma.Decimal("80.00"),
     direction: "EXPENSE",
     note: null,
+    recurringExpenseId: null,
     createdAt: new Date(),
   });
   expect(result.amount).toBe(80);

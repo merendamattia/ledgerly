@@ -117,6 +117,21 @@ enum CronTrigger {
   MANUAL
 }
 
+/// The cadence unit of a recurring expense (paired with an integer count, e.g.
+/// 30 + DAY = "every 30 days", 2 + WEEK, 1 + MONTH).
+enum RecurInterval {
+  DAY
+  WEEK
+  MONTH
+}
+
+/// How a recurring expense stops generating movements.
+enum RecurEndMode {
+  NEVER
+  AFTER_OCCURRENCES
+  ON_DATE
+}
+
 /// Singleton settings (a single row, id = "singleton").
 model Settings {
   id           String   @id @default("singleton")
@@ -271,12 +286,13 @@ model FxRate {
 
 /// User-managed expense/income categories.
 model Category {
-  id           String        @id @default(cuid())
-  name         String
-  kind         CategoryKind
-  emoji        String?
-  createdAt    DateTime      @default(now())
-  transactions Transaction[]
+  id                String             @id @default(cuid())
+  name              String
+  kind              CategoryKind
+  emoji             String?
+  createdAt         DateTime           @default(now())
+  transactions      Transaction[]
+  recurringExpenses RecurringExpense[]
 
   @@unique([kind, name])
   @@map("category")
@@ -284,18 +300,47 @@ model Category {
 
 /// An expense/income movement (in base currency).
 model Transaction {
-  id            String       @id @default(cuid())
-  categoryId    String?
-  category      Category?    @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  date          DateTime     @db.Date
-  amount        Decimal      @db.Decimal(20, 2)
-  direction     TxDirection
-  note          String?
-  createdAt     DateTime     @default(now())
+  id                 String            @id @default(cuid())
+  categoryId         String?
+  category           Category?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  date               DateTime          @db.Date
+  amount             Decimal           @db.Decimal(20, 2)
+  direction          TxDirection
+  note               String?
+  recurringExpenseId String?
+  recurringExpense   RecurringExpense? @relation(fields: [recurringExpenseId], references: [id], onDelete: SetNull)
+  createdAt          DateTime          @default(now())
 
   @@index([date])
   @@index([categoryId])
+  @@index([recurringExpenseId])
   @@map("transaction")
+}
+
+/// A user-defined movement (income or expense) that repeats on a fixed cadence.
+/// The nightly `recurring-expenses` cron books a Transaction for every due
+/// occurrence and advances `nextRunDate`, stopping at the chosen end condition.
+model RecurringExpense {
+  id               String        @id @default(cuid())
+  categoryId       String?
+  category         Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  amount           Decimal       @db.Decimal(20, 2)
+  direction        TxDirection
+  note             String?
+  intervalUnit     RecurInterval
+  intervalCount    Int
+  startDate        DateTime      @db.Date
+  nextRunDate      DateTime      @db.Date
+  endMode          RecurEndMode  @default(NEVER)
+  maxOccurrences   Int?
+  endDate          DateTime?     @db.Date
+  occurrencesCount Int           @default(0)
+  enabled          Boolean       @default(true)
+  createdAt        DateTime      @default(now())
+  transactions     Transaction[]
+
+  @@index([nextRunDate])
+  @@map("recurring_expense")
 }
 
 /// Daily net worth snapshot.

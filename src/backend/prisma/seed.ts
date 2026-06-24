@@ -32,6 +32,12 @@ const CRON_JOBS: { key: string; name: string; description: string; schedule: str
     schedule: "0 3 * * *",
   },
   {
+    key: "recurring-expenses",
+    name: "Recurring expenses",
+    description: "Books a movement for every due recurring expense/income occurrence.",
+    schedule: "10 1 * * *",
+  },
+  {
     key: "backfill",
     name: "Asset backfill",
     description: "One-shot full price history download triggered when a new asset is added.",
