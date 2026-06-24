@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Calendar, Repeat } from "lucide-react";
 import { MoneyAmount } from "@/components/money-amount";
 import { StatCard } from "@/components/stat-card";
@@ -35,7 +35,10 @@ import { useCategories } from "@/hooks/use-categories";
 import { formatMoney, INVESTMENT_SIDE_LABELS } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-const PAGE_SIZE = 50;
+// Keep the initial list short so the page stays clean: 10 rows on desktop, 5 on
+// mobile. "Load more" reveals another page.
+const PAGE_DESKTOP = 10;
+const PAGE_MOBILE = 5;
 
 // The "Investments" filter is shown for parity with the design; investment
 // movements (buy/sell) are not yet recorded as transactions, so it yields none.
@@ -52,8 +55,23 @@ export default function TransactionsPage() {
   const [filter, setFilter] = useState<Filter>("ALL");
   const [month, setMonth] = useState<string>("all");
   const [categoryId, setCategoryId] = useState<string>("all");
-  const [limit, setLimit] = useState(PAGE_SIZE);
+  const [pageSize, setPageSize] = useState(PAGE_DESKTOP);
+  const [limit, setLimit] = useState(PAGE_DESKTOP);
   const [showAllTags, setShowAllTags] = useState(false);
+
+  // Track viewport to size the page (lg breakpoint = 1024px); reset the visible
+  // window when it changes.
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const apply = () => {
+      const size = mq.matches ? PAGE_DESKTOP : PAGE_MOBILE;
+      setPageSize(size);
+      setLimit(size);
+    };
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
   const [detailTx, setDetailTx] = useState<Transaction | null>(null);
   const [invTx, setInvTx] = useState<InvestmentTransaction | null>(null);
 
@@ -194,7 +212,7 @@ export default function TransactionsPage() {
                 onClick={() => {
                   setFilter(f.value);
                   setCategoryId("all");
-                  setLimit(PAGE_SIZE);
+                  setLimit(pageSize);
                 }}
                 className={cn(
                   "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
@@ -216,7 +234,7 @@ export default function TransactionsPage() {
               items={categoryItems}
               onValueChange={(v) => {
                 setCategoryId(v ?? "all");
-                setLimit(PAGE_SIZE);
+                setLimit(pageSize);
               }}
             >
               <SelectTrigger className="w-full bg-card sm:w-[180px]">
@@ -238,7 +256,7 @@ export default function TransactionsPage() {
             onValueChange={(v) => {
               setMonth(v ?? "all");
               setCategoryId("all");
-              setLimit(PAGE_SIZE);
+              setLimit(pageSize);
             }}
           >
             <SelectTrigger className="w-full gap-2 bg-card sm:w-auto">
@@ -388,7 +406,7 @@ export default function TransactionsPage() {
 
           {hasMore ? (
             <div className="flex justify-center">
-              <Button variant="outline" onClick={() => setLimit((l) => l + PAGE_SIZE)}>
+              <Button onClick={() => setLimit((l) => l + pageSize)}>
                 Load more
               </Button>
             </div>
