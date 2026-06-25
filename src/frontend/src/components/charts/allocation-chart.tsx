@@ -8,6 +8,8 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import { formatMoney } from "@/lib/format";
+import { MoneyAmount } from "@/components/money-amount";
+import { usePrivateNumberFormatter } from "@/components/private-number";
 
 const PALETTE = [
   "var(--chart-1)",
@@ -40,6 +42,7 @@ export function AllocationChart({
   currency: string;
   labels?: Record<string, string>;
 }) {
+  const { privateText } = usePrivateNumberFormatter();
   const data = Object.entries(allocation)
     .filter(([, value]) => value > 0)
     .sort(([, a], [, b]) => b - a)
@@ -70,7 +73,9 @@ export function AllocationChart({
         <ChartContainer config={chartConfig} className="aspect-square h-[200px]">
           <PieChart>
             <ChartTooltip
-              content={<ChartTooltipContent formatter={(v) => formatMoney(Number(v), currency)} />}
+              content={
+                <ChartTooltipContent formatter={(v) => privateText(formatMoney(Number(v), currency))} />
+              }
             />
             <Pie data={data} dataKey="value" nameKey="name" innerRadius={64} strokeWidth={2}>
               {data.map((entry) => (
@@ -81,7 +86,7 @@ export function AllocationChart({
         </ChartContainer>
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
           <span className="text-xs text-muted-foreground">Total</span>
-          <span className="text-lg font-semibold tabular-nums">{formatMoney(total, currency)}</span>
+          <MoneyAmount value={total} currency={currency} className="text-lg font-semibold" />
         </div>
       </div>
 
@@ -94,7 +99,7 @@ export function AllocationChart({
               {total > 0 ? Math.round((d.value / total) * 100) : 0}%
             </span>
             <span className="min-w-[64px] text-right font-mono text-xs text-muted-foreground tabular-nums">
-              {formatMoney(d.value, currency)}
+              <MoneyAmount value={d.value} currency={currency} />
             </span>
           </li>
         ))}

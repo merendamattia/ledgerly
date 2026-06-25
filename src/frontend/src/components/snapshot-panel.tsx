@@ -6,7 +6,9 @@ import { Plus } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { formatMoney, shortDate, todayISO } from "@/lib/format";
+import { MoneyAmount } from "@/components/money-amount";
+import { usePrivacyMode } from "@/components/privacy-mode";
+import { shortDate, todayISO } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export interface SnapshotRow {
@@ -63,6 +65,7 @@ export function SnapshotPanel({
 }) {
   const [date, setDate] = useState(todayISO());
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const { shouldHidePrivateNumbers } = usePrivacyMode();
 
   const valueOf = (id: string, fallback: number) =>
     drafts[id] !== undefined ? drafts[id] : String(fallback);
@@ -109,7 +112,7 @@ export function SnapshotPanel({
               )}
             >
               {negative ? "−" : ""}
-              {formatMoney(total, currency)}
+              <MoneyAmount value={total} currency={currency} />
             </p>
           </div>
         </div>
@@ -138,7 +141,8 @@ export function SnapshotPanel({
                 <div className="flex w-full items-center gap-2 sm:w-auto">
                   <span className="font-mono text-xs text-muted-foreground">{r.currency}</span>
                   <Input
-                    type="number"
+                    type={shouldHidePrivateNumbers ? "password" : "number"}
+                    inputMode="decimal"
                     step="0.01"
                     value={valueOf(r.id, r.value)}
                     onChange={(e) => setDrafts((d) => ({ ...d, [r.id]: e.target.value }))}
@@ -197,7 +201,7 @@ export function SnapshotPanel({
                   <span className="text-sm font-semibold text-[#F4F2EA]">{shortDate(s.date)}</span>
                   <span className="font-mono text-sm font-semibold text-white tabular-nums">
                     {negative ? "−" : ""}
-                    {formatMoney(s.total, currency)}
+                    <MoneyAmount value={s.total} currency={currency} />
                   </span>
                 </div>
               ))

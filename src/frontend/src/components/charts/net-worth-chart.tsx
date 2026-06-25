@@ -8,6 +8,10 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import { compactMoney, formatMoney, shortDate } from "@/lib/format";
+import {
+  PRIVATE_COMPACT_PLACEHOLDER,
+  usePrivateNumberFormatter,
+} from "@/components/private-number";
 
 const chartConfig = {
   totalValue: { label: "Net worth", color: "var(--chart-1)" },
@@ -22,6 +26,7 @@ export function NetWorthChart({
   currency: string;
   className?: string;
 }) {
+  const { privateText } = usePrivateNumberFormatter();
   const points = data.map((d) => ({
     date: shortDate(d.date),
     totalValue: d.totalValue,
@@ -51,10 +56,14 @@ export function NetWorthChart({
           width={46}
           tickCount={4}
           tick={{ fontSize: 11 }}
-          tickFormatter={(v) => compactMoney(Number(v), currency)}
+          tickFormatter={(v) =>
+            privateText(compactMoney(Number(v), currency), PRIVATE_COMPACT_PLACEHOLDER)
+          }
         />
         <ChartTooltip
-          content={<ChartTooltipContent formatter={(v) => formatMoney(Number(v), currency)} />}
+          content={
+            <ChartTooltipContent formatter={(v) => privateText(formatMoney(Number(v), currency))} />
+          }
         />
         <Area
           dataKey="totalValue"

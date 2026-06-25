@@ -2,10 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Eye, EyeOff, Plus, Pencil, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +24,7 @@ import { SnapshotPanel } from "@/components/snapshot-panel";
 import type { SelectedTicker } from "@/components/ticker-search";
 import { AddAccountDialog } from "@/components/add-account-dialog";
 import { MoneyAmount } from "@/components/money-amount";
+import { PrivateNumber } from "@/components/private-number";
 import { PeriodPerformance } from "@/components/period-performance";
 import { NetWorthChart } from "@/components/charts/net-worth-chart";
 import { AllocationChart } from "@/components/charts/allocation-chart";
@@ -43,7 +45,8 @@ import {
   useDebtSnapshots,
   useCreateDebtSnapshot,
 } from "@/hooks/use-debts";
-import { formatMoney, formatNumber, formatPercent, shortDate } from "@/lib/format";
+import { usePrivacyMode } from "@/components/privacy-mode";
+import { formatNumber, formatPercent, shortDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 type Holding = DashboardData["netWorth"]["holdings"][number];
@@ -123,6 +126,8 @@ export default function InvestmentsPage() {
   const [classFilter, setClassFilter] = useState<string>("ALL");
   const [openPosition, setOpenPosition] = useState<Holding | null>(null);
   const [addPosition, setAddPosition] = useState<Holding | null>(null);
+  const { shouldHidePrivateNumbers, togglePrivacyMode } = usePrivacyMode();
+  const PrivacyIcon = shouldHidePrivateNumbers ? EyeOff : Eye;
 
   const nw = data?.netWorth;
   const currency = nw?.baseCurrency ?? "EUR";
@@ -196,21 +201,47 @@ export default function InvestmentsPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-xs font-medium text-muted-foreground">Portfolio value</p>
-            <div className="mt-1.5 flex items-baseline gap-3.5">
-              <span className="font-mono text-4xl font-semibold tracking-tight tabular-nums">
-                {isLoading ? "…" : formatMoney(stats.value, currency)}
-              </span>
-              {stats.invested > 0 ? (
-                <PeriodPerformance
-                  pct={stats.pct}
-                  amount={stats.gain}
+            <div className="mt-1.5 flex items-start gap-2.5">
+              {isLoading ? (
+                <span className="font-mono text-4xl font-semibold tracking-tight tabular-nums">
+                  …
+                </span>
+              ) : (
+                <MoneyAmount
+                  value={stats.value}
                   currency={currency}
-                  period={period}
+                  className="font-mono text-4xl font-semibold tracking-tight"
                 />
-              ) : null}
+              )}
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <button
+                      type="button"
+                      onClick={togglePrivacyMode}
+                      className="mt-1 inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                      aria-label={shouldHidePrivateNumbers ? "Show amounts" : "Hide amounts"}
+                    >
+                      <PrivacyIcon className="size-4.5" />
+                    </button>
+                  }
+                />
+                <TooltipContent>
+                  {shouldHidePrivateNumbers ? "Show amounts" : "Hide amounts"}
+                </TooltipContent>
+              </Tooltip>
             </div>
+            {stats.invested > 0 ? (
+              <PeriodPerformance
+                pct={stats.pct}
+                amount={stats.gain}
+                currency={currency}
+                period={period}
+                className="mt-2"
+              />
+            ) : null}
             <p className="mt-1.5 text-xs text-muted-foreground">
-              Invested {formatMoney(stats.invested, currency)}
+              Invested <MoneyAmount value={stats.invested} currency={currency} />
             </p>
           </div>
           <div className="flex gap-0.5 self-start rounded-lg bg-muted p-0.5">
@@ -548,13 +579,13 @@ function PositionRow({
         </span>
         <span className="text-muted-foreground">{CLASS_LABELS[h.type] ?? h.type}</span>
         <span className="text-right font-mono text-xs text-muted-foreground tabular-nums">
-          {formatNumber(h.quantity, 4)}
+          <PrivateNumber text={formatNumber(h.quantity, 4)} />
         </span>
         <span className="text-right font-mono text-xs text-muted-foreground tabular-nums">
-          {formatMoney(h.avgCost, h.currency)}
+          <MoneyAmount value={h.avgCost} currency={h.currency} />
         </span>
         <span className="text-right font-mono text-xs text-muted-foreground tabular-nums">
-          {formatMoney(h.price, h.currency)}
+          <MoneyAmount value={h.price} currency={h.currency} />
         </span>
         <MoneyAmount
           value={h.cost}

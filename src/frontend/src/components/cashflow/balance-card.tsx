@@ -1,5 +1,5 @@
 import { Card } from "@/components/ui/card";
-import { formatMoney } from "@/lib/format";
+import { MoneyAmount } from "@/components/money-amount";
 
 // Ink "spotlight" card matching the design: net result up top in lime, the
 // income/expense split (signed, colored) below, and a savings-rate chip at the
@@ -29,7 +29,7 @@ export function BalanceCard({
       <span className="text-xs font-medium tracking-wide text-sidebar-foreground">{subtitle}</span>
       <div className="mt-1.5 flex items-baseline gap-3">
         <span className="font-mono text-4xl font-semibold tracking-tight tabular-nums text-primary">
-          {formatMoney(net, currency)}
+          <MoneyAmount value={net} currency={currency} />
         </span>
         <span className="font-mono text-xl font-semibold tabular-nums text-primary/70">
           {savingsRate}%
@@ -43,7 +43,7 @@ export function BalanceCard({
             Income
           </div>
           <div className="mt-1.5 font-mono text-xl font-semibold tabular-nums" style={{ color: GREEN }}>
-            +{formatMoney(income, currency)}
+            <MoneyAmount value={income} currency={currency} signed />
           </div>
         </div>
         <div className="flex-1">
@@ -52,7 +52,7 @@ export function BalanceCard({
             Expenses
           </div>
           <div className="mt-1.5 font-mono text-xl font-semibold tabular-nums" style={{ color: RED }}>
-            −{formatMoney(expense, currency)}
+            −<MoneyAmount value={expense} currency={currency} />
           </div>
         </div>
       </div>

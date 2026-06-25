@@ -1,6 +1,6 @@
 import { ArrowDown, ArrowUp } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatMoney } from "@/lib/format";
+import { MoneyAmount } from "@/components/money-amount";
 import { cn } from "@/lib/utils";
 
 export interface ComparisonRow {
@@ -28,7 +28,7 @@ function MetricRow({ row, currency }: { row: ComparisonRow; currency: string }) 
         <span className="text-sm text-muted-foreground">{row.label}</span>
         <span className="flex items-baseline gap-1.5">
           <span className="font-mono text-sm font-semibold tabular-nums">
-            {formatMoney(row.curr, currency)}
+            <MoneyAmount value={row.curr} currency={currency} />
           </span>
           <span className={cn("inline-flex items-center gap-0.5 font-mono text-[11px] font-semibold tabular-nums", tone)}>
             <Arrow className="size-3" />

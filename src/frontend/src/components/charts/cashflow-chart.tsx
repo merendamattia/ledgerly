@@ -10,6 +10,10 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import { compactMoney, formatMoney, monthLabel } from "@/lib/format";
+import {
+  PRIVATE_COMPACT_PLACEHOLDER,
+  usePrivateNumberFormatter,
+} from "@/components/private-number";
 
 const chartConfig = {
   income: { label: "Income", color: "var(--positive)" },
@@ -25,6 +29,7 @@ export function CashFlowChart({
   currency: string;
   className?: string;
 }) {
+  const { privateText } = usePrivateNumberFormatter();
   const points = data.map((d) => ({
     month: monthLabel(`${d.month}-01`),
     income: d.income,
@@ -49,10 +54,14 @@ export function CashFlowChart({
           width={46}
           tickCount={4}
           tick={{ fontSize: 11 }}
-          tickFormatter={(v) => compactMoney(Number(v), currency)}
+          tickFormatter={(v) =>
+            privateText(compactMoney(Number(v), currency), PRIVATE_COMPACT_PLACEHOLDER)
+          }
         />
         <ChartTooltip
-          content={<ChartTooltipContent formatter={(v) => formatMoney(Number(v), currency)} />}
+          content={
+            <ChartTooltipContent formatter={(v) => privateText(formatMoney(Number(v), currency))} />
+          }
         />
         <ChartLegend content={<ChartLegendContent />} />
         <Bar dataKey="income" fill="var(--color-income)" radius={4} />

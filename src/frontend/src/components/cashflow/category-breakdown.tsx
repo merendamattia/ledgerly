@@ -14,7 +14,7 @@ import {
   CategoryBreakdownCard,
   type CategorySlice,
 } from "@/components/category-breakdown";
-import { formatMoney } from "@/lib/format";
+import { MoneyAmount } from "@/components/money-amount";
 import { cn } from "@/lib/utils";
 
 type Mode = "expense" | "income";
@@ -75,7 +75,7 @@ export function CategoryBreakdown({
           <DialogHeader>
             <DialogTitle>{title}</DialogTitle>
             <DialogDescription>
-              {formatMoney(total, currency)} across {items.length} categories
+              <MoneyAmount value={total} currency={currency} /> across {items.length} categories
             </DialogDescription>
           </DialogHeader>
           <div className="max-h-[60dvh] overflow-y-auto pr-1">

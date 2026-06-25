@@ -1,6 +1,6 @@
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Sparkline } from "@/components/charts/sparkline";
-import { formatMoney } from "@/lib/format";
+import { MoneyAmount } from "@/components/money-amount";
 
 // Year-to-date cumulative net savings: running total since Jan 1, a chip with
 // the current month's contribution, and a sparkline of the monthly cumulative.
@@ -24,7 +24,7 @@ export function AccumulatedCard({
       <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-2">
         <span className="flex items-baseline gap-1.5">
           <span className="font-mono text-3xl font-semibold tabular-nums">
-            {formatMoney(total, currency)}
+            <MoneyAmount value={total} currency={currency} />
           </span>
           <span className="text-xs font-medium text-muted-foreground">YTD</span>
         </span>
@@ -36,7 +36,7 @@ export function AccumulatedCard({
           }
         >
           {positive ? "+" : ""}
-          {formatMoney(monthDelta, currency)} this month
+          <MoneyAmount value={Math.abs(monthDelta)} currency={currency} /> this month
         </span>
       </div>
       <div className="mt-auto pt-4">

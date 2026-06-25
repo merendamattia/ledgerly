@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Card } from "@/components/ui/card";
-import { formatMoney } from "@/lib/format";
+import { MoneyAmount } from "@/components/money-amount";
 import { cn } from "@/lib/utils";
 
 // Categorical ramp from the "modern ledger" design.
@@ -36,7 +36,7 @@ export function CategoryBars({
           <div className="mb-1.5 flex items-center justify-between gap-3 text-sm">
             <span className="capitalize">{c.name}</span>
             <span className="font-mono tabular-nums text-muted-foreground">
-              {formatMoney(c.value, currency)}
+              <MoneyAmount value={c.value} currency={currency} />
             </span>
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-muted">
@@ -126,7 +126,7 @@ export function CategoryBreakdownCard({
         <div className="mt-4 flex items-center justify-between border-t pt-4">
           <span className="text-sm font-medium text-muted-foreground">{totalLabel}</span>
           <span className="font-mono text-base font-semibold tabular-nums">
-            {formatMoney(total, currency)}
+            <MoneyAmount value={total} currency={currency} />
           </span>
         </div>
       ) : null}
