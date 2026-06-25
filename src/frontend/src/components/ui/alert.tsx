@@ -19,6 +19,7 @@ const alertVariants = cva(
   }
 )
 
+/** Renders an alert container for status, warning, or error messages. */
 function Alert({
   className,
   variant,
@@ -34,6 +35,7 @@ function Alert({
   )
 }
 
+/** Renders the alert title text. */
 function AlertTitle({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -47,6 +49,7 @@ function AlertTitle({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
+/** Renders the alert body text. */
 function AlertDescription({
   className,
   ...props
@@ -63,6 +66,7 @@ function AlertDescription({
   )
 }
 
+/** Renders an action slot positioned inside an alert. */
 function AlertAction({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div

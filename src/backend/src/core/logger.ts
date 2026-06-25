@@ -2,6 +2,9 @@
 // are easy to grep and, later, to ship to an aggregator.
 type Level = "debug" | "info" | "warn" | "error";
 
+/**
+ * Writes one structured log event to stdout or stderr.
+ */
 function emit(level: Level, message: string, meta?: Record<string, unknown>) {
   const entry = { ts: new Date().toISOString(), level, message, ...meta };
   const line = JSON.stringify(entry);

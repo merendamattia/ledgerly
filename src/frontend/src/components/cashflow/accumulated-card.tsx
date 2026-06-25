@@ -2,8 +2,9 @@ import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Sparkline } from "@/components/charts/sparkline";
 import { MoneyAmount } from "@/components/money-amount";
 
-// Year-to-date cumulative net savings: running total since Jan 1, a chip with
-// the current month's contribution, and a sparkline of the monthly cumulative.
+/**
+ * Renders year-to-date cumulative savings with current-month delta and sparkline.
+ */
 export function AccumulatedCard({
   total,
   monthDelta,

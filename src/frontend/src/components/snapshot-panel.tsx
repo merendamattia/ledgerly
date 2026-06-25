@@ -71,6 +71,7 @@ export function SnapshotPanel({
     drafts[id] !== undefined ? drafts[id] : String(fallback);
   const total = rows.reduce((s, r) => s + Number(valueOf(r.id, r.value) || 0), 0);
 
+  /** Creates a dated snapshot from the current draft row values. */
   function submit() {
     if (rows.length === 0) {
       toast.error("Nothing to snapshot yet");

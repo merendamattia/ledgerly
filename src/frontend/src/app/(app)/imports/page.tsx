@@ -34,10 +34,12 @@ const CASH_SECTIONS: { category: Account["category"]; label: string }[] = [
   { category: "OTHER_ASSET", label: "Other assets" },
 ];
 
+/** Sorts dated import rows from newest to oldest. */
 const byDateDesc = (a: { date: string }, b: { date: string }) => b.date.localeCompare(a.date);
 
-// Collapsible section: there are many snapshot tables, so each starts collapsed
-// and expands on click. The count stays visible in the header when collapsed.
+/**
+ * Renders a collapsible import section with a visible row count in its header.
+ */
 function CollapsibleCard({
   title,
   description,
@@ -84,10 +86,12 @@ function CollapsibleCard({
   );
 }
 
+/** Formats the snapshot count label with the correct singular/plural suffix. */
 function snapshotCountLabel(count: number) {
   return `${count} snapshot${count === 1 ? "" : "s"}`;
 }
 
+/** Renders data import tools and imported snapshot cleanup tables. */
 export default function ImportsPage() {
   const cashSnapshots = useCashSnapshots();
   const debtSnapshots = useDebtSnapshots();

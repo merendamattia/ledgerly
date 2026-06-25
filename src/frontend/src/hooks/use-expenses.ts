@@ -1,22 +1,21 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { InferRequestType, InferResponseType } from "hono/client";
 import { api, unwrap } from "@/lib/api-client";
-import { queryKeys } from "@/lib/query-keys";
+import {
+  invalidateLedgerQueries,
+  queryKeys,
+  type TransactionFilters,
+} from "@/lib/query-keys";
+
+export type { TransactionFilters } from "@/lib/query-keys";
 
 export type Transaction = InferResponseType<typeof api.expenses.$get, 200>[number];
 export type CreateTransactionInput = InferRequestType<typeof api.expenses.$post>["json"];
 type UpdateTransactionInput = InferRequestType<(typeof api.expenses)[":id"]["$put"]>["json"];
 
-export interface TransactionFilters {
-  from?: string;
-  to?: string;
-  categoryId?: string;
-  direction?: "INCOME" | "EXPENSE";
-  limit?: number;
-  offset?: number;
-}
-
-// Query params must be strings for the Hono RPC client.
+/**
+ * Converts typed transaction filters into string query params for Hono RPC.
+ */
 function toQuery(filters: TransactionFilters) {
   const { limit, offset, ...rest } = filters;
   return {
@@ -31,6 +30,9 @@ export async function fetchExpenses(filters: TransactionFilters = {}): Promise<T
   return unwrap<Transaction[]>(await api.expenses.$get({ query: toQuery(filters) }));
 }
 
+/**
+ * Loads paginated or filtered income/expense transactions.
+ */
 export function useExpenses(filters: TransactionFilters = {}) {
   return useQuery({
     queryKey: queryKeys.expenses(filters),
@@ -38,14 +40,17 @@ export function useExpenses(filters: TransactionFilters = {}) {
   });
 }
 
+/**
+ * Returns the standard transaction invalidation callback for expense mutations.
+ */
 function useInvalidate() {
   const qc = useQueryClient();
-  return () => {
-    qc.invalidateQueries({ queryKey: ["expenses"] });
-    qc.invalidateQueries({ queryKey: queryKeys.dashboard });
-  };
+  return () => invalidateLedgerQueries(qc, [queryKeys.expensesRoot, queryKeys.dashboard]);
 }
 
+/**
+ * Creates an income or expense transaction and refreshes affected totals.
+ */
 export function useCreateTransaction() {
   const invalidate = useInvalidate();
   return useMutation({
@@ -55,6 +60,9 @@ export function useCreateTransaction() {
   });
 }
 
+/**
+ * Updates an income or expense transaction and refreshes affected totals.
+ */
 export function useUpdateTransaction() {
   const invalidate = useInvalidate();
   return useMutation({
@@ -64,6 +72,9 @@ export function useUpdateTransaction() {
   });
 }
 
+/**
+ * Deletes one transaction and refreshes affected totals.
+ */
 export function useDeleteTransaction() {
   const invalidate = useInvalidate();
   return useMutation({

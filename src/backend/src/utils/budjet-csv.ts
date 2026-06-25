@@ -120,6 +120,9 @@ function parseAmount(raw: string): number {
   return Math.abs(Number(cleaned));
 }
 
+/**
+ * Parses a Budjet UTF-16LE export into normalized transaction rows and errors.
+ */
 export function parseBudjetExport(bytes: Uint8Array | ArrayBuffer): ParseResult {
   const records = splitRecords(decode(bytes));
   const rows: ParsedRow[] = [];

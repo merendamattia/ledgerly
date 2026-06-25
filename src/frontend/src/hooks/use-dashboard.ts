@@ -9,6 +9,9 @@ export type NetWorthPoint = InferResponseType<
   200
 >[number];
 
+/**
+ * Loads the overview dashboard payload for the requested trailing month window.
+ */
 export function useDashboard(months?: number) {
   return useQuery({
     queryKey: months ? [...queryKeys.dashboard, months] : queryKeys.dashboard,

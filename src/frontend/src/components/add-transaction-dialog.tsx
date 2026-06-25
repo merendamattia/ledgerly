@@ -30,9 +30,9 @@ import { cn } from "@/lib/utils";
 
 type Kind = "INCOME" | "EXPENSE" | "INVESTMENT";
 
-// Shared shell: a scrollable field area + a pinned footer with one full-width
-// submit, matching the design drawer. Used by every form in the Add drawer.
-// (No Cancel — closing the drawer already discards the in-progress entry.)
+/**
+ * Renders the shared add-drawer form shell with scrollable fields and pinned submit.
+ */
 function FormShell({
   children,
   onSubmit,
@@ -58,8 +58,7 @@ function FormShell({
   );
 }
 
-// A segmented control (Buy/Sell, Expense/Income/Investment) styled like the
-// design's pill switch — bigger and clearer than a two-option dropdown.
+/** Renders the pill-style segmented control used by transaction forms. */
 function Segment<T extends string>({
   options,
   value,
@@ -100,8 +99,7 @@ const KIND_OPTIONS: { value: Kind; label: string; icon: ComponentType<{ classNam
   { value: "INVESTMENT", label: "Investment", icon: TrendingUp },
 ];
 
-// Beige tappable category chips with the design's tinted icon. Selecting toggles;
-// the list is already scoped to the chosen kind, so the other set never shows.
+/** Renders selectable category chips scoped to the current movement kind. */
 export function CategoryPicker({
   categories,
   isLoading,
@@ -144,8 +142,7 @@ export function CategoryPicker({
   );
 }
 
-// Beige tappable account cards + an inline "New account" card. Adding one
-// renders it as a new card (and selects it), no separate dialog.
+/** Renders broker-account cards plus inline account creation for investment movements. */
 function AccountPicker({
   value,
   onChange,
@@ -163,6 +160,7 @@ function AccountPicker({
   // wallet, a credit or another asset. Scope the picker to brokers.
   const rows = (accounts.data ?? []).filter((a: Account) => a.type === "BROKER");
 
+  /** Creates and selects a new broker account from the inline picker form. */
   async function add() {
     const trimmed = name.trim();
     if (!trimmed) return;
@@ -276,9 +274,9 @@ const SHEET_META: Record<AddMode, { title: string; description: string }> = {
   },
 };
 
-// Shared "new transaction" drawer. Slides in from the right; the `mode` scopes
-// which directions are offered. Pass a custom `trigger` or fall back to a
-// default button. Bulk CSV import lives on the dedicated /imports page.
+/**
+ * Renders the shared add drawer for income, expense, and investment movements.
+ */
 export function AddTransactionDialog({
   trigger,
   mode = "full",
@@ -306,6 +304,7 @@ export function AddTransactionDialog({
   const meta = SHEET_META[mode];
   const kindOptions = mode === "full" ? KIND_OPTIONS : KIND_OPTIONS.filter((o) => o.value !== "INVESTMENT");
 
+  /** Creates either a one-off cashflow transaction or a recurring rule. */
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (kind === "INVESTMENT") return; // handled by the investment form
@@ -486,8 +485,7 @@ export function AddTransactionDialog({
   );
 }
 
-// Right-side drawer to add a buy/sell locked to one position. Opened from the
-// position drill-down (which closes first, so the two modals never overlap).
+/** Renders a right-side drawer for adding a buy/sell movement to one position. */
 export function AddMovementSheet({
   ticker,
   open,
@@ -532,7 +530,7 @@ export function AddMovementSheet({
   );
 }
 
-// Create wrapper: the shared movement form wired to the create mutation.
+/** Wires the shared investment movement form to the create mutation. */
 function InvestmentCreate({ onDone }: { onDone: () => void }) {
   const create = useCreateInvestmentTx();
   return (
@@ -565,9 +563,9 @@ export interface MovementValues {
   note: string | null;
 }
 
-// Shared buy/sell form. Used to create a movement (asset picked via search) and
-// to edit one (asset locked to the position). The backend derives the holding's
-// quantity + average cost from the full ledger; every movement needs an account.
+/**
+ * Renders the shared buy/sell movement form for creating or editing investments.
+ */
 export function InvestmentMovementForm({
   lockedTicker,
   initial,
@@ -598,6 +596,7 @@ export function InvestmentMovementForm({
   const [note, setNote] = useState(initial?.note ?? "");
   const [cashAccountId, setCashAccountId] = useState(initial?.cashAccountId ?? "");
 
+  /** Validates the movement form and submits normalized numeric values. */
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!ticker) {

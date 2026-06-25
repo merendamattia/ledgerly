@@ -10,6 +10,9 @@ export interface TransactionFilters {
   offset?: number;
 }
 
+/**
+ * Converts transaction list filters into a Prisma where clause.
+ */
 function whereFromFilters(f: TransactionFilters): Prisma.TransactionWhereInput {
   return {
     categoryId: f.categoryId,

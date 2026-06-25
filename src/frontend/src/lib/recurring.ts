@@ -17,6 +17,7 @@ export interface OccurrenceRule {
 
 const MAX_ITERATIONS = 400;
 
+/** Normalize a string or Date to a local calendar day. */
 function dayOnly(value: string | Date): Date {
   const d = typeof value === "string" ? new Date(value) : value;
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());

@@ -1,10 +1,12 @@
 import { expect, test } from "bun:test";
 import { parseInvestmentCsv } from "./investment-csv.ts";
 
+/** Builds a tab-delimited investment CSV fixture. */
 function buildCsv(header: string[], row: string[]): Uint8Array {
   return new TextEncoder().encode([header.join("\t"), row.join("\t")].join("\n"));
 }
 
+/** Builds a comma-delimited investment CSV fixture. */
 function buildCommaCsv(header: string[], row: string[]): Uint8Array {
   return new TextEncoder().encode([header.join(","), row.join(",")].join("\n"));
 }

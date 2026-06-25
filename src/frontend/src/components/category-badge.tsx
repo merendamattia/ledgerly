@@ -36,20 +36,24 @@ const RULES: [RegExp, CategoryStyle][] = [
 
 const FALLBACK: CategoryStyle = { emoji: "🏷️", badgeBg: "#F0EEE4", badgeFg: "#807F70" };
 
+/** Resolves the configured color and emoji style for a category name. */
 function styleFor(name?: string | null): CategoryStyle {
   if (!name) return FALLBACK;
   for (const [rx, style] of RULES) if (rx.test(name)) return style;
   return FALLBACK;
 }
 
-// The default emoji guessed from a category name — used as a suggestion when
-// creating a category and as a fallback for categories without a stored emoji.
+/**
+ * Returns the default emoji guessed from a category name.
+ *
+ * Used as a suggestion when creating a category and as a fallback for categories
+ * without a stored emoji.
+ */
 export function emojiFor(name?: string | null): string {
   return styleFor(name).emoji;
 }
 
-// Leading tile for a transaction row: a soft-tinted rounded square showing the
-// category's emoji (its stored one, or one guessed from the name).
+/** Renders the leading category tile used by transaction rows. */
 export function CategoryIcon({
   name,
   emoji,
@@ -73,7 +77,7 @@ export function CategoryIcon({
   );
 }
 
-// Small tinted pill showing the category emoji + name, colored per the design palette.
+/** Renders a small tinted pill with the category emoji and label. */
 export function CategoryBadge({
   name,
   emoji,

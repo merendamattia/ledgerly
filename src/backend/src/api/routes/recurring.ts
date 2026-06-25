@@ -22,8 +22,12 @@ type RecurInput = Partial<{
   enabled: boolean;
 }>;
 
-// Map a validated payload to Prisma update data. On startDate change the rule's
-// next occurrence is realigned to the new start (rules are edited before they run).
+/**
+ * Maps a validated recurring-rule payload to Prisma update data.
+ *
+ * When startDate changes, nextRunDate is realigned to the new start because
+ * rules are edited before they run.
+ */
 function toData(input: RecurInput): Prisma.RecurringExpenseUpdateInput {
   const data: Prisma.RecurringExpenseUpdateInput = {};
   if (input.amount !== undefined) data.amount = input.amount;

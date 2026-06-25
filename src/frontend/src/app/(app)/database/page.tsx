@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Search } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 const PAGE = 50;
 type Row = Record<string, unknown>;
 
+/** Renders the read-only database browser for inspecting app tables. */
 export default function DatabasePage() {
   const tables = useTables();
   const [table, setTable] = useState("");
@@ -31,6 +32,7 @@ export default function DatabasePage() {
     offset: 0,
   });
 
+  /** Switches the active database table and resets filters/pagination. */
   function pickTable(value: string) {
     setTable(value);
     setSearchInput("");
@@ -38,6 +40,7 @@ export default function DatabasePage() {
     setLimit(PAGE);
   }
 
+  /** Debounces the table search term before querying row data. */
   function onSearch(value: string) {
     setSearchInput(value);
     clearTimeout(debounce.current);
@@ -46,6 +49,10 @@ export default function DatabasePage() {
       setLimit(PAGE);
     }, 300);
   }
+
+  useEffect(() => {
+    return () => clearTimeout(debounce.current);
+  }, []);
 
   const columns: Column<Row>[] = useMemo(
     () =>

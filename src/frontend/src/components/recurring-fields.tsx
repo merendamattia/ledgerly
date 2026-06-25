@@ -34,9 +34,9 @@ export interface RecurringFieldsState {
   setEndDate: (v: string) => void;
 }
 
-// Cadence + end-condition inputs with a live preview of the dates that will be
-// booked. Shared by the standalone recurring dialog and the "make it recurring"
-// toggle in the Add-transaction drawer. The start date lives in the host form.
+/**
+ * Renders recurrence cadence and end-condition fields with a live date preview.
+ */
 export function RecurringFields(s: RecurringFieldsState) {
   const preview = useMemo(
     () =>
@@ -153,7 +153,7 @@ export function RecurringFields(s: RecurringFieldsState) {
   );
 }
 
-// Validate the end-condition inputs; returns an error message or null.
+/** Validates recurrence end-condition inputs and returns an error message if invalid. */
 export function validateRecurring(
   endMode: RecurEndMode,
   maxOccurrences: string,

@@ -5,6 +5,7 @@ import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
 
+/** Renders the Base UI tabs root with horizontal or vertical orientation. */
 function Tabs({
   className,
   orientation = "horizontal",
@@ -38,6 +39,7 @@ const tabsListVariants = cva(
   }
 )
 
+/** Renders the tabs trigger list with Ledgerly's default or line variant. */
 function TabsList({
   className,
   variant = "default",
@@ -53,6 +55,7 @@ function TabsList({
   )
 }
 
+/** Renders one selectable tab trigger. */
 function TabsTrigger({ className, ...props }: TabsPrimitive.Tab.Props) {
   return (
     <TabsPrimitive.Tab
@@ -69,6 +72,7 @@ function TabsTrigger({ className, ...props }: TabsPrimitive.Tab.Props) {
   )
 }
 
+/** Renders the content panel associated with a tab trigger. */
 function TabsContent({ className, ...props }: TabsPrimitive.Panel.Props) {
   return (
     <TabsPrimitive.Panel

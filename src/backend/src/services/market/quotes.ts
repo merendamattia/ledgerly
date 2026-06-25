@@ -26,6 +26,9 @@ export async function latestPrice(tickerId: string): Promise<Quote | null> {
   return quote;
 }
 
+/**
+ * Drops the cached latest quote after a price-history write.
+ */
 export async function invalidatePrice(tickerId: string): Promise<void> {
   await cacheDel(`price:${tickerId}:latest`);
 }

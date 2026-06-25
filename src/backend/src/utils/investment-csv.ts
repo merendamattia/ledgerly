@@ -64,6 +64,14 @@ const legacyColumnMap: InvestmentImportColumnMap = {
   skipHeader: true,
 };
 
+/**
+ * Reads a cell by mapped index, returning an empty string when unmapped.
+ */
+function getCell(cells: string[], index: number | null): string {
+  if (index === null) return "";
+  return cells[index]?.trim() ?? "";
+}
+
 /** Decode raw bytes as UTF-8 and strip a leading BOM if present. */
 export function decode(bytes: Uint8Array | ArrayBuffer): string {
   const text = new TextDecoder("utf-8").decode(bytes);
@@ -113,11 +121,9 @@ export function parseLocaleNumber(raw: string): number {
   return Number(cleaned);
 }
 
-function getCell(cells: string[], index: number | null): string {
-  if (index === null) return "";
-  return cells[index]?.trim() ?? "";
-}
-
+/**
+ * Reads a mapped text field, falling back to a default when the column is absent.
+ */
 function resolveTextField(
   cells: string[],
   index: number | null,
@@ -129,6 +135,9 @@ function resolveTextField(
   return null;
 }
 
+/**
+ * Parses an investment movement date from either local broker format or ISO.
+ */
 export function parseInvestmentDate(raw: string): Date | null {
   const local = parseDate(raw, "dd/MM/yyyy", new Date());
   if (isValid(local)) return local;
@@ -137,6 +146,9 @@ export function parseInvestmentDate(raw: string): Date | null {
   return null;
 }
 
+/**
+ * Parses a broker investment CSV/TSV into preview rows and recoverable errors.
+ */
 export function parseInvestmentCsv(
   bytes: Uint8Array | ArrayBuffer,
   inputMap?: InvestmentImportColumnMap,

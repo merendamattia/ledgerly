@@ -1,4 +1,4 @@
-// Minimal dependency-free sparkline for inline trend hints in stat cards.
+/** Renders a minimal dependency-free sparkline for inline trend hints. */
 export function Sparkline({
   values,
   className,

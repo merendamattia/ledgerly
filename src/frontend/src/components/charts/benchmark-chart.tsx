@@ -14,7 +14,7 @@ const chartConfig = {
   benchmark: { label: "MSCI World", color: "var(--chart-3)" },
 } satisfies ChartConfig;
 
-// Two rebased growth indices (start = 100): portfolio vs benchmark.
+/** Renders portfolio and benchmark growth as rebased indices starting at 100. */
 export function BenchmarkChart({
   data,
 }: {

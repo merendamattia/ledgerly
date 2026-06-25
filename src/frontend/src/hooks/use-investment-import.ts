@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { InferRequestType, InferResponseType } from "hono/client";
 import { api, unwrap } from "@/lib/api-client";
-import { queryKeys } from "@/lib/query-keys";
+import { invalidateLedgerQueries, queryKeys } from "@/lib/query-keys";
 
 const importApi = api["investment-transactions"].import;
 
@@ -32,8 +32,9 @@ export type InvestmentParseInput = {
   mapping: InvestmentImportColumnMap;
 };
 
-// Step 1: upload the broker CSV/TSV and get parsed rows + parse errors back.
-// Nothing is persisted — the user reviews, maps tickers/brokers, and edits first.
+/**
+ * Uploads a broker CSV/TSV and returns parsed investment rows for review.
+ */
 export function useParseInvestmentImport() {
   return useMutation({
     mutationFn: async ({ file, mapping }: InvestmentParseInput) =>
@@ -45,19 +46,21 @@ export function useParseInvestmentImport() {
   });
 }
 
-// Step 2: commit the mapped rows. Duplicates are skipped server-side; affected
-// holdings are recomputed once per ticker.
+/**
+ * Commits reviewed investment rows and refreshes portfolio-dependent views.
+ */
 export function useCommitInvestmentImport() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (rows: CommitRow[]) =>
       unwrap<InvestmentImportResult>(await importApi.commit.$post({ json: { rows } })),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["investment-transactions"] });
-      qc.invalidateQueries({ queryKey: queryKeys.holdings });
-      qc.invalidateQueries({ queryKey: queryKeys.investmentHistory });
-      qc.invalidateQueries({ queryKey: queryKeys.dashboard });
-      qc.invalidateQueries({ queryKey: queryKeys.accounts });
-    },
+    onSuccess: () =>
+      invalidateLedgerQueries(qc, [
+        queryKeys.investmentTransactionsRoot,
+        queryKeys.holdings,
+        queryKeys.investmentHistory,
+        queryKeys.dashboard,
+        queryKeys.accounts,
+      ]),
   });
 }

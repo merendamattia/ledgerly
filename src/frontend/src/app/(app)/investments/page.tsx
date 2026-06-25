@@ -63,7 +63,7 @@ const PERIODS = [
 ] as const;
 const PERIOD_DAYS: Record<string, number> = { "1M": 30, "3M": 90, "1Y": 365 };
 
-// Earliest ISO day (yyyy-mm-dd) to keep for a period; null = keep everything (Max).
+/** Returns the earliest ISO day to include for a period, or `null` for Max. */
 function periodCutoff(period: string): string | null {
   if (period === "Max") return null;
   const d = new Date();
@@ -74,7 +74,7 @@ function periodCutoff(period: string): string | null {
   return d.toISOString().slice(0, 10);
 }
 
-// Simple period-over-period returns (mirrors backend utils/stats.ts).
+/** Computes simple period-over-period returns from a value series. */
 function seriesReturns(values: number[]): number[] {
   const out: number[] = [];
   for (let i = 1; i < values.length; i++) {
@@ -84,7 +84,7 @@ function seriesReturns(values: number[]): number[] {
   return out;
 }
 
-// Beta = cov(asset, bench) / var(bench), 0 if undefined.
+/** Computes beta as covariance(asset, benchmark) divided by benchmark variance. */
 function betaOf(asset: number[], bench: number[]): number {
   const n = Math.min(asset.length, bench.length);
   if (n < 2) return 0;
@@ -120,6 +120,7 @@ const BAR_COLORS = [
   "var(--chart-6)",
 ];
 
+/** Renders the investments page with portfolio, cash, debt, and benchmark views. */
 export default function InvestmentsPage() {
   const { data, isLoading } = useDashboard();
   const [period, setPeriod] = useState<string>("YTD");
@@ -436,8 +437,9 @@ export default function InvestmentsPage() {
   );
 }
 
-// Portfolio vs MSCI World (IWDA.AS). Real data when the benchmark ticker is
-// tracked; a placeholder otherwise.
+/**
+ * Renders portfolio performance against the benchmark when benchmark data exists.
+ */
 function BenchmarkCard({ className, period }: { className?: string; period: string }) {
   const { data, isLoading } = useBenchmark();
   const full = data && data.available ? data : null;
@@ -543,6 +545,7 @@ function BenchmarkCard({ className, period }: { className?: string; period: stri
   );
 }
 
+/** Renders one responsive holding row in the positions ledger. */
 function PositionRow({
   h,
   currency,
@@ -703,9 +706,9 @@ const CASH_PANEL_COPY: Record<
   },
 };
 
-// Generic editable balances + dated snapshot + history panel for one cash
-// category (Liquidity / Credits / Other assets). Broker accounts are excluded —
-// they hold investments, not liquidity.
+/**
+ * Renders editable balances, dated snapshot capture, and history for one cash category.
+ */
 function CashCategoryPanel({
   category,
   currency,
@@ -719,18 +722,26 @@ function CashCategoryPanel({
   const del = useDeleteAccount();
   const copy = CASH_PANEL_COPY[category];
 
-  const categoryAccounts = (accounts.data ?? []).filter(
-    (a) => a.category === category && a.type !== "BROKER",
+  const categoryAccounts = useMemo(
+    () => (accounts.data ?? []).filter((a) => a.category === category && a.type !== "BROKER"),
+    [accounts.data, category],
   );
-  const accountIds = new Set(categoryAccounts.map((a) => a.id));
-  const accountsById = new Map(categoryAccounts.map((a) => [a.id, a]));
-  const rows = categoryAccounts.map((a) => ({
-    id: a.id,
-    name: a.name,
-    type: a.type,
-    currency: a.currency,
-    value: a.balance,
-  }));
+  const accountIds = useMemo(() => new Set(categoryAccounts.map((a) => a.id)), [categoryAccounts]);
+  const accountsById = useMemo(
+    () => new Map(categoryAccounts.map((a) => [a.id, a])),
+    [categoryAccounts],
+  );
+  const rows = useMemo(
+    () =>
+      categoryAccounts.map((a) => ({
+        id: a.id,
+        name: a.name,
+        type: a.type,
+        currency: a.currency,
+        value: a.balance,
+      })),
+    [categoryAccounts],
+  );
 
   // Aggregate this category's snapshots into a per-date total for the history card.
   const history = useMemo(() => {
@@ -742,8 +753,7 @@ function CashCategoryPanel({
     return [...byDate.entries()]
       .map(([date, total]) => ({ date, total }))
       .sort((a, b) => a.date.localeCompare(b.date));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [snapshots.data, category]);
+  }, [snapshots.data, accountIds]);
 
   return (
     <SnapshotPanel
@@ -816,7 +826,7 @@ function CashCategoryPanel({
   );
 }
 
-// Debts: editable amounts + dated snapshot + history chart (mirrors Liquidity).
+/** Renders editable debt amounts, dated snapshot capture, and debt history. */
 function DebtsCard({ currency }: { currency: string }) {
   const debts = useDebts();
   const snapshots = useDebtSnapshots();
@@ -888,6 +898,7 @@ function DebtsCard({ currency }: { currency: string }) {
   );
 }
 
+/** Renders the dialog used to create a tracked debt. */
 function AddDebtDialog() {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -897,6 +908,7 @@ function AddDebtDialog() {
   const [note, setNote] = useState("");
   const create = useCreateDebt();
 
+  /** Creates the debt from the dialog form fields. */
   function submit(e: React.FormEvent) {
     e.preventDefault();
     create.mutate(

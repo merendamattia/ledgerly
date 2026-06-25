@@ -29,8 +29,9 @@ import { useParseImport, useCommitImport, type ImportRow } from "@/hooks/use-imp
 const IMPORT_COLS =
   "sm:grid-cols-[112px_minmax(120px,1fr)_148px_110px_minmax(150px,1.6fr)_auto]";
 
-// A single field that shows its column label only on mobile (where the header
-// row is hidden), so each stacked input stays identifiable.
+/**
+ * Renders one responsive import-preview cell with a mobile-only label.
+ */
 function Cell({
   label,
   className,
@@ -50,8 +51,9 @@ function Cell({
   );
 }
 
-// One editable preview row. Memoized so editing a field only re-renders its own
-// row, keeping a ~2000-row import responsive.
+/**
+ * Renders one editable import preview row without forcing sibling rows to rerender.
+ */
 const ImportRowEditor = memo(function ImportRowEditor({
   row,
   index,
@@ -125,6 +127,7 @@ const ImportRowEditor = memo(function ImportRowEditor({
   );
 });
 
+/** Renders the Budjet transaction import dialog and editable preview table. */
 export function ImportTransactionsDialog({
   trigger,
   open: openProp,
@@ -143,8 +146,8 @@ export function ImportTransactionsDialog({
   const [rows, setRows] = useState<ImportRow[] | null>(null);
   const [errors, setErrors] = useState<{ line: number; message: string }[]>([]);
 
-  const parse = useParseImport();
-  const commit = useCommitImport();
+  const { mutate: parseImport, isPending: isParsing } = useParseImport();
+  const { mutate: commitImport, isPending: isCommitting } = useCommitImport();
 
   const reset = useCallback(() => {
     setRows(null);
@@ -162,7 +165,7 @@ export function ImportTransactionsDialog({
 
   const parseFile = useCallback(
     (file: File) => {
-      parse.mutate(file, {
+      parseImport(file, {
         onSuccess: (res) => {
           setRows(res.rows);
           setErrors(res.errors);
@@ -170,15 +173,15 @@ export function ImportTransactionsDialog({
         onError: (err) => toast.error(err.message),
       });
     },
-    [parse],
+    [parseImport],
   );
 
   // Controlled open with a preloaded file (handed off from the Add drawer).
   useEffect(() => {
     if (open && initialFile) parseFile(initialFile);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, initialFile]);
+  }, [open, initialFile, parseFile]);
 
+  /** Parses the selected import file into editable preview rows. */
   function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -193,9 +196,10 @@ export function ImportTransactionsDialog({
     setRows((prev) => (prev ? prev.filter((_, i) => i !== index) : prev));
   }, []);
 
+  /** Commits the reviewed import rows and closes the dialog on success. */
   function confirm() {
     if (!rows || rows.length === 0) return;
-    commit.mutate(rows, {
+    commitImport(rows, {
       onSuccess: (res) => {
         toast.success(
           `Imported ${res.imported} · skipped ${res.skipped}` +
@@ -237,9 +241,9 @@ export function ImportTransactionsDialog({
               type="file"
               accept=".csv,text/csv"
               onChange={onFile}
-              disabled={parse.isPending}
+              disabled={isParsing}
             />
-            {parse.isPending && <p className="text-sm text-muted-foreground">Parsing…</p>}
+            {isParsing && <p className="text-sm text-muted-foreground">Parsing…</p>}
           </div>
         ) : (
           <div className="flex flex-col gap-3">
@@ -290,8 +294,8 @@ export function ImportTransactionsDialog({
 
         <DialogFooter showCloseButton>
           {rows && (
-            <Button onClick={confirm} disabled={commit.isPending || rows.length === 0}>
-              {commit.isPending ? "Importing…" : `Import ${rows.length}`}
+            <Button onClick={confirm} disabled={isCommitting || rows.length === 0}>
+              {isCommitting ? "Importing…" : `Import ${rows.length}`}
             </Button>
           )}
         </DialogFooter>

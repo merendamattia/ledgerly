@@ -13,7 +13,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-// Reusable confirmation dialog wrapping a trigger (e.g. a delete button).
+/** Renders a reusable confirmation dialog around a caller-provided trigger. */
 export function ConfirmDialog({
   trigger,
   title,
@@ -29,6 +29,7 @@ export function ConfirmDialog({
 }) {
   const [open, setOpen] = useState(false);
 
+  /** Closes the dialog and invokes the confirmed action. */
   function confirm() {
     setOpen(false);
     onConfirm();

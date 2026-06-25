@@ -16,7 +16,7 @@ const chartConfig = {
   expense: { label: "Expense", color: "var(--negative)" },
 } satisfies ChartConfig;
 
-// Income vs expense totals for the selected range, with the net in the centre.
+/** Renders income and expense totals with net cashflow in the center. */
 export function IncomeExpensePie({
   income,
   expense,

@@ -51,6 +51,7 @@ const FILTERS: { value: Filter; label: string }[] = [
   { value: "INVESTMENT", label: "Investments" },
 ];
 
+/** Renders the transaction activity page with filters, search, and detail dialogs. */
 export default function TransactionsPage() {
   const [filter, setFilter] = useState<Filter>("ALL");
   const [month, setMonth] = useState<string>("all");
@@ -156,8 +157,12 @@ export default function TransactionsPage() {
   }, [tagSource.data]);
   const activeTag = tagActive ? query.trim().slice(1).toLowerCase() : null;
 
-  // Clicking a tag lists every tagged income/expense in the selected period
-  // (month filter kept). Resets type/category so both directions are included.
+  /**
+   * Applies a tag filter while preserving the selected month.
+   *
+   * The transaction type and category filters are reset so both income and
+   * expenses tagged with the value are included.
+   */
   function applyTag(tag: string) {
     setFilter("ALL");
     setCategoryId("all");

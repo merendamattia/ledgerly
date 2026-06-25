@@ -5,9 +5,9 @@ import { EmojiPicker } from "frimousse";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
-// A compact emoji field: a button showing the current emoji that opens a
-// searchable native-emoji picker (frimousse) in a popover. Used when creating
-// or editing a category in Settings.
+/**
+ * Renders a compact emoji picker button backed by the frimousse popover picker.
+ */
 export function EmojiPickerField({
   value,
   onChange,

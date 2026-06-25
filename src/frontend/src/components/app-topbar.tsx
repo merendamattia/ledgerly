@@ -11,6 +11,7 @@ import { periodOptions, resolvePeriod } from "@/components/cashflow/periods";
 import { AddTransactionDialog, type AddMode } from "@/components/add-transaction-dialog";
 import { Button } from "@/components/ui/button";
 
+/** Renders the Ledgerly app icon used in the sticky topbar. */
 function Logo() {
   return (
     <span className="flex size-10 shrink-0 items-center justify-center">
@@ -39,16 +40,24 @@ const PAGE_META: Record<string, PageMeta> = {
   "/transactions": { title: "Transactions", subtitle: "All your recent movements" },
 };
 
-// Admin pages (settings, database, accounts) render their own PageHeader, so the
-// topbar leaves the title slot empty for them.
+/**
+ * Returns topbar copy for app sections that do not render their own page header.
+ *
+ * Admin pages such as settings, database, and accounts render their own
+ * `PageHeader`, so this intentionally returns `null` for those routes.
+ */
 function metaFor(pathname: string): PageMeta | null {
   if (pathname === "/") return PAGE_META["/"];
   const match = Object.keys(PAGE_META).find((p) => p !== "/" && pathname.startsWith(p));
   return match ? PAGE_META[match] : null;
 }
 
-// The "+ Add" button is contextual: it only appears on the three sections that
-// can create something, and each scopes what can be added.
+/**
+ * Resolves the contextual creation mode for the current route.
+ *
+ * The "+ Add" button only appears on sections that can create a movement, and
+ * the mode scopes the dialog to the actions that make sense for that section.
+ */
 function addModeFor(pathname: string): AddMode | null {
   if (pathname.startsWith("/transactions")) return "full";
   if (pathname.startsWith("/cashflow")) return "cashflow";
@@ -62,8 +71,9 @@ const ADD_LABEL: Record<AddMode, string> = {
   investment: "Add investment",
 };
 
-// Period selector for the cashflow route, rendered in the topbar next to the
-// "+ Add" button (state lives in CashflowPeriodProvider, read by the page).
+/**
+ * Renders the cashflow period selector backed by `CashflowPeriodProvider`.
+ */
 function CashflowPeriodControl() {
   const { period, setPeriod } = useCashflowPeriod();
   return (
@@ -77,6 +87,7 @@ function CashflowPeriodControl() {
   );
 }
 
+/** Renders the sticky app topbar with section metadata and contextual actions. */
 export function AppTopbar() {
   const pathname = usePathname();
   const { query, setQuery } = useSearch();

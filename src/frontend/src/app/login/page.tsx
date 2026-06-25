@@ -16,12 +16,14 @@ import {
 } from "@/components/ui/card";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 
+/** Renders the email/password login page. */
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [pending, setPending] = useState(false);
 
+  /** Authenticates the user and redirects to the app on success. */
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setPending(true);

@@ -27,6 +27,7 @@ const badgeVariants = cva(
   }
 )
 
+/** Renders a compact badge with semantic variants and optional custom rendering. */
 function Badge({
   className,
   variant = "default",

@@ -33,6 +33,7 @@ const LABELS: Record<string, string> = {
   COMMODITY: "Commodities",
 };
 
+/** Renders a donut chart and legend for asset allocation totals. */
 export function AllocationChart({
   allocation,
   currency,

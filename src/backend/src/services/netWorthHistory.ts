@@ -13,6 +13,9 @@ export interface NetWorthPoint {
   totalValue: number;
 }
 
+/**
+ * Formats a Date as the yyyy-mm-dd key used by net-worth history points.
+ */
 function isoDay(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
@@ -23,29 +26,41 @@ function isoDay(d: Date): string {
  * driven by their dated snapshots (a value applies from its snapshot day onward).
  */
 export async function computeNetWorthHistory(): Promise<NetWorthPoint[]> {
-  const baseCurrency = await settingsRepository.baseCurrency();
-
-  const inv = await computeInvestmentHistory();
+  const [baseCurrency, inv, cashSnaps, debtSnaps, accounts, debtsRows] = await Promise.all([
+    settingsRepository.baseCurrency(),
+    computeInvestmentHistory(),
+    prisma.cashSnapshot.findMany({
+      include: { cashAccount: true },
+      orderBy: { date: "asc" },
+    }),
+    prisma.debtSnapshot.findMany({
+      include: { debt: true },
+      orderBy: { date: "asc" },
+    }),
+    prisma.cashAccount.findMany(),
+    prisma.debt.findMany(),
+  ]);
   const invByDate = new Map(inv.map((p) => [p.date, p.value]));
-
-  const cashSnaps = await prisma.cashSnapshot.findMany({
-    include: { cashAccount: true },
-    orderBy: { date: "asc" },
-  });
-  const debtSnaps = await prisma.debtSnapshot.findMany({
-    include: { debt: true },
-    orderBy: { date: "asc" },
-  });
-  const accounts = await prisma.cashAccount.findMany();
   const accountsById = new Map(accounts.map((a) => [a.id, a]));
-  const debtsRows = await prisma.debt.findMany();
 
-  const fxCache = new Map<string, number>();
-  const fx = async (cur: string) => {
-    if (!fxCache.has(cur)) fxCache.set(cur, await getFxRate(cur, baseCurrency));
-    return fxCache.get(cur)!;
-  };
+  const currencies = new Set<string>();
+  for (const snapshot of cashSnaps) currencies.add(snapshot.cashAccount.currency);
+  for (const account of accounts) currencies.add(account.currency);
+  for (const snapshot of debtSnaps) currencies.add(snapshot.debt.currency);
+  for (const debt of debtsRows) currencies.add(debt.currency);
+  const fxByCurrency = new Map<string, number>(
+    await Promise.all(
+      [...currencies].map(async (currency) => [
+        currency,
+        await getFxRate(currency, baseCurrency),
+      ] as const),
+    ),
+  );
+  const fx = (cur: string) => fxByCurrency.get(cur) ?? 1;
 
+  /**
+   * Converts a Date to a UTC-midnight timestamp for step-function comparisons.
+   */
   function dayMsOf(d: Date): number {
     return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
   }
@@ -56,24 +71,24 @@ export async function computeNetWorthHistory(): Promise<NetWorthPoint[]> {
   const cashByAccount = new Map<string, { date: number; value: number }[]>();
   for (const s of cashSnaps) {
     const arr = cashByAccount.get(s.cashAccountId) ?? [];
-    arr.push({ date: dayMsOf(s.date), value: Number(s.balance) * (await fx(s.cashAccount.currency)) });
+    arr.push({ date: dayMsOf(s.date), value: Number(s.balance) * fx(s.cashAccount.currency) });
     cashByAccount.set(s.cashAccountId, arr);
   }
   for (const a of accounts) {
     const arr = cashByAccount.get(a.id) ?? [];
-    arr.push({ date: dayMsOf(a.updatedAt), value: Number(a.balance) * (await fx(a.currency)) });
+    arr.push({ date: dayMsOf(a.updatedAt), value: Number(a.balance) * fx(a.currency) });
     arr.sort((x, y) => x.date - y.date);
     cashByAccount.set(a.id, arr);
   }
   const debtById = new Map<string, { date: number; value: number }[]>();
   for (const s of debtSnaps) {
     const arr = debtById.get(s.debtId) ?? [];
-    arr.push({ date: dayMsOf(s.date), value: Number(s.amount) * (await fx(s.debt.currency)) });
+    arr.push({ date: dayMsOf(s.date), value: Number(s.amount) * fx(s.debt.currency) });
     debtById.set(s.debtId, arr);
   }
   for (const d of debtsRows) {
     const arr = debtById.get(d.id) ?? [];
-    arr.push({ date: dayMsOf(d.updatedAt), value: Number(d.amount) * (await fx(d.currency)) });
+    arr.push({ date: dayMsOf(d.updatedAt), value: Number(d.amount) * fx(d.currency) });
     arr.sort((x, y) => x.date - y.date);
     debtById.set(d.id, arr);
   }

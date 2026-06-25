@@ -11,8 +11,9 @@ import {
 import { cn } from "@/lib/utils";
 import type { Period } from "./periods";
 
-// Calendar-style period selector. Trigger shows the active label; the menu is a
-// single radio group so the current choice is checked.
+/**
+ * Renders the calendar-style period selector used by the cashflow topbar.
+ */
 export function PeriodPicker({
   value,
   label,

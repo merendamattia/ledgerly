@@ -4,6 +4,9 @@ import { priceRepository } from "../../repositories/price.ts";
 import { cacheDel } from "../../core/redis.ts";
 import { logger } from "../../core/logger.ts";
 
+/**
+ * Returns the UTC day immediately after a stored price bar date.
+ */
 function nextDay(date: Date): Date {
   const d = new Date(date);
   d.setUTCDate(d.getUTCDate() + 1);

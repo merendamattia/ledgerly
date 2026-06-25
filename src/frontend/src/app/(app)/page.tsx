@@ -45,6 +45,7 @@ const PERIODS = [
 ] as const;
 const PERIOD_DAYS: Record<string, number> = { "1M": 30, "3M": 90, "1Y": 365 };
 
+/** Resolves the oldest date included by the selected overview period. */
 function periodCutoff(period: string): string | null {
   if (period === "Max") return null;
   const d = new Date();
@@ -55,22 +56,26 @@ function periodCutoff(period: string): string | null {
   return d.toISOString().slice(0, 10);
 }
 
+/** Returns the first day of the current UTC month as an ISO date string. */
 function currentMonthStartISO(): string {
   const d = new Date();
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-01`;
 }
 
+/** Formats a monetary delta with an explicit plus or minus sign. */
 function signedMoney(value: number, currency: string): string {
   if (value === 0) return formatMoney(0, currency);
   return `${value > 0 ? "+" : "−"}${formatMoney(Math.abs(value), currency)}`;
 }
 
+/** Builds the last ten trend points, appending the current value if missing. */
 function trendValues(values: number[], current: number): number[] {
   const finite = values.filter((v) => Number.isFinite(v));
   const withCurrent = finite.at(-1) === current ? finite : [...finite, current];
   return withCurrent.slice(-10);
 }
 
+/** Extracts the last ten finite totals from snapshot trend points. */
 function snapshotTrendValues(points: TrendPoint[]): number[] {
   return points
     .map((p) => p.total)
@@ -78,6 +83,7 @@ function snapshotTrendValues(points: TrendPoint[]): number[] {
     .slice(-10);
 }
 
+/** Renders the small inline sparkline used inside KPI tiles. */
 function MiniSparkline({
   values,
   color,
@@ -116,6 +122,7 @@ function MiniSparkline({
   );
 }
 
+/** Renders a KPI delta line, hiding private amounts when privacy mode is active. */
 function KpiDeltaLine({ delta }: { delta: KpiDelta }) {
   return (
     <span
@@ -137,6 +144,7 @@ function KpiDeltaLine({ delta }: { delta: KpiDelta }) {
   );
 }
 
+/** Renders the overview dashboard for net worth, cashflow, and recent activity. */
 export default function OverviewPage() {
   const { data, isLoading } = useDashboard();
   const investmentTx = useInvestmentTransactions({ limit: 5 });

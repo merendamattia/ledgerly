@@ -7,6 +7,14 @@ import { PrismaPg } from "@prisma/adapter-pg";
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
-const { count } = await prisma.category.deleteMany({ where: { transactions: { none: {} } } });
-console.log(`Deleted ${count} unused categories.`);
-await prisma.$disconnect();
+/** Deletes categories that are no longer referenced by any transaction. */
+async function main() {
+  const { count } = await prisma.category.deleteMany({ where: { transactions: { none: {} } } });
+  console.log(`Deleted ${count} unused categories.`);
+}
+
+try {
+  await main();
+} finally {
+  await prisma.$disconnect();
+}

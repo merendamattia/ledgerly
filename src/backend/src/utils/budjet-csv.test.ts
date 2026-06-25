@@ -1,7 +1,7 @@
 import { test, expect } from "bun:test";
 import { parseBudjetExport } from "./budjet-csv.ts";
 
-// Encode a string as UTF-16LE bytes with a BOM, matching the Budjet export.
+/** Encodes a string as UTF-16LE bytes with a BOM, matching the Budjet export. */
 function toUtf16le(str: string): Uint8Array {
   const bytes = new Uint8Array(2 + str.length * 2);
   bytes[0] = 0xff;
@@ -16,6 +16,7 @@ function toUtf16le(str: string): Uint8Array {
 
 const HEADER = `"Type"\t"Category"\t"Date"\t"Transaction"\t"Note"`;
 
+/** Builds a minimal Budjet TSV export with the shared header row. */
 function build(...rows: string[]): Uint8Array {
   return toUtf16le([HEADER, ...rows].join("\n"));
 }

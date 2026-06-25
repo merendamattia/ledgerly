@@ -18,9 +18,12 @@ type Upcoming = {
   signed: number;
 };
 
-// Recurring occurrences still due between today and the end of this month — a
-// forecast (these movements are booked by the nightly cron on their date).
-// Clicking a row opens the rule's edit/delete popup.
+/**
+ * Renders recurring occurrences still due between today and the end of this month.
+ *
+ * This is a forecast because those movements are booked by the nightly cron on
+ * their date. Clicking a row opens the rule editor.
+ */
 export function UpcomingRecurring({
   currency,
   className,

@@ -6,6 +6,7 @@
  */
 const fractionDigits = (value: number): number => (Math.abs(value) > 1000 ? 0 : 2);
 
+/** Format a currency value using Ledgerly's compact decimal rules. */
 export function formatMoney(value: number, currency = "EUR"): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -14,6 +15,7 @@ export function formatMoney(value: number, currency = "EUR"): string {
   }).format(value);
 }
 
+/** Format a plain number, trimming decimals for large magnitudes by default. */
 export function formatNumber(value: number, maximumFractionDigits = 2): string {
   // When the caller leaves the default, apply the large-number rule; an explicit
   // argument is always respected.
@@ -36,11 +38,13 @@ export function truncate(value: string, max = 25): string {
   return value.length > max ? `${value.slice(0, max).trimEnd()}…` : value;
 }
 
+/** Signed percentage label for performance deltas, e.g. "+1.24%". */
 export function formatPercent(value: number): string {
   const sign = value > 0 ? "+" : "";
   return `${sign}${value.toFixed(2)}%`;
 }
 
+/** Human-readable calendar date, e.g. "14 Jun 2026". */
 export function formatDate(value: string | Date): string {
   const date = typeof value === "string" ? new Date(value) : value;
   return new Intl.DateTimeFormat("en-GB", {
@@ -50,6 +54,7 @@ export function formatDate(value: string | Date): string {
   }).format(date);
 }
 
+/** Human-readable date and time for logs and cron run metadata. */
 export function formatDateTime(value: string | Date): string {
   const date = typeof value === "string" ? new Date(value) : value;
   return new Intl.DateTimeFormat("en-GB", {

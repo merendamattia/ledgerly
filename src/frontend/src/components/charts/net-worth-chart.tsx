@@ -17,6 +17,7 @@ const chartConfig = {
   totalValue: { label: "Net worth", color: "var(--chart-1)" },
 } satisfies ChartConfig;
 
+/** Renders historical net worth as an area chart. */
 export function NetWorthChart({
   data,
   currency,

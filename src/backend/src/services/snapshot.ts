@@ -18,14 +18,15 @@ function toUtcDate(date: Date): Date {
  */
 export async function createDailyBalanceSnapshots(date: Date = new Date()) {
   const day = toUtcDate(date);
-  const accounts = await cashAccountRepository.list();
-  for (const account of accounts) {
-    await cashSnapshotRepository.upsertForAccountDate(account.id, day, Number(account.balance));
-  }
-  const debts = await debtRepository.list();
-  for (const debt of debts) {
-    await debtSnapshotRepository.upsertForDebtDate(debt.id, day, Number(debt.amount));
-  }
+  const [accounts, debts] = await Promise.all([cashAccountRepository.list(), debtRepository.list()]);
+  await Promise.all([
+    ...accounts.map((account) =>
+      cashSnapshotRepository.upsertForAccountDate(account.id, day, Number(account.balance)),
+    ),
+    ...debts.map((debt) =>
+      debtSnapshotRepository.upsertForDebtDate(debt.id, day, Number(debt.amount)),
+    ),
+  ]);
 }
 
 /**

@@ -4,8 +4,9 @@ import { AppTopbar } from "@/components/app-topbar";
 import { SearchProvider } from "@/components/search-context";
 import { CashflowPeriodProvider } from "@/components/cashflow/period-context";
 
-// Authenticated app shell: topbar (logo + page) → content → bottom tab bar.
-// No left sidebar; the bottom bar is the only navigation at every breakpoint.
+/**
+ * Renders the authenticated app shell with topbar, content, and bottom navigation.
+ */
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <AuthGuard>

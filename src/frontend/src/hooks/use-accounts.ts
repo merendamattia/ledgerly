@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { InferRequestType, InferResponseType } from "hono/client";
 import { api, unwrap } from "@/lib/api-client";
-import { queryKeys } from "@/lib/query-keys";
+import { invalidateLedgerQueries, queryKeys } from "@/lib/query-keys";
 
 export type Account = InferResponseType<typeof api.accounts.$get, 200>[number];
 export type CreateAccountInput = InferRequestType<typeof api.accounts.$post>["json"];
@@ -11,6 +11,9 @@ export type CreateCashSnapshotInput = InferRequestType<
   typeof api.accounts.snapshots.$post
 >["json"];
 
+/**
+ * Loads the current cash, broker, credit, and other-asset accounts.
+ */
 export function useAccounts() {
   return useQuery({
     queryKey: queryKeys.accounts,
@@ -18,14 +21,17 @@ export function useAccounts() {
   });
 }
 
+/**
+ * Returns the standard account invalidation callback for account mutations.
+ */
 function useInvalidate() {
   const qc = useQueryClient();
-  return () => {
-    qc.invalidateQueries({ queryKey: queryKeys.accounts });
-    qc.invalidateQueries({ queryKey: queryKeys.dashboard });
-  };
+  return () => invalidateLedgerQueries(qc, [queryKeys.accounts, queryKeys.dashboard]);
 }
 
+/**
+ * Creates a cash/broker account and refreshes account-dependent dashboard data.
+ */
 export function useCreateAccount() {
   const invalidate = useInvalidate();
   return useMutation({
@@ -35,6 +41,9 @@ export function useCreateAccount() {
   });
 }
 
+/**
+ * Updates an existing account and refreshes account-dependent dashboard data.
+ */
 export function useUpdateAccount() {
   const invalidate = useInvalidate();
   return useMutation({
@@ -44,6 +53,9 @@ export function useUpdateAccount() {
   });
 }
 
+/**
+ * Deletes an account and refreshes account-dependent dashboard data.
+ */
 export function useDeleteAccount() {
   const invalidate = useInvalidate();
   return useMutation({
@@ -54,6 +66,9 @@ export function useDeleteAccount() {
 }
 
 // --- Cash snapshots (dated balances) ----------------------------------------
+/**
+ * Loads the dated balance snapshots that back cash and broker history charts.
+ */
 export function useCashSnapshots() {
   return useQuery({
     queryKey: queryKeys.cashSnapshots,
@@ -61,32 +76,43 @@ export function useCashSnapshots() {
   });
 }
 
+/**
+ * Creates or updates a dated cash snapshot and refreshes affected account views.
+ */
 export function useCreateCashSnapshot() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (json: CreateCashSnapshotInput) =>
       unwrap<CashSnapshot[]>(await api.accounts.snapshots.$post({ json })),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.cashSnapshots });
-      qc.invalidateQueries({ queryKey: queryKeys.accounts });
-      qc.invalidateQueries({ queryKey: queryKeys.dashboard });
-    },
+    onSuccess: () =>
+      invalidateLedgerQueries(qc, [
+        queryKeys.cashSnapshots,
+        queryKeys.accounts,
+        queryKeys.dashboard,
+      ]),
   });
 }
 
+/**
+ * Deletes one dated cash snapshot and refreshes affected account views.
+ */
 export function useDeleteCashSnapshot() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) =>
       unwrap<{ ok: boolean }>(await api.accounts.snapshots[":id"].$delete({ param: { id } })),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.cashSnapshots });
-      qc.invalidateQueries({ queryKey: queryKeys.accounts });
-      qc.invalidateQueries({ queryKey: queryKeys.dashboard });
-    },
+    onSuccess: () =>
+      invalidateLedgerQueries(qc, [
+        queryKeys.cashSnapshots,
+        queryKeys.accounts,
+        queryKeys.dashboard,
+      ]),
   });
 }
 
+/**
+ * Deletes all cash snapshots in one account category and refreshes affected views.
+ */
 export function useDeleteCashSnapshotsByCategory() {
   const qc = useQueryClient();
   return useMutation({
@@ -94,10 +120,11 @@ export function useDeleteCashSnapshotsByCategory() {
       unwrap<{ deleted: number }>(
         await api.accounts.snapshots.categories[":category"].$delete({ param: { category } }),
       ),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.cashSnapshots });
-      qc.invalidateQueries({ queryKey: queryKeys.accounts });
-      qc.invalidateQueries({ queryKey: queryKeys.dashboard });
-    },
+    onSuccess: () =>
+      invalidateLedgerQueries(qc, [
+        queryKeys.cashSnapshots,
+        queryKeys.accounts,
+        queryKeys.dashboard,
+      ]),
   });
 }

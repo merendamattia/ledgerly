@@ -1,24 +1,30 @@
 import type { Metadata, Viewport } from "next";
-import { Hanken_Grotesk, Space_Grotesk, JetBrains_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { Providers } from "./providers";
 import { Toaster } from "@/components/ui/sonner";
 
 // "Modern ledger" type system: Hanken Grotesk for UI/body, Space Grotesk for
 // display headings, JetBrains Mono for every figure (tabular).
-const sans = Hanken_Grotesk({
+const sans = localFont({
+  src: "../../node_modules/@fontsource-variable/hanken-grotesk/files/hanken-grotesk-latin-wght-normal.woff2",
   variable: "--font-sans",
-  subsets: ["latin"],
+  weight: "100 900",
+  display: "swap",
 });
 
-const display = Space_Grotesk({
+const display = localFont({
+  src: "../../node_modules/@fontsource-variable/space-grotesk/files/space-grotesk-latin-wght-normal.woff2",
   variable: "--font-display",
-  subsets: ["latin"],
+  weight: "300 700",
+  display: "swap",
 });
 
-const mono = JetBrains_Mono({
+const mono = localFont({
+  src: "../../node_modules/@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2",
   variable: "--font-mono",
-  subsets: ["latin"],
+  weight: "100 800",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -40,6 +46,7 @@ export const viewport: Viewport = {
   themeColor: "#1c7a4d",
 };
 
+/** Renders the root HTML shell, fonts, global providers, and toast host. */
 export default function RootLayout({
   children,
 }: Readonly<{

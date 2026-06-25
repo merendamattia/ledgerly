@@ -39,9 +39,11 @@ import {
 } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-// Drill-down for a single position: a summary header (qty, avg cost, P/L …),
-// an inline add-movement form, and the buy/sell ledger with edit + delete.
-// The holding (qty + avg cost) is recomputed server-side after any change.
+/**
+ * Renders the drill-down dialog for one investment position and its movements.
+ *
+ * The holding metrics are recomputed server-side after any movement change.
+ */
 export function PositionTransactionsDialog({
   holding,
   open,
@@ -151,7 +153,7 @@ export function PositionTransactionsDialog({
   );
 }
 
-// Inline current-price editor for a manually-valued asset. Writes today's price.
+/** Renders an inline current-price editor for a manually valued asset. */
 function ManualPriceEditor({
   tickerId,
   currency,
@@ -199,6 +201,7 @@ function ManualPriceEditor({
   );
 }
 
+/** Renders one compact metric cell in the position summary grid. */
 function Stat({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="bg-card px-3.5 py-2.5">
@@ -208,6 +211,7 @@ function Stat({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
+/** Renders one investment movement row with inline edit and delete controls. */
 function MovementRow({
   tx,
   editing,

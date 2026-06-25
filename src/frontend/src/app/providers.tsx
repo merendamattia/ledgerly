@@ -5,8 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { PrivacyModeProvider } from "@/components/privacy-mode";
 
-// App-wide client providers: TanStack Query for server state and the shared
-// tooltip provider for shadcn tooltips.
+/** Renders app-wide client providers for Query, privacy mode, and tooltips. */
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
     () =>

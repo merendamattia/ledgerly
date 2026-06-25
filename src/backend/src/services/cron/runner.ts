@@ -12,8 +12,10 @@ export interface RunOptions {
   retryDelayMs?: number;
 }
 
+/** Waits for the configured retry delay between cron job attempts. */
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/** Returns the current timestamp for cron run log lines. */
 const stamp = () => new Date().toISOString();
 
 /**
