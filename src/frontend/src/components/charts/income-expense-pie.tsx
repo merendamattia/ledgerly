@@ -8,6 +8,8 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import { formatMoney } from "@/lib/format";
+import { MoneyAmount } from "@/components/money-amount";
+import { usePrivateNumberFormatter } from "@/components/private-number";
 
 const chartConfig = {
   income: { label: "Income", color: "var(--positive)" },
@@ -24,6 +26,7 @@ export function IncomeExpensePie({
   expense: number;
   currency: string;
 }) {
+  const { privateText } = usePrivateNumberFormatter();
   const data = [
     { key: "income", name: "Income", value: income, fill: "var(--positive)" },
     { key: "expense", name: "Expense", value: expense, fill: "var(--negative)" },
@@ -45,7 +48,9 @@ export function IncomeExpensePie({
         <ChartContainer config={chartConfig} className="aspect-square h-[200px]">
           <PieChart>
             <ChartTooltip
-              content={<ChartTooltipContent formatter={(v) => formatMoney(Number(v), currency)} />}
+              content={
+                <ChartTooltipContent formatter={(v) => privateText(formatMoney(Number(v), currency))} />
+              }
             />
             <Pie data={data} dataKey="value" nameKey="name" innerRadius={64} strokeWidth={2}>
               {data.map((entry) => (
@@ -56,7 +61,7 @@ export function IncomeExpensePie({
         </ChartContainer>
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
           <span className="text-xs text-muted-foreground">Net</span>
-          <span className="text-lg font-semibold tabular-nums">{formatMoney(net, currency)}</span>
+          <MoneyAmount value={net} currency={currency} className="text-lg font-semibold" />
         </div>
       </div>
 
@@ -65,7 +70,7 @@ export function IncomeExpensePie({
           <li key={d.key} className="flex items-center gap-2 text-sm">
             <span className="size-2.5 rounded-full" style={{ backgroundColor: d.fill }} />
             <span className="text-muted-foreground">{d.name}</span>
-            <span className="ml-auto font-medium tabular-nums">{formatMoney(d.value, currency)}</span>
+            <MoneyAmount value={d.value} currency={currency} className="ml-auto font-medium" />
           </li>
         ))}
       </ul>

@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { Chart, LinearScale, Tooltip } from "chart.js";
 import { SankeyController, Flow } from "chartjs-chart-sankey";
 import { formatMoney } from "@/lib/format";
+import { usePrivateNumberFormatter } from "@/components/private-number";
 
 // Tree-shakeable Chart.js: register only what the sankey needs (controller +
 // flow element + the linear scale it lays nodes on + tooltip).
@@ -59,6 +60,7 @@ export function CashFlowSankey({
   className?: string;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const { privateText } = usePrivateNumberFormatter();
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -86,8 +88,8 @@ export function CashFlowSankey({
     // Distinct color per node; canvas-safe hex values.
     const colorMap: Record<string, string> = { [HUB]: green, [NET]: lime };
     const labelMap: Record<string, string> = {
-      [HUB]: `Cash available  ${formatMoney(income, currency)}`,
-      [NET]: `Net savings  ${formatMoney(net, currency)}`,
+      [HUB]: `Cash available  ${privateText(formatMoney(income, currency))}`,
+      [NET]: `Net savings  ${privateText(formatMoney(net, currency))}`,
     };
     const priority: Record<string, number> = { [HUB]: 0, [NET]: 0 };
     const column: Record<string, number> = { [HUB]: 1, [NET]: 2 };
@@ -97,7 +99,7 @@ export function CashFlowSankey({
     inflow.forEach((s, i) => {
       const key = `in:${s.label}`;
       colorMap[key] = s.label === "Other" ? muted : lighten(green, 0.12 + (i / Math.max(1, inflow.length)) * 0.45);
-      labelMap[key] = `${s.label}  ${formatMoney(s.value, currency)}`;
+      labelMap[key] = `${s.label}  ${privateText(formatMoney(s.value, currency))}`;
       priority[key] = i;
       column[key] = 0;
       data.push({ from: key, to: HUB, flow: s.value });
@@ -108,7 +110,7 @@ export function CashFlowSankey({
     outflow.forEach((c, i) => {
       const key = `out:${c.label}`;
       colorMap[key] = c.label === "Other" ? muted : expensePalette[i % expensePalette.length];
-      labelMap[key] = `${c.label}  ${formatMoney(c.value, currency)}`;
+      labelMap[key] = `${c.label}  ${privateText(formatMoney(c.value, currency))}`;
       priority[key] = i + 1; // net savings sits first
       column[key] = 2;
       data.push({ from: HUB, to: key, flow: c.value });
@@ -149,7 +151,7 @@ export function CashFlowSankey({
             callbacks: {
               label: (item) => {
                 const d = item.dataset.data[item.dataIndex] as unknown as { flow: number };
-                return `${formatMoney(d.flow, currency)}`;
+                return privateText(formatMoney(d.flow, currency));
               },
             },
           },
@@ -158,7 +160,7 @@ export function CashFlowSankey({
     });
 
     return () => chart.destroy();
-  }, [income, expense, sources, expenses, currency]);
+  }, [income, expense, sources, expenses, currency, privateText]);
 
   if (income <= 0) {
     return <p className="py-12 text-center text-sm text-muted-foreground">No cash flow in range.</p>;

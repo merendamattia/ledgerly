@@ -2,9 +2,11 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { TrendingUp } from "lucide-react";
+import { Eye, EyeOff, TrendingUp } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { MoneyAmount } from "@/components/money-amount";
+import { PrivateNumber } from "@/components/private-number";
 import { CategoryIcon } from "@/components/category-badge";
 import { CategoryBreakdownCard } from "@/components/category-breakdown";
 import { DayGroupedList } from "@/components/day-grouped-list";
@@ -15,6 +17,7 @@ import { CashFlowChart } from "@/components/charts/cashflow-chart";
 import { useDashboard, useNetWorthHistory, type DashboardData } from "@/hooks/use-dashboard";
 import { useInvestmentTransactions } from "@/hooks/use-investments";
 import { useAccounts, useCashSnapshots } from "@/hooks/use-accounts";
+import { usePrivacyMode } from "@/components/privacy-mode";
 import {
   formatMoney,
   formatNumber,
@@ -24,7 +27,13 @@ import {
 import { cn } from "@/lib/utils";
 
 type RecentTx = DashboardData["recentTransactions"][number];
-type KpiDelta = { label: string; tone: "positive" | "negative" | "muted" };
+type KpiDelta = {
+  label?: string;
+  prefix?: string;
+  amountText?: string;
+  suffix?: string;
+  tone: "positive" | "negative" | "muted";
+};
 type TrendPoint = { date: string; total: number };
 
 const PERIODS = [
@@ -117,7 +126,13 @@ function KpiDeltaLine({ delta }: { delta: KpiDelta }) {
         delta.tone === "muted" && "text-muted-foreground",
       )}
     >
-      {delta.label}
+      {delta.label ?? (
+        <>
+          {delta.prefix}
+          {delta.amountText ? <PrivateNumber text={delta.amountText} /> : null}
+          {delta.suffix}
+        </>
+      )}
     </span>
   );
 }
@@ -128,6 +143,8 @@ export default function OverviewPage() {
   const accounts = useAccounts();
   const cashSnapshots = useCashSnapshots();
   const [period, setPeriod] = useState<string>("YTD");
+  const { shouldHidePrivateNumbers, togglePrivacyMode } = usePrivacyMode();
+  const PrivacyIcon = shouldHidePrivateNumbers ? EyeOff : Eye;
 
   const nw = data?.netWorth;
   const currency = nw?.baseCurrency ?? "EUR";
@@ -178,14 +195,14 @@ export default function OverviewPage() {
 
     return {
       investments: {
-        label: `${investmentsPct == null ? "" : `${formatPercent(investmentsPct)} · `}${signedMoney(
-          investmentsDelta,
-          currency,
-        )} this month`,
+        prefix: investmentsPct == null ? "" : `${formatPercent(investmentsPct)} · `,
+        amountText: signedMoney(investmentsDelta, currency),
+        suffix: " this month",
         tone: investmentsDelta >= 0 ? "positive" : "negative",
       },
       debts: {
-        label: `${signedMoney(debtsDelta, currency)} this month`,
+        amountText: signedMoney(debtsDelta, currency),
+        suffix: " this month",
         tone: debtsDelta <= 0 ? "positive" : "negative",
       },
     } satisfies Record<"investments" | "debts", KpiDelta>;
@@ -220,7 +237,8 @@ export default function OverviewPage() {
     }
     const delta = latest.total - previous.total;
     return {
-      label: `${signedMoney(delta, currency)} this month`,
+      amountText: signedMoney(delta, currency),
+      suffix: " this month",
       tone: delta >= 0 ? "positive" : "negative",
     };
   }, [liquiditySnapshotHistory, currency]);
@@ -256,20 +274,46 @@ export default function OverviewPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-xs font-medium text-muted-foreground">Net worth</p>
-            <div className="mt-1.5 flex items-baseline gap-3.5">
-              <span className="font-mono text-4xl font-semibold tracking-tight tabular-nums">
-                {isLoading ? "…" : formatMoney(total, currency)}
-              </span>
-              {nwDelta ? (
-                <PeriodPerformance
-                  pct={nwDelta.pct}
-                  amount={nwDelta.abs}
+            <div className="mt-1.5 flex items-start gap-2.5">
+              {isLoading ? (
+                <span className="font-mono text-4xl font-semibold tracking-tight tabular-nums">
+                  …
+                </span>
+              ) : (
+                <MoneyAmount
+                  value={total}
                   currency={currency}
-                  period={period}
-                  label="Change"
+                  className="font-mono text-4xl font-semibold tracking-tight"
                 />
-              ) : null}
+              )}
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <button
+                      type="button"
+                      onClick={togglePrivacyMode}
+                      className="mt-1 inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                      aria-label={shouldHidePrivateNumbers ? "Show amounts" : "Hide amounts"}
+                    >
+                      <PrivacyIcon className="size-4.5" />
+                    </button>
+                  }
+                />
+                <TooltipContent>
+                  {shouldHidePrivateNumbers ? "Show amounts" : "Hide amounts"}
+                </TooltipContent>
+              </Tooltip>
             </div>
+            {nwDelta ? (
+              <PeriodPerformance
+                pct={nwDelta.pct}
+                amount={nwDelta.abs}
+                currency={currency}
+                period={period}
+                label="Change"
+                className="mt-2"
+              />
+            ) : null}
           </div>
           <div className="flex gap-0.5 self-start rounded-lg bg-muted p-0.5">
             {PERIODS.map((p) => (
@@ -314,7 +358,7 @@ export default function OverviewPage() {
           <MiniSparkline values={kpiSparklines.investments} color="var(--positive)" />
         </div>
         <p className="mt-2.5 font-mono text-2xl font-semibold tabular-nums">
-          {formatMoney(investments, currency)}
+          <MoneyAmount value={investments} currency={currency} />
         </p>
         <KpiDeltaLine delta={kpiDeltas.investments} />
       </Card>
@@ -327,7 +371,7 @@ export default function OverviewPage() {
           />
         </div>
         <p className="mt-2.5 font-mono text-2xl font-semibold tabular-nums">
-          {formatMoney(liquidity, currency)}
+          <MoneyAmount value={liquidity} currency={currency} />
         </p>
         <KpiDeltaLine delta={liquiditySnapshotDelta} />
       </Card>
@@ -343,7 +387,7 @@ export default function OverviewPage() {
           )}
         >
           {debts > 0 ? "−" : ""}
-          {formatMoney(debts, currency)}
+          <MoneyAmount value={debts} currency={currency} />
         </p>
         <KpiDeltaLine delta={kpiDeltas.debts} />
       </Card>
@@ -356,7 +400,7 @@ export default function OverviewPage() {
         <span className="text-xs font-medium text-sidebar-foreground">Monthly cash flow</span>
         <p className="mt-2.5 font-mono text-2xl font-semibold tabular-nums text-primary">
           {netFlow >= 0 ? "+" : ""}
-          {formatMoney(netFlow, currency)}
+          <MoneyAmount value={netFlow} currency={currency} />
         </p>
         <span className="mt-1 text-xs text-sidebar-foreground">Savings rate {savingsRate}%</span>
       </Card>
@@ -475,14 +519,15 @@ export default function OverviewPage() {
                       <p className="truncate text-xs text-muted-foreground">
                         {t.ticker?.name ? `${t.ticker.name} · ` : ""}
                         <span className="font-mono">
-                          Qty {formatNumber(t.quantity, 4)} @ {formatMoney(t.price, txCurrency)}
+                          Qty <PrivateNumber text={formatNumber(t.quantity, 4)} /> @{" "}
+                          <MoneyAmount value={t.price} currency={txCurrency} />
                         </span>
                       </p>
                     </div>
                     <span className="shrink-0 text-right font-mono font-semibold tabular-nums">
                       <span className={signed >= 0 ? "text-positive" : "text-negative"}>
                         {signed >= 0 ? "+" : ""}
-                        {formatMoney(signed, txCurrency)}
+                        <MoneyAmount value={signed} currency={txCurrency} />
                       </span>
                     </span>
                   </>

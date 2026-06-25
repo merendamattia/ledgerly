@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/lib/format";
+import { PrivateNumber } from "@/components/private-number";
 
 // Renders a monetary value with tabular figures for clean column alignment.
 // `colored` tints by sign (income green / expense red); `signed` adds a leading
@@ -26,5 +27,5 @@ export function MoneyAmount({
     : "";
   const formatted = formatMoney(value, currency);
   const text = signed && value > 0 ? `+${formatted}` : formatted;
-  return <span className={cn("tabular-nums", tone, className)}>{text}</span>;
+  return <PrivateNumber text={text} className={cn(tone, className)} />;
 }

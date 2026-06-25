@@ -8,6 +8,10 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import { formatMoney } from "@/lib/format";
+import {
+  PRIVATE_COMPACT_PLACEHOLDER,
+  usePrivateNumberFormatter,
+} from "@/components/private-number";
 
 export type CategoryDatum = { name: string; value: number };
 
@@ -33,6 +37,7 @@ export function CategoryBarChart({
   currency: string;
   fallback: string;
 }) {
+  const { privateText } = usePrivateNumberFormatter();
   if (data.length === 0) {
     return (
       <div className="flex h-[200px] items-center justify-center text-sm text-muted-foreground">
@@ -60,7 +65,9 @@ export function CategoryBarChart({
           type="number"
           tickLine={false}
           axisLine={false}
-          tickFormatter={(v) => compactMoney(Number(v), currency)}
+          tickFormatter={(v) =>
+            privateText(compactMoney(Number(v), currency), PRIVATE_COMPACT_PLACEHOLDER)
+          }
         />
         <YAxis
           type="category"
@@ -71,7 +78,9 @@ export function CategoryBarChart({
           tickMargin={6}
         />
         <ChartTooltip
-          content={<ChartTooltipContent formatter={(v) => formatMoney(Number(v), currency)} />}
+          content={
+            <ChartTooltipContent formatter={(v) => privateText(formatMoney(Number(v), currency))} />
+          }
           cursor={{ fill: "var(--muted)", opacity: 0.5 }}
         />
         <Bar dataKey="value" radius={4} fill="var(--color-value)" />

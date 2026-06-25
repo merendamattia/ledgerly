@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { MoneyAmount } from "@/components/money-amount";
+import { PrivateNumber } from "@/components/private-number";
+import { usePrivacyMode } from "@/components/privacy-mode";
 import {
   InvestmentMovementForm,
   type MovementValues,
@@ -30,7 +32,6 @@ import {
 
 type Holding = DashboardData["netWorth"]["holdings"][number];
 import {
-  formatMoney,
   formatNumber,
   formatPercent,
   formatDate,
@@ -71,11 +72,20 @@ export function PositionTransactionsDialog({
 
         {/* Summary metrics */}
         <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-3">
-          <Stat label="Quantity" value={formatNumber(holding.quantity, 4)} />
-          <Stat label="Avg cost" value={formatMoney(holding.avgCost, holding.currency)} />
-          <Stat label="Last price" value={formatMoney(holding.price, holding.currency)} />
-          <Stat label="Invested" value={formatMoney(holding.cost, baseCurrency)} />
-          <Stat label="Market value" value={formatMoney(holding.value, baseCurrency)} />
+          <Stat label="Quantity" value={<PrivateNumber text={formatNumber(holding.quantity, 4)} />} />
+          <Stat
+            label="Avg cost"
+            value={<MoneyAmount value={holding.avgCost} currency={holding.currency} />}
+          />
+          <Stat
+            label="Last price"
+            value={<MoneyAmount value={holding.price} currency={holding.currency} />}
+          />
+          <Stat label="Invested" value={<MoneyAmount value={holding.cost} currency={baseCurrency} />} />
+          <Stat
+            label="Market value"
+            value={<MoneyAmount value={holding.value} currency={baseCurrency} />}
+          />
           <Stat
             label="P/L"
             value={
@@ -153,6 +163,7 @@ function ManualPriceEditor({
 }) {
   const setPrice = useSetManualPrice();
   const [value, setValue] = useState(String(current));
+  const { shouldHidePrivateNumbers } = usePrivacyMode();
 
   return (
     <div className="flex flex-wrap items-end gap-2 rounded-xl border bg-accent/30 px-3 py-2.5">
@@ -161,7 +172,8 @@ function ManualPriceEditor({
           Current price ({currency})
         </span>
         <Input
-          type="number"
+          type={shouldHidePrivateNumbers ? "password" : "number"}
+          inputMode="decimal"
           step="any"
           value={value}
           onChange={(e) => setValue(e.target.value)}
@@ -275,8 +287,14 @@ function MovementRow({
       </span>
       <span className="min-w-0">
         <span className="block font-mono text-xs tabular-nums">
-          {formatNumber(tx.quantity, 4)} · {formatMoney(tx.price, currency)}
-          {tx.fee ? ` · fee ${formatMoney(tx.fee, currency)}` : ""}
+          <PrivateNumber text={formatNumber(tx.quantity, 4)} /> ·{" "}
+          <MoneyAmount value={tx.price} currency={currency} />
+          {tx.fee ? (
+            <>
+              {" "}
+              · fee <MoneyAmount value={tx.fee} currency={currency} />
+            </>
+          ) : null}
         </span>
         <span className="block truncate text-xs text-muted-foreground">
           {formatDate(tx.date)} · {tx.cashAccount?.name ?? "No account"}
@@ -290,7 +308,7 @@ function MovementRow({
         )}
       >
         {isBuy ? "−" : "+"}
-        {formatMoney(Math.abs(total), currency)}
+        <MoneyAmount value={Math.abs(total)} currency={currency} />
       </span>
       <span className="flex items-center gap-1">
         <Button variant="ghost" size="icon" onClick={onEdit} aria-label="Edit movement">

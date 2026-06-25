@@ -1,6 +1,7 @@
 import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 import { formatMoney, formatPercent } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { PrivateNumber } from "@/components/private-number";
 
 function signedMoney(value: number, currency: string): string {
   if (value === 0) return formatMoney(0, currency);
@@ -45,7 +46,7 @@ export function PeriodPerformance({
             amount < 0 ? "text-negative" : "text-positive",
           )}
         >
-          {signedMoney(amount, currency)}
+          <PrivateNumber text={signedMoney(amount, currency)} />
         </span>
       </span>
     </span>
