@@ -1,8 +1,9 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useMemo, useSyncExternalStore } from "react";
 
 const STORAGE_KEY = "ledgerly:privacy-mode";
+const STORAGE_CHANGE_EVENT = "ledgerly:privacy-mode-change";
 
 type PrivacyModeContextValue = {
   isPrivacyMode: boolean;
@@ -13,19 +14,43 @@ type PrivacyModeContextValue = {
 
 const PrivacyModeContext = createContext<PrivacyModeContextValue | null>(null);
 
-export function PrivacyModeProvider({ children }: { children: React.ReactNode }) {
-  const [isPrivacyMode, setIsPrivacyMode] = useState(false);
-  const [isPrivacyModeReady, setIsPrivacyModeReady] = useState(false);
+function getPrivacyModeSnapshot(): boolean | null {
+  return window.localStorage.getItem(STORAGE_KEY) === "1";
+}
 
-  useEffect(() => {
-    setIsPrivacyMode(window.localStorage.getItem(STORAGE_KEY) === "1");
-    setIsPrivacyModeReady(true);
-  }, []);
+function getPrivacyModeServerSnapshot() {
+  return null;
+}
+
+function subscribeToPrivacyMode(onStoreChange: () => void) {
+  const handleStorage = (event: StorageEvent) => {
+    if (event.key === STORAGE_KEY) {
+      onStoreChange();
+    }
+  };
+
+  window.addEventListener("storage", handleStorage);
+  window.addEventListener(STORAGE_CHANGE_EVENT, onStoreChange);
+
+  return () => {
+    window.removeEventListener("storage", handleStorage);
+    window.removeEventListener(STORAGE_CHANGE_EVENT, onStoreChange);
+  };
+}
+
+export function PrivacyModeProvider({ children }: { children: React.ReactNode }) {
+  const privacyModeSnapshot = useSyncExternalStore(
+    subscribeToPrivacyMode,
+    getPrivacyModeSnapshot,
+    getPrivacyModeServerSnapshot,
+  );
+  const isPrivacyModeReady = privacyModeSnapshot !== null;
+  const isPrivacyMode = privacyModeSnapshot ?? false;
 
   const value = useMemo<PrivacyModeContextValue>(() => {
     const setPersisted = (next: boolean) => {
-      setIsPrivacyMode(next);
       window.localStorage.setItem(STORAGE_KEY, next ? "1" : "0");
+      window.dispatchEvent(new Event(STORAGE_CHANGE_EVENT));
     };
 
     return {
