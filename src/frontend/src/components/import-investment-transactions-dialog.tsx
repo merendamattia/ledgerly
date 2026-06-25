@@ -49,8 +49,7 @@ type PreviewRow = ParsedInvestmentRow & { side: Side };
 const PREVIEW_COLS =
   "sm:grid-cols-[minmax(72px,1fr)_minmax(72px,1fr)_92px_146px_104px_104px_minmax(84px,0.9fr)_auto]";
 
-// A field that shows its column label only on mobile (header row is hidden
-// there), keeping each stacked control identifiable.
+/** Renders one responsive investment-import cell with a mobile-only label. */
 function Cell({
   label,
   className,
@@ -70,9 +69,9 @@ function Cell({
   );
 }
 
-// One editable preview row. Memoized so editing a field only re-renders its own
-// row, keeping a large import responsive. Ticker/broker are resolved via the
-// mapping panel above, so here they are read-only labels.
+/**
+ * Renders one editable investment-import preview row without rerendering siblings.
+ */
 const PreviewRowEditor = memo(function PreviewRowEditor({
   row,
   index,
@@ -177,6 +176,7 @@ const IMPORT_FIELDS: Array<{
 const COLUMN_DEFAULT_TOKEN = "__default__";
 const COLUMN_IGNORE_TOKEN = "__ignore__";
 
+/** Infers the delimiter used by an investment import file header. */
 function detectDelimiter(headerLine: string): RegExp {
   if (headerLine.includes("\t")) return /\t/;
   if (headerLine.includes(";")) return /;/;
@@ -184,14 +184,17 @@ function detectDelimiter(headerLine: string): RegExp {
   return /\s{2,}/;
 }
 
+/** Splits a delimited line and trims each cell. */
 function splitLine(line: string, delimiter: RegExp): string[] {
   return line.split(delimiter).map((cell) => cell.trim());
 }
 
+/** Normalizes a source column name for synonym matching. */
 function normalizeColumnName(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
 
+/** Creates the empty field-to-column mapping object. */
 function createEmptyFieldColumns(): Record<ImportField, number | null> {
   return {
     ticker: null,
@@ -203,10 +206,12 @@ function createEmptyFieldColumns(): Record<ImportField, number | null> {
   };
 }
 
+/** Creates empty column-to-field assignments for a source file. */
 function createEmptyColumnAssignments(columnCount: number): Array<ImportField | null> {
   return Array.from({ length: columnCount }, () => null);
 }
 
+/** Suggests import field mappings from normalized source column names. */
 function suggestFieldColumns(columns: string[]): Record<ImportField, number | null> {
   const normalized = columns.map((column) => normalizeColumnName(column));
   const synonyms: Record<ImportField, string[]> = {
@@ -229,6 +234,7 @@ function suggestFieldColumns(columns: string[]): Record<ImportField, number | nu
   return result;
 }
 
+/** Suggests per-column assignment values for the mapping UI. */
 function suggestColumnAssignments(columns: string[]): Array<ImportField | null> {
   const fieldColumns = suggestFieldColumns(columns);
   const assignments = createEmptyColumnAssignments(columns.length);
@@ -241,6 +247,7 @@ function suggestColumnAssignments(columns: string[]): Array<ImportField | null> 
   return assignments;
 }
 
+/** Reads the source header and sample rows used by the mapping step. */
 function inspectInvestmentFile(text: string): { columns: string[]; sampleRows: string[][] } {
   const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
   if (lines.length === 0) return { columns: [], sampleRows: [] };
@@ -251,8 +258,7 @@ function inspectInvestmentFile(text: string): { columns: string[]; sampleRows: s
   };
 }
 
-// Maps one raw broker string to a CashAccount: pick an existing one or create a
-// new account inline (pre-filled with the raw label).
+/** Maps one raw broker string to an existing or newly created broker account. */
 function BrokerMapper({
   raw,
   accounts,
@@ -274,6 +280,7 @@ function BrokerMapper({
     [accounts],
   );
 
+  /** Creates a broker cash account from the inline mapping form. */
   async function create() {
     const acc = await createAccount.mutateAsync({
       name: name.trim() || raw,
@@ -336,6 +343,7 @@ function BrokerMapper({
   );
 }
 
+/** Renders the investment transaction import flow: file mapping, entity mapping, and preview. */
 export function ImportInvestmentTransactionsDialog({
   trigger,
   open: openProp,
@@ -473,12 +481,14 @@ export function ImportInvestmentTransactionsDialog({
   const allMapped = distinctTickers.every((t) => tickerMap[t]) && distinctBrokers.every((b) => brokerMap[b]);
   const previewRows = rows ?? [];
 
+  /** Inspects the selected investment import file and opens the mapping step. */
   function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     void inspectFile(file);
   }
 
+  /** Parses the source file with the current column/default mapping. */
   function confirmMapping() {
     if (!sourceFile || !canProceed) return;
     parse.mutate(
@@ -502,6 +512,7 @@ export function ImportInvestmentTransactionsDialog({
     setRows((prev) => (prev ? prev.filter((_, i) => i !== index) : prev));
   }, []);
 
+  /** Commits mapped preview rows as investment movements. */
   function confirm() {
     if (!rows || rows.length === 0 || !allMapped) return;
     const payload = rows.map((r) => ({

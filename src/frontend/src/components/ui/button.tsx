@@ -40,6 +40,7 @@ const buttonVariants = cva(
   }
 )
 
+/** Renders the shared button primitive with Ledgerly's variants and sizes. */
 function Button({
   className,
   variant = "default",

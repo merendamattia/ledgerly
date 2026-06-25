@@ -14,14 +14,17 @@ type PrivacyModeContextValue = {
 
 const PrivacyModeContext = createContext<PrivacyModeContextValue | null>(null);
 
+/** Reads the persisted privacy mode value from local storage on the client. */
 function getPrivacyModeSnapshot(): boolean | null {
   return window.localStorage.getItem(STORAGE_KEY) === "1";
 }
 
+/** Returns the server snapshot used before client storage is available. */
 function getPrivacyModeServerSnapshot() {
   return null;
 }
 
+/** Subscribes React to local and cross-tab privacy mode changes. */
 function subscribeToPrivacyMode(onStoreChange: () => void) {
   const handleStorage = (event: StorageEvent) => {
     if (event.key === STORAGE_KEY) {
@@ -38,6 +41,7 @@ function subscribeToPrivacyMode(onStoreChange: () => void) {
   };
 }
 
+/** Provides privacy-mode state and hides private numbers until hydration finishes. */
 export function PrivacyModeProvider({ children }: { children: React.ReactNode }) {
   const privacyModeSnapshot = useSyncExternalStore(
     subscribeToPrivacyMode,
@@ -64,6 +68,7 @@ export function PrivacyModeProvider({ children }: { children: React.ReactNode })
   return <PrivacyModeContext.Provider value={value}>{children}</PrivacyModeContext.Provider>;
 }
 
+/** Reads the privacy-mode context for components that render sensitive values. */
 export function usePrivacyMode() {
   const context = useContext(PrivacyModeContext);
   if (!context) {

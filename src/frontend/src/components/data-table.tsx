@@ -23,8 +23,10 @@ const alignClass = {
   center: "text-center",
 } as const;
 
-// Generic, reusable table. Used for accounts, holdings, transactions and cron
-// runs so list rendering stays consistent across the app.
+/**
+ * Renders the generic reusable table used by accounts, holdings, transactions,
+ * and cron runs.
+ */
 export function DataTable<T>({
   columns,
   data,

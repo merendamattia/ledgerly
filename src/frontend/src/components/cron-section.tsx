@@ -17,14 +17,14 @@ import {
 import { formatDateTime, formatDuration } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
+/** Maps a cron run status to the badge variant used in the UI. */
 function statusVariant(status: string): "default" | "secondary" | "destructive" {
   if (status === "SUCCESS") return "default";
   if (status === "FAILED") return "destructive";
   return "secondary";
 }
 
-// A single run, click-to-expand into its full execution detail (attempts, error
-// and the per-attempt log captured by the runner).
+/** Renders one expandable cron run with execution metadata and log output. */
 function RunRow({ run }: { run: CronRun }) {
   const [open, setOpen] = useState(false);
   return (
@@ -92,6 +92,7 @@ function RunRow({ run }: { run: CronRun }) {
   );
 }
 
+/** Renders one scheduled job with its latest status and expandable run history. */
 function JobRow({
   job,
   runs,
@@ -178,11 +179,13 @@ function JobRow({
   );
 }
 
+/** Renders scheduled jobs and manual run controls for the developer page. */
 export function CronSection() {
   const jobs = useCronJobs();
   const runs = useCronRuns(100);
   const runJob = useRunCronJob();
 
+  /** Starts a manual cron job run and reports the result via toast. */
   function handleRun(key: string) {
     runJob.mutate(key, {
       onSuccess: (run) => toast.success(`Job finished: ${run.status}`),

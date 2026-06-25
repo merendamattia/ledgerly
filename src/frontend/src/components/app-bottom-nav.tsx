@@ -41,6 +41,7 @@ const MORE_LINKS = [
   { href: "/dev", label: "Dev", icon: Terminal },
 ] as const;
 
+/** Returns whether a navigation target should be marked as current. */
 function isActive(pathname: string, href: string): boolean {
   return href === "/" ? pathname === "/" : pathname.startsWith(href);
 }
@@ -48,6 +49,7 @@ function isActive(pathname: string, href: string): boolean {
 const TAB_CLASS =
   "group flex flex-1 flex-col items-center gap-1 px-1 pt-2 pb-2.5 outline-none";
 
+/** Renders the shared icon and label content for a bottom navigation tab. */
 function TabInner({
   active,
   icon: Icon,
@@ -81,6 +83,7 @@ function TabInner({
   );
 }
 
+/** Renders the persistent bottom navigation and secondary menu sheet. */
 export function AppBottomNav() {
   const pathname = usePathname();
   const router = useRouter();
@@ -90,6 +93,7 @@ export function AppBottomNav() {
   const email = session?.user.email ?? "";
   const moreActive = MORE_LINKS.some((l) => pathname.startsWith(l.href));
 
+  /** Signs out the current user and returns them to the login route. */
   async function handleSignOut() {
     setOpen(false);
     await signOut();

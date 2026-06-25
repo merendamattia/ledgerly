@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { InferRequestType, InferResponseType } from "hono/client";
 import { api, unwrap } from "@/lib/api-client";
-import { queryKeys } from "@/lib/query-keys";
+import { invalidateLedgerQueries, queryKeys } from "@/lib/query-keys";
 
 export type Ticker = InferResponseType<typeof api.tickers.$get, 200>[number];
 export type Holding = InferResponseType<typeof api.holdings.$get, 200>[number];
@@ -22,6 +22,9 @@ export type UpdateInvestmentTxInput = InferRequestType<
 >["json"];
 
 // --- Tickers ----------------------------------------------------------------
+/**
+ * Loads all tracked market instruments and manually-priced assets.
+ */
 export function useTickers() {
   return useQuery({
     queryKey: queryKeys.tickers,
@@ -29,14 +32,14 @@ export function useTickers() {
   });
 }
 
+/**
+ * Adds a provider-backed asset and refreshes ticker plus cron-run visibility.
+ */
 export function useAddAsset() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (json: AddAssetInput) => unwrap<Ticker>(await api.tickers.$post({ json })),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.tickers });
-      qc.invalidateQueries({ queryKey: queryKeys.cronRuns });
-    },
+    onSuccess: () => invalidateLedgerQueries(qc, [queryKeys.tickers, queryKeys.cronRuns]),
   });
 }
 
@@ -51,10 +54,7 @@ export function useAddManualAsset() {
   return useMutation({
     mutationFn: async (json: AddManualAssetInput) =>
       unwrap<Ticker>(await api.tickers.manual.$post({ json })),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.tickers });
-      qc.invalidateQueries({ queryKey: queryKeys.dashboard });
-    },
+    onSuccess: () => invalidateLedgerQueries(qc, [queryKeys.tickers, queryKeys.dashboard]),
   });
 }
 
@@ -64,24 +64,26 @@ export function useSetManualPrice() {
   return useMutation({
     mutationFn: async ({ id, ...json }: SetManualPriceInput & { id: string }) =>
       unwrap<{ ok: boolean }>(await api.tickers[":id"].price.$post({ param: { id }, json })),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.dashboard });
-      qc.invalidateQueries({ queryKey: queryKeys.holdings });
-    },
+    onSuccess: () => invalidateLedgerQueries(qc, [queryKeys.dashboard, queryKeys.holdings]),
   });
 }
 
+/**
+ * Deletes an unused ticker and refreshes the tracked instrument list.
+ */
 export function useDeleteTicker() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) =>
       unwrap<{ ok: boolean }>(await api.tickers[":id"].$delete({ param: { id } })),
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.tickers }),
+    onSuccess: () => invalidateLedgerQueries(qc, [queryKeys.tickers]),
   });
 }
 
 // --- Instrument search ------------------------------------------------------
-/** Debounce should be applied by the caller; query runs only on a non-empty term. */
+/**
+ * Searches provider instruments; callers should debounce the query text.
+ */
 export function useTickerSearch(query: string, type?: "EQUITY" | "ETF" | "CRYPTO") {
   return useQuery({
     queryKey: queryKeys.tickerSearch(query, type),
@@ -95,6 +97,9 @@ export function useTickerSearch(query: string, type?: "EQUITY" | "ETF" | "CRYPTO
 }
 
 // --- Investment transactions (buy/sell ledger) ------------------------------
+/**
+ * Loads investment buy/sell movements, optionally scoped to a ticker or limit.
+ */
 export function useInvestmentTransactions(filters: { tickerId?: string; limit?: number } = {}) {
   const query: Record<string, string> = {};
   if (filters.tickerId) query.tickerId = filters.tickerId;
@@ -108,17 +113,24 @@ export function useInvestmentTransactions(filters: { tickerId?: string; limit?: 
   });
 }
 
+/**
+ * Returns the standard invalidation callback for investment movement mutations.
+ */
 function useInvalidateInvestmentTx() {
   const qc = useQueryClient();
-  return () => {
-    qc.invalidateQueries({ queryKey: ["investment-transactions"] });
-    qc.invalidateQueries({ queryKey: queryKeys.holdings });
-    qc.invalidateQueries({ queryKey: queryKeys.investmentHistory });
-    qc.invalidateQueries({ queryKey: queryKeys.investmentBenchmark });
-    qc.invalidateQueries({ queryKey: queryKeys.dashboard });
-  };
+  return () =>
+    invalidateLedgerQueries(qc, [
+      queryKeys.investmentTransactionsRoot,
+      queryKeys.holdings,
+      queryKeys.investmentHistory,
+      queryKeys.investmentBenchmark,
+      queryKeys.dashboard,
+    ]);
 }
 
+/**
+ * Creates an investment movement and refreshes portfolio-derived views.
+ */
 export function useCreateInvestmentTx() {
   const invalidate = useInvalidateInvestmentTx();
   return useMutation({
@@ -128,6 +140,9 @@ export function useCreateInvestmentTx() {
   });
 }
 
+/**
+ * Updates an investment movement and refreshes portfolio-derived views.
+ */
 export function useUpdateInvestmentTx() {
   const invalidate = useInvalidateInvestmentTx();
   return useMutation({
@@ -139,6 +154,9 @@ export function useUpdateInvestmentTx() {
   });
 }
 
+/**
+ * Deletes an investment movement and refreshes portfolio-derived views.
+ */
 export function useDeleteInvestmentTx() {
   const invalidate = useInvalidateInvestmentTx();
   return useMutation({
@@ -151,6 +169,9 @@ export function useDeleteInvestmentTx() {
 }
 
 // --- Holdings ---------------------------------------------------------------
+/**
+ * Loads current portfolio holdings and their latest computed values.
+ */
 export function useHoldings() {
   return useQuery({
     queryKey: queryKeys.holdings,
@@ -192,14 +213,17 @@ export function useHoldingReturns(from?: string) {
   });
 }
 
+/**
+ * Returns the standard invalidation callback for holding mutations.
+ */
 function useInvalidateHoldings() {
   const qc = useQueryClient();
-  return () => {
-    qc.invalidateQueries({ queryKey: queryKeys.holdings });
-    qc.invalidateQueries({ queryKey: queryKeys.dashboard });
-  };
+  return () => invalidateLedgerQueries(qc, [queryKeys.holdings, queryKeys.dashboard]);
 }
 
+/**
+ * Creates a holding and refreshes holding-dependent dashboard data.
+ */
 export function useCreateHolding() {
   const invalidate = useInvalidateHoldings();
   return useMutation({
@@ -209,6 +233,9 @@ export function useCreateHolding() {
   });
 }
 
+/**
+ * Updates a holding and refreshes holding-dependent dashboard data.
+ */
 export function useUpdateHolding() {
   const invalidate = useInvalidateHoldings();
   return useMutation({
@@ -218,6 +245,9 @@ export function useUpdateHolding() {
   });
 }
 
+/**
+ * Deletes a holding and refreshes holding-dependent dashboard data.
+ */
 export function useDeleteHolding() {
   const invalidate = useInvalidateHoldings();
   return useMutation({

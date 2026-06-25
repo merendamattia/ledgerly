@@ -7,6 +7,7 @@ import { useCallback, useMemo } from "react";
 export const PRIVATE_NUMBER_PLACEHOLDER = "••••••";
 export const PRIVATE_COMPACT_PLACEHOLDER = "••••";
 
+/** Renders sensitive numeric text with privacy-mode masking support. */
 export function PrivateNumber({
   text,
   placeholder = PRIVATE_NUMBER_PLACEHOLDER,
@@ -33,6 +34,7 @@ export function PrivateNumber({
   );
 }
 
+/** Returns helpers for formatting sensitive text under the current privacy mode. */
 export function usePrivateNumberFormatter() {
   const { shouldHidePrivateNumbers } = usePrivacyMode();
   const privateText = useCallback(

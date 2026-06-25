@@ -16,9 +16,9 @@ const deltaTone = {
   muted: "bg-muted text-muted-foreground",
 } as const;
 
-// KPI card for the dashboard / transactions headers. Supports an accent icon,
-// a delta chip and an arbitrary footer slot (sparkline, bars, progress) so the
-// cards in a row can each look distinct rather than a repeated grid.
+/**
+ * Renders a KPI card with an optional accent icon, delta chip, and footer slot.
+ */
 export function StatCard({
   label,
   value,

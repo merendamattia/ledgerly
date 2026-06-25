@@ -36,6 +36,9 @@ const EMOJI_RULES: [RegExp, string][] = [
   [/bank|cash|conto/i, "💵"],
 ];
 
+/**
+ * Picks a default emoji for a category name using shared keyword heuristics.
+ */
 export function defaultEmojiForCategory(name: string): string {
   for (const [rx, emoji] of EMOJI_RULES) if (rx.test(name)) return emoji;
   return "🏷️";

@@ -19,7 +19,9 @@ type TxInput = Partial<{
   note: string | null;
 }>;
 
-// Build Prisma relation-connect data from a validated transaction payload.
+/**
+ * Builds Prisma update data from a validated transaction payload.
+ */
 function toTxData(input: TxInput): Prisma.TransactionUpdateInput {
   const data: Prisma.TransactionUpdateInput = {};
   if (input.date !== undefined) data.date = input.date;

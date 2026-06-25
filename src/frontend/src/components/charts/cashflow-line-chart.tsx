@@ -20,7 +20,7 @@ const chartConfig = {
   expense: { label: "Expense", color: "var(--negative)" },
 } satisfies ChartConfig;
 
-// Income vs expense as two distinct lines over the selected range.
+/** Renders income and expense as separate lines over the selected range. */
 export function CashFlowLineChart({
   data,
   currency,

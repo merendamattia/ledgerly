@@ -17,14 +17,14 @@ export interface SankeyFlow {
 
 const TOP_N = 5;
 
-// Read a CSS custom property off :root (canvas can't resolve var()).
+/** Reads a CSS custom property from `:root` for canvas-only chart rendering. */
 function token(name: string, fallback: string): string {
   if (typeof window === "undefined") return fallback;
   const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   return v || fallback;
 }
 
-// Lighten a #rrggbb toward white by `amt` (0..1), for inflow shade variety.
+/** Lightens a `#rrggbb` color toward white by `amt` in the `0..1` range. */
 function lighten(hex: string, amt: number): string {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
   if (!m) return hex;
@@ -36,7 +36,7 @@ function lighten(hex: string, amt: number): string {
   return `#${[mix(r), mix(g), mix(b)].map((c) => c.toString(16).padStart(2, "0")).join("")}`;
 }
 
-// Collapse a sorted list to top N plus an aggregated "Other".
+/** Collapses a flow list to the top entries plus an aggregated "Other" row. */
 function collapse(items: SankeyFlow[]): SankeyFlow[] {
   const sorted = [...items].sort((a, b) => b.value - a.value);
   if (sorted.length <= TOP_N + 1) return sorted;
@@ -44,6 +44,7 @@ function collapse(items: SankeyFlow[]): SankeyFlow[] {
   return [...sorted.slice(0, TOP_N), { label: "Other", value: rest }];
 }
 
+/** Renders a Sankey diagram from income sources to savings and expense categories. */
 export function CashFlowSankey({
   income,
   expense,

@@ -10,8 +10,9 @@ export const api = hc<AppType>(baseUrl, {
   init: { credentials: "include" },
 }).api;
 
-// Unwrap a Hono RPC response: throw on non-2xx (using the backend's error
-// message), otherwise return the parsed JSON body typed as T.
+/**
+ * Unwraps a Hono RPC response, throwing the backend error message on non-2xx.
+ */
 export async function unwrap<T>(res: {
   ok: boolean;
   json: () => Promise<unknown>;

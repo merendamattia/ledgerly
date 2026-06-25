@@ -37,6 +37,7 @@ import {
   type Category,
 } from "@/hooks/use-categories";
 
+/** Renders the base-currency selector used for all converted values. */
 function BaseCurrencyCard() {
   const settings = useSettings();
   const update = useUpdateSettings();
@@ -46,6 +47,7 @@ function BaseCurrencyCard() {
     { value: "USD", label: "US dollar" },
   ];
 
+  /** Persists a base-currency change unless the selected value is already active. */
   function updateCurrency(currency: string) {
     if (currency === current) return;
     update.mutate(
@@ -92,12 +94,14 @@ function BaseCurrencyCard() {
   );
 }
 
+/** Renders the edit dialog for renaming a category and changing its emoji. */
 function EditCategoryDialog({ category }: { category: Category }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(category.name);
   const [emoji, setEmoji] = useState(category.emoji ?? emojiFor(category.name));
   const update = useUpdateCategory();
 
+  /** Submits the edited category fields to the API. */
   function submit(e: React.FormEvent) {
     e.preventDefault();
     update.mutate(
@@ -152,6 +156,7 @@ function EditCategoryDialog({ category }: { category: Category }) {
   );
 }
 
+/** Renders one category row with edit and delete actions. */
 function CategoryRow({ category }: { category: Category }) {
   const del = useDeleteCategory();
   return (
@@ -183,6 +188,7 @@ function CategoryRow({ category }: { category: Category }) {
   );
 }
 
+/** Renders a responsive category grid or an empty state. */
 function CategoryList({ items }: { items: Category[] }) {
   if (items.length === 0) {
     return <p className="text-sm text-muted-foreground">No categories yet.</p>;
@@ -196,6 +202,7 @@ function CategoryList({ items }: { items: Category[] }) {
   );
 }
 
+/** Renders category creation and management controls. */
 function CategoriesCard() {
   const categories = useCategories();
   const create = useCreateCategory();
@@ -203,6 +210,7 @@ function CategoriesCard() {
   const [emoji, setEmoji] = useState("");
   const [kind, setKind] = useState<"INCOME" | "EXPENSE">("EXPENSE");
 
+  /** Creates a new category from the inline form. */
   function submit(e: React.FormEvent) {
     e.preventDefault();
     create.mutate(
@@ -273,6 +281,7 @@ function CategoriesCard() {
   );
 }
 
+/** Renders base-currency and category settings. */
 export default function SettingsPage() {
   return (
     <div className="flex flex-col gap-6">

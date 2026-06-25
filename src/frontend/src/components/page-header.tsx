@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-// Consistent page title block with an optional right-aligned action.
+/** Renders a consistent page title block with an optional right-aligned action. */
 export function PageHeader({
   title,
   description,

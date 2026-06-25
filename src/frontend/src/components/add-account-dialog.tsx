@@ -17,9 +17,9 @@ import {
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { useCreateAccount, useUpdateAccount, type Account } from "@/hooks/use-accounts";
 
-// Create or edit a cash/bank account. Shared by the Accounts page and the
-// Liquidity/Credits/Other-assets panels. Pass `account` to edit an existing one;
-// `category` places a new account in the right section (defaults to LIQUIDITY).
+/**
+ * Renders the create/edit dialog for cash, bank, credit, and other-asset accounts.
+ */
 export function AddAccountDialog({
   trigger,
   account,
@@ -41,6 +41,7 @@ export function AddAccountDialog({
   const update = useUpdateAccount();
   const pending = create.isPending || update.isPending;
 
+  /** Creates or updates the account from the current dialog fields. */
   function submit(e: React.FormEvent) {
     e.preventDefault();
     // Editing keeps the account's existing category; creating uses the prop.

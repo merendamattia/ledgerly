@@ -10,6 +10,9 @@ export interface InvestmentTxFilters {
   offset?: number;
 }
 
+/**
+ * Converts investment movement filters into a Prisma where clause.
+ */
 function whereFromFilters(f: InvestmentTxFilters): Prisma.InvestmentTransactionWhereInput {
   return {
     tickerId: f.tickerId,

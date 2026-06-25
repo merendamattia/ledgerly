@@ -33,9 +33,9 @@ import {
 } from "@/hooks/use-expenses";
 import { formatDate, DIRECTION_LABELS } from "@/lib/format";
 
-// Controlled detail view for a single transaction. Shows the full record and,
-// when "Edit" is chosen (or `defaultEditing` is set by a row's pencil action),
-// switches to an inline edit form. Delete is confirmed in place.
+/**
+ * Renders a controlled detail dialog for viewing, editing, or deleting a transaction.
+ */
 export function TransactionDetailDialog({
   transaction,
   open,
@@ -68,6 +68,7 @@ export function TransactionDetailDialog({
   );
 }
 
+/** Renders the transaction detail body and inline edit form. */
 function DetailContent({
   tx,
   currency,
@@ -91,6 +92,7 @@ function DetailContent({
 
   const signed = tx.direction === "EXPENSE" ? -tx.amount : tx.amount;
 
+  /** Saves the edited transaction fields and returns to read-only detail view. */
   function save(e: React.FormEvent) {
     e.preventDefault();
     update.mutate(

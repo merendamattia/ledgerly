@@ -18,8 +18,7 @@ export interface CategorySlice {
   value: number;
 }
 
-// A list of labelled bars: name + amount on top, a track-backed bar below whose
-// width is relative to `max` so categories compare at a glance.
+/** Renders labeled category bars with widths relative to the supplied maximum. */
 export function CategoryBars({
   items,
   currency,
@@ -54,9 +53,9 @@ export function CategoryBars({
   );
 }
 
-// Reusable "X by category" card: title (+ optional subtitle), an action slot
-// (View all link/dialog) and an optional header extra (e.g. a toggle) on the
-// right, the top `maxRows` bars, and the running total at the foot.
+/**
+ * Renders a reusable category breakdown card with bars, total, and action slots.
+ */
 export function CategoryBreakdownCard({
   title,
   subtitle,

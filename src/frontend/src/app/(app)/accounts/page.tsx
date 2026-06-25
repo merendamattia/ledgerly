@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAccounts, useDeleteAccount, type Account } from "@/hooks/use-accounts";
 
+/** Renders the account list and account-management actions. */
 export default function AccountsPage() {
   const { data, isLoading } = useAccounts();
   const del = useDeleteAccount();

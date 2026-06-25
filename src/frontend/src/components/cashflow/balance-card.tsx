@@ -9,6 +9,7 @@ import { MoneyAmount } from "@/components/money-amount";
 const GREEN = "#9fd356";
 const RED = "#e8765b";
 
+/** Renders the cashflow spotlight card with net, income, expense, and savings rate. */
 export function BalanceCard({
   subtitle,
   net,

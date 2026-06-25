@@ -84,8 +84,9 @@ export const yahooProvider: PriceProvider = {
   },
 };
 
-// Map a Yahoo quoteType to our TickerType, or null if we don't track it. Crypto
-// is served as "<COIN>-USD" pairs (CRYPTOCURRENCY); commodities as futures.
+/**
+ * Maps Yahoo quoteType values to Ledgerly ticker types, excluding unsupported assets.
+ */
 function mapQuoteType(quoteType: string | undefined): SearchCandidate["type"] | null {
   switch (quoteType) {
     case "EQUITY":

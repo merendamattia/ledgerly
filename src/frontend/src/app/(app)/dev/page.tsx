@@ -3,6 +3,7 @@
 import { PageHeader } from "@/components/page-header";
 import { CronSection } from "@/components/cron-section";
 
+/** Renders developer-only scheduled job controls and run history. */
 export default function DevPage() {
   return (
     <div className="flex flex-col gap-6">

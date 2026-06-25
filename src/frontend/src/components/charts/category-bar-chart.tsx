@@ -15,7 +15,7 @@ import {
 
 export type CategoryDatum = { name: string; value: number };
 
-// Compact money for a dense axis (e.g. "€2.0k").
+/** Formats money compactly for dense chart axes. */
 function compactMoney(value: number, currency: string): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -25,9 +25,9 @@ function compactMoney(value: number, currency: string): string {
   }).format(value);
 }
 
-// Horizontal bars (category on Y, amount on X) so long category names stay
-// readable and rows can be scanned top-to-bottom by magnitude. A single
-// semantic tone (`fallback`: red for expense, green for income) fills the bars.
+/**
+ * Renders horizontal category bars sorted for readable top-to-bottom scanning.
+ */
 export function CategoryBarChart({
   data,
   currency,

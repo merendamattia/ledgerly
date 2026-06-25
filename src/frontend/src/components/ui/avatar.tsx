@@ -5,6 +5,7 @@ import { Avatar as AvatarPrimitive } from "@base-ui/react/avatar"
 
 import { cn } from "@/lib/utils"
 
+/** Renders the avatar root with shared sizing options. */
 function Avatar({
   className,
   size = "default",
@@ -25,6 +26,7 @@ function Avatar({
   )
 }
 
+/** Renders the avatar image. */
 function AvatarImage({ className, ...props }: AvatarPrimitive.Image.Props) {
   return (
     <AvatarPrimitive.Image
@@ -38,6 +40,7 @@ function AvatarImage({ className, ...props }: AvatarPrimitive.Image.Props) {
   )
 }
 
+/** Renders fallback content when the avatar image is unavailable. */
 function AvatarFallback({
   className,
   ...props
@@ -54,6 +57,7 @@ function AvatarFallback({
   )
 }
 
+/** Renders a small status badge over an avatar. */
 function AvatarBadge({ className, ...props }: React.ComponentProps<"span">) {
   return (
     <span
@@ -70,6 +74,7 @@ function AvatarBadge({ className, ...props }: React.ComponentProps<"span">) {
   )
 }
 
+/** Renders overlapping avatars as a group. */
 function AvatarGroup({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -83,6 +88,7 @@ function AvatarGroup({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
+/** Renders a count bubble for additional avatars in a group. */
 function AvatarGroupCount({
   className,
   ...props

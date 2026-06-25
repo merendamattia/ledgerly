@@ -16,12 +16,16 @@ export interface TableData {
   total: number;
 }
 
-// Double-quote a SQL identifier, escaping embedded quotes.
+/**
+ * Double-quotes a trusted SQL identifier, escaping embedded quotes.
+ */
 function quoteIdent(name: string): string {
   return `"${name.replace(/"/g, '""')}"`;
 }
 
-// JSON.stringify cannot serialize bigint; normalize values defensively.
+/**
+ * Normalizes raw SQL values into JSON-safe primitives.
+ */
 function jsonSafe(value: unknown): unknown {
   if (typeof value === "bigint") return value.toString();
   if (value instanceof Date) return value.toISOString();

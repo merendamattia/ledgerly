@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 
+/** Renders a grouped fieldset for related form controls. */
 function FieldSet({ className, ...props }: React.ComponentProps<"fieldset">) {
   return (
     <fieldset
@@ -20,6 +21,7 @@ function FieldSet({ className, ...props }: React.ComponentProps<"fieldset">) {
   )
 }
 
+/** Renders a fieldset legend or label-style legend. */
 function FieldLegend({
   className,
   variant = "legend",
@@ -38,6 +40,7 @@ function FieldLegend({
   )
 }
 
+/** Renders a vertical group of related fields. */
 function FieldGroup({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -69,6 +72,7 @@ const fieldVariants = cva(
   }
 )
 
+/** Renders a form field wrapper with orientation-aware layout. */
 function Field({
   className,
   orientation = "vertical",
@@ -85,6 +89,7 @@ function Field({
   )
 }
 
+/** Renders the text/content column within a field. */
 function FieldContent({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -98,6 +103,7 @@ function FieldContent({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
+/** Renders a label styled for use inside a field. */
 function FieldLabel({
   className,
   ...props
@@ -115,6 +121,7 @@ function FieldLabel({
   )
 }
 
+/** Renders non-label title text for composite field content. */
 function FieldTitle({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -128,6 +135,7 @@ function FieldTitle({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
+/** Renders helper description text for a field. */
 function FieldDescription({ className, ...props }: React.ComponentProps<"p">) {
   return (
     <p
@@ -143,6 +151,7 @@ function FieldDescription({ className, ...props }: React.ComponentProps<"p">) {
   )
 }
 
+/** Renders a separator row inside a field group, optionally with text. */
 function FieldSeparator({
   children,
   className,
@@ -173,6 +182,7 @@ function FieldSeparator({
   )
 }
 
+/** Renders one or more validation errors for a field. */
 function FieldError({
   className,
   children,

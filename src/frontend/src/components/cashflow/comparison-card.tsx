@@ -11,7 +11,7 @@ export interface ComparisonRow {
   goodWhenUp: boolean;
 }
 
-// Compact metric: one line (label + current value + delta%) over a diverging bar.
+/** Renders one comparison metric over a center-origin diverging delta bar. */
 function MetricRow({ row, currency }: { row: ComparisonRow; currency: string }) {
   const delta = row.prev !== 0 ? ((row.curr - row.prev) / Math.abs(row.prev)) * 100 : 0;
   const up = delta >= 0;
@@ -47,6 +47,7 @@ function MetricRow({ row, currency }: { row: ComparisonRow; currency: string }) 
   );
 }
 
+/** Renders current-period metrics against the previous selected cashflow period. */
 export function ComparisonCard({
   prevLabel,
   rows,

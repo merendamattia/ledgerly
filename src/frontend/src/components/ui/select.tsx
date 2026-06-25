@@ -8,6 +8,7 @@ import { ChevronDownIcon, CheckIcon, ChevronUpIcon } from "lucide-react"
 
 const Select = SelectPrimitive.Root
 
+/** Renders a grouped section inside select content. */
 function SelectGroup({ className, ...props }: SelectPrimitive.Group.Props) {
   return (
     <SelectPrimitive.Group
@@ -18,6 +19,7 @@ function SelectGroup({ className, ...props }: SelectPrimitive.Group.Props) {
   )
 }
 
+/** Renders the selected value inside the select trigger. */
 function SelectValue({ className, ...props }: SelectPrimitive.Value.Props) {
   return (
     <SelectPrimitive.Value
@@ -28,6 +30,7 @@ function SelectValue({ className, ...props }: SelectPrimitive.Value.Props) {
   )
 }
 
+/** Renders the select trigger button with the dropdown chevron. */
 function SelectTrigger({
   className,
   size = "default",
@@ -56,6 +59,7 @@ function SelectTrigger({
   )
 }
 
+/** Renders positioned select content with scroll affordances. */
 function SelectContent({
   className,
   children,
@@ -95,6 +99,7 @@ function SelectContent({
   )
 }
 
+/** Renders a label for a select group. */
 function SelectLabel({
   className,
   ...props
@@ -108,6 +113,7 @@ function SelectLabel({
   )
 }
 
+/** Renders one selectable item inside select content. */
 function SelectItem({
   className,
   children,
@@ -136,6 +142,7 @@ function SelectItem({
   )
 }
 
+/** Renders a separator inside select content. */
 function SelectSeparator({
   className,
   ...props
@@ -149,6 +156,7 @@ function SelectSeparator({
   )
 }
 
+/** Renders the select scroll-up affordance. */
 function SelectScrollUpButton({
   className,
   ...props
@@ -168,6 +176,7 @@ function SelectScrollUpButton({
   )
 }
 
+/** Renders the select scroll-down affordance. */
 function SelectScrollDownButton({
   className,
   ...props

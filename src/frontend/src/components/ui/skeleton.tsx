@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils"
 
+/** Renders a loading placeholder skeleton. */
 function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div

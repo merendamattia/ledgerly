@@ -18,6 +18,7 @@ export interface ResolvedPeriod {
   kind: "month" | "range" | "year";
 }
 
+/** Formats a date as a local `yyyy-mm-dd` string. */
 const iso = (d: Date): string => {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -25,9 +26,11 @@ const iso = (d: Date): string => {
   return `${y}-${m}-${day}`;
 };
 
+/** Formats a date as a human-readable month and year label. */
 const monthYear = (d: Date): string =>
   d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
 
+/** Resolves a cashflow period preset into current and previous comparison ranges. */
 export function resolvePeriod(period: Period, now: Date = new Date()): ResolvedPeriod {
   const y = now.getFullYear();
   const m = now.getMonth();

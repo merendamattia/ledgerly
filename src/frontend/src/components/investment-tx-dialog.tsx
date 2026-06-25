@@ -23,7 +23,7 @@ import {
 } from "@/hooks/use-investments";
 import { INVESTMENT_SIDE_LABELS } from "@/lib/format";
 
-// View/edit/delete a single investment movement (used from the Transactions table).
+/** Renders the view/edit/delete dialog for a single investment movement. */
 export function InvestmentTxDialog({
   tx,
   open,
@@ -100,6 +100,7 @@ export function InvestmentTxDialog({
   );
 }
 
+/** Converts an investment transaction's ticker relation into the picker shape. */
 function tickerOf(tx: InvestmentTransaction): SelectedTicker {
   return {
     tickerId: tx.tickerId,

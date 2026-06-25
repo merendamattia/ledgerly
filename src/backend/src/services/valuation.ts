@@ -39,17 +39,44 @@ export interface NetWorth {
  * calls on this path).
  */
 export async function computeNetWorth(): Promise<NetWorth> {
-  const baseCurrency = await settingsRepository.baseCurrency();
+  const [baseCurrency, accounts, holdings, debtRows] = await Promise.all([
+    settingsRepository.baseCurrency(),
+    prisma.cashAccount.findMany(),
+    prisma.holding.findMany({ include: { ticker: true } }),
+    prisma.debt.findMany(),
+  ]);
+
+  const currencies = new Set<string>();
+  for (const account of accounts) currencies.add(account.currency);
+  for (const holding of holdings) currencies.add(holding.ticker.currency);
+  for (const debt of debtRows) currencies.add(debt.currency);
+
+  const fxByCurrency = new Map(
+    await Promise.all(
+      [...currencies].map(async (currency) => [
+        currency,
+        await getFxRate(currency, baseCurrency),
+      ] as const),
+    ),
+  );
+
+  const quoteByTicker = new Map(
+    await Promise.all(
+      [...new Set(holdings.map((holding) => holding.tickerId))].map(async (tickerId) => [
+        tickerId,
+        await latestPrice(tickerId),
+      ] as const),
+    ),
+  );
 
   // Cash accounts converted to base currency, split by category. The account's
   // current cached balance is the live source of truth (snapshots are kept only
   // for history). LIQUIDITY → cash, CREDIT → credits, OTHER_ASSET → otherAssets.
-  const accounts = await prisma.cashAccount.findMany();
   let cash = 0;
   let credits = 0;
   let otherAssets = 0;
   for (const account of accounts) {
-    const fx = await getFxRate(account.currency, baseCurrency);
+    const fx = fxByCurrency.get(account.currency) ?? 1;
     const value = Number(account.balance) * fx;
     if (account.category === "CREDIT") credits += value;
     else if (account.category === "OTHER_ASSET") otherAssets += value;
@@ -57,7 +84,6 @@ export async function computeNetWorth(): Promise<NetWorth> {
   }
 
   // Holdings valued at latest price, converted to base currency.
-  const holdings = await prisma.holding.findMany({ include: { ticker: true } });
   const allocation: Record<string, number> = {
     CASH: cash,
     CREDIT: credits,
@@ -67,9 +93,9 @@ export async function computeNetWorth(): Promise<NetWorth> {
   let investments = 0;
 
   for (const holding of holdings) {
-    const quote = await latestPrice(holding.tickerId);
+    const quote = quoteByTicker.get(holding.tickerId) ?? null;
     const price = quote?.close ?? 0;
-    const fx = await getFxRate(holding.ticker.currency, baseCurrency);
+    const fx = fxByCurrency.get(holding.ticker.currency) ?? 1;
     const quantity = Number(holding.quantity);
     const value = quantity * price * fx;
     const cost = quantity * Number(holding.avgCost) * fx;
@@ -98,10 +124,9 @@ export async function computeNetWorth(): Promise<NetWorth> {
   }
 
   // Debts (liabilities) converted to base currency, subtracted from net worth.
-  const debtRows = await prisma.debt.findMany();
   let debts = 0;
   for (const debt of debtRows) {
-    const fx = await getFxRate(debt.currency, baseCurrency);
+    const fx = fxByCurrency.get(debt.currency) ?? 1;
     debts += Number(debt.amount) * fx;
   }
 

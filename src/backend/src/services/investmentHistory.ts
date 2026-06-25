@@ -8,6 +8,9 @@ export interface PortfolioPoint {
   invested: number; // cumulative net cost basis in base currency
 }
 
+/**
+ * Formats a Date as the yyyy-mm-dd key used by portfolio history points.
+ */
 function isoDay(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
@@ -19,29 +22,32 @@ function isoDay(d: Date): string {
  * FX uses the current rate (historical FX is not modelled here).
  */
 export async function computeInvestmentHistory(): Promise<PortfolioPoint[]> {
-  const txs = await prisma.investmentTransaction.findMany({
-    include: { ticker: true },
-    orderBy: { date: "asc" },
-  });
+  const [txs, baseCurrency] = await Promise.all([
+    prisma.investmentTransaction.findMany({
+      include: { ticker: true },
+      orderBy: { date: "asc" },
+    }),
+    settingsRepository.baseCurrency(),
+  ]);
   if (txs.length === 0) return [];
 
-  const baseCurrency = await settingsRepository.baseCurrency();
   const tickerIds = [...new Set(txs.map((t) => t.tickerId))];
 
   // ticker -> currency, and current FX per currency.
   const currencyOf = new Map<string, string>();
   for (const t of txs) currencyOf.set(t.tickerId, t.ticker.currency);
-  const fxByCurrency = new Map<string, number>();
-  for (const cur of new Set(currencyOf.values())) {
-    fxByCurrency.set(cur, await getFxRate(cur, baseCurrency));
-  }
+  const currencies = [...new Set(currencyOf.values())];
 
   // Ascending price series per ticker.
-  const prices = await prisma.priceHistory.findMany({
-    where: { tickerId: { in: tickerIds } },
-    orderBy: { date: "asc" },
-    select: { tickerId: true, date: true, close: true },
-  });
+  const [prices, fxEntries] = await Promise.all([
+    prisma.priceHistory.findMany({
+      where: { tickerId: { in: tickerIds } },
+      orderBy: { date: "asc" },
+      select: { tickerId: true, date: true, close: true },
+    }),
+    Promise.all(currencies.map(async (cur) => [cur, await getFxRate(cur, baseCurrency)] as const)),
+  ]);
+  const fxByCurrency = new Map<string, number>(fxEntries);
   const priceByTicker = new Map<string, { date: number; close: number }[]>();
   // Ascending signed-quantity events per ticker.
   const txByTicker = new Map<string, { date: number; qty: number; cost: number }[]>();

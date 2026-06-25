@@ -10,8 +10,9 @@ import { useRecurringExpenses, type RecurringExpense } from "@/hooks/use-recurri
 import { cadenceLabel } from "@/lib/recurring";
 import { formatDate } from "@/lib/format";
 
-// Full management of recurring rules: add + the complete list, each row opening
-// the edit/delete popup. Lives in the Activity sidebar (no dedicated page).
+/**
+ * Renders recurring rule management: creation and editable rule rows.
+ */
 export function RecurringList({ currency }: { currency: string }) {
   const { data, isLoading } = useRecurringExpenses();
 
@@ -61,6 +62,7 @@ export function RecurringList({ currency }: { currency: string }) {
   );
 }
 
+/** Renders one recurring rule row for the recurring management list. */
 function RuleRow({ rule, currency }: { rule: RecurringExpense; currency: string }) {
   const signed = rule.direction === "EXPENSE" ? -rule.amount : rule.amount;
   return (

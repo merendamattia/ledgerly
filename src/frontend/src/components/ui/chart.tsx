@@ -29,6 +29,7 @@ type ChartContextProps = {
 
 const ChartContext = React.createContext<ChartContextProps | null>(null)
 
+/** Reads the chart configuration from the nearest chart container. */
 function useChart() {
   const context = React.useContext(ChartContext)
 
@@ -39,6 +40,7 @@ function useChart() {
   return context
 }
 
+/** Provides chart config and responsive sizing for Recharts charts. */
 function ChartContainer({
   id,
   className,
@@ -81,6 +83,7 @@ function ChartContainer({
   )
 }
 
+/** Injects per-chart CSS variables for configured chart colors. */
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
   const colorConfig = Object.entries(config).filter(
     ([, config]) => config.theme ?? config.color
@@ -116,6 +119,7 @@ ${colorConfig
 
 const ChartTooltip = RechartsPrimitive.Tooltip
 
+/** Renders the shared tooltip body for Recharts charts. */
 function ChartTooltipContent({
   active,
   payload,
@@ -272,6 +276,7 @@ function ChartTooltipContent({
 
 const ChartLegend = RechartsPrimitive.Legend
 
+/** Renders the shared legend body for Recharts charts. */
 function ChartLegendContent({
   className,
   hideIcon = false,
@@ -327,6 +332,7 @@ function ChartLegendContent({
   )
 }
 
+/** Finds the chart config entry that corresponds to a Recharts payload item. */
 function getPayloadConfigFromPayload(
   config: ChartConfig,
   payload: unknown,

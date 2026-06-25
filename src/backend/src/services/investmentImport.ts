@@ -18,6 +18,9 @@ export interface InvestmentImportResult {
   skipped: number;
 }
 
+/**
+ * Formats an investment movement date for natural-key deduplication.
+ */
 const isoDate = (d: Date) => d.toISOString().slice(0, 10);
 
 /** Stable natural key to skip duplicates within the batch and against the DB. */
@@ -90,7 +93,7 @@ export const investmentImportService = {
 
     if (data.length > 0) {
       await investmentTransactionRepository.createMany(data);
-      for (const tickerId of touched) await recomputeHolding(tickerId);
+      await Promise.all([...touched].map((tickerId) => recomputeHolding(tickerId)));
     }
 
     return { imported: data.length, skipped };

@@ -4,6 +4,9 @@ import { cacheGet, cacheSet } from "../../core/redis.ts";
 
 const FX_TTL_SECONDS = 60 * 60 * 12; // 12h
 
+/**
+ * Returns the UTC day immediately after a stored FX bar date.
+ */
 function nextDay(date: Date): Date {
   const d = new Date(date);
   d.setUTCDate(d.getUTCDate() + 1);

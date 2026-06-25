@@ -3,11 +3,13 @@ import { formatMoney, formatPercent } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { PrivateNumber } from "@/components/private-number";
 
+/** Formats a signed monetary return while preserving the absolute currency format. */
 function signedMoney(value: number, currency: string): string {
   if (value === 0) return formatMoney(0, currency);
   return `${value > 0 ? "+" : "-"}${formatMoney(Math.abs(value), currency)}`;
 }
 
+/** Renders a compact period performance badge with percent and absolute return. */
 export function PeriodPerformance({
   pct,
   amount,

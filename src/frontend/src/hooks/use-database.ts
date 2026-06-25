@@ -5,6 +5,9 @@ import { queryKeys } from "@/lib/query-keys";
 
 export type TableData = InferResponseType<(typeof api.database.tables)[":table"]["$get"], 200>;
 
+/**
+ * Loads database table names available in the admin database browser.
+ */
 export function useTables() {
   return useQuery({
     queryKey: queryKeys.databaseTables,
@@ -13,6 +16,9 @@ export function useTables() {
   });
 }
 
+/**
+ * Loads one database table page with optional search and pagination.
+ */
 export function useTableData(
   table: string,
   params: { search?: string; limit: number; offset: number },

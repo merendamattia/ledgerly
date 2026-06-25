@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { InferRequestType, InferResponseType } from "hono/client";
 import { api, unwrap } from "@/lib/api-client";
-import { queryKeys } from "@/lib/query-keys";
+import { invalidateLedgerQueries, queryKeys } from "@/lib/query-keys";
 
 const importApi = api.snapshots.import;
 
@@ -10,8 +10,9 @@ export type SnapshotCommitInput = InferRequestType<typeof importApi.commit.$post
 export type SnapshotImportColumn = SnapshotCommitInput["columns"][number];
 export type SnapshotImportResult = InferResponseType<typeof importApi.commit.$post, 201>;
 
-// Step 1: upload the wide `date,account1,account2,…` CSV/TSV and get the header
-// + raw grid back. Nothing is persisted — the user maps columns first.
+/**
+ * Uploads a wide snapshot CSV/TSV and returns headers plus raw rows for mapping.
+ */
 export function useParseSnapshotImport() {
   return useMutation({
     mutationFn: async (file: File) =>
@@ -19,19 +20,21 @@ export function useParseSnapshotImport() {
   });
 }
 
-// Step 2: commit the mapped columns + rows. Creates any new accounts/debts and
-// upserts the dated snapshots, then refreshes the affected views.
+/**
+ * Commits mapped snapshot rows and refreshes cash, debt, and dashboard views.
+ */
 export function useCommitSnapshotImport() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (json: SnapshotCommitInput) =>
       unwrap<SnapshotImportResult>(await importApi.commit.$post({ json })),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.accounts });
-      qc.invalidateQueries({ queryKey: queryKeys.cashSnapshots });
-      qc.invalidateQueries({ queryKey: queryKeys.debts });
-      qc.invalidateQueries({ queryKey: queryKeys.debtSnapshots });
-      qc.invalidateQueries({ queryKey: queryKeys.dashboard });
-    },
+    onSuccess: () =>
+      invalidateLedgerQueries(qc, [
+        queryKeys.accounts,
+        queryKeys.cashSnapshots,
+        queryKeys.debts,
+        queryKeys.debtSnapshots,
+        queryKeys.dashboard,
+      ]),
   });
 }

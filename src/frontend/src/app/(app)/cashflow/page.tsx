@@ -13,10 +13,11 @@ import { resolvePeriod, trailingRange, ytdRange } from "@/components/cashflow/pe
 import { useExpenses, type Transaction } from "@/hooks/use-expenses";
 import { useSettings } from "@/hooks/use-settings";
 
+/** Sums all transactions matching one cashflow direction. */
 const sumOf = (tx: Transaction[], dir: "INCOME" | "EXPENSE") =>
   tx.filter((t) => t.direction === dir).reduce((s, t) => s + t.amount, 0);
 
-// Categories of one direction, summed and sorted high → low.
+/** Groups transactions of one direction by category, sorted from high to low. */
 function byCategory(tx: Transaction[], dir: "INCOME" | "EXPENSE") {
   const map = new Map<string, number>();
   for (const t of tx) {
@@ -27,7 +28,7 @@ function byCategory(tx: Transaction[], dir: "INCOME" | "EXPENSE") {
   return [...map.entries()].map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
 }
 
-// Per-month income/expense buckets, oldest first.
+/** Builds per-month income and expense buckets in ascending month order. */
 function monthBuckets(tx: Transaction[]) {
   const buckets = new Map<string, { month: string; income: number; expense: number }>();
   for (const t of tx) {
@@ -40,6 +41,7 @@ function monthBuckets(tx: Transaction[]) {
   return [...buckets.values()].sort((a, b) => a.month.localeCompare(b.month));
 }
 
+/** Renders the cashflow analytics page for the selected period. */
 export default function CashFlowPage() {
   const { period } = useCashflowPeriod();
   const settings = useSettings();

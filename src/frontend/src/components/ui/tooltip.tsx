@@ -4,6 +4,7 @@ import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip"
 
 import { cn } from "@/lib/utils"
 
+/** Provides tooltip timing configuration to descendant tooltips. */
 function TooltipProvider({
   delay = 0,
   ...props
@@ -17,14 +18,17 @@ function TooltipProvider({
   )
 }
 
+/** Renders the tooltip root state container. */
 function Tooltip({ ...props }: TooltipPrimitive.Root.Props) {
   return <TooltipPrimitive.Root data-slot="tooltip" {...props} />
 }
 
+/** Renders the element that anchors and opens a tooltip. */
 function TooltipTrigger({ ...props }: TooltipPrimitive.Trigger.Props) {
   return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />
 }
 
+/** Renders positioned tooltip content and arrow. */
 function TooltipContent({
   className,
   side = "top",

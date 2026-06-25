@@ -45,6 +45,7 @@ const CRON_JOBS: { key: string; name: string; description: string; schedule: str
   },
 ];
 
+/** Seeds idempotent application defaults required after migrations. */
 async function main() {
   // Settings singleton.
   await prisma.settings.upsert({

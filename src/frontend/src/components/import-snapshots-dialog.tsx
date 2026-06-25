@@ -43,13 +43,11 @@ const KIND_LABELS: Record<ColumnChoice["kind"], string> = {
 
 const DATE_HINT = /\b(date|data|giorno)\b/i;
 
-// Bulk snapshot importer: upload a wide `date,account1,account2,…` file, map the
-// date column and each account column (to an existing account/debt or a new one),
-// then commit. Mirrors the investment-import two-step flow.
-//
-// `lockedKind` scopes the import to a single snapshot type (liquidity, credit,
-// other asset or debt): new columns are created as that kind, the per-column kind
-// picker is hidden, and only existing accounts of that type are offered.
+/**
+ * Renders the wide-file snapshot importer with per-column account/debt mapping.
+ *
+ * `lockedKind` scopes the import to one snapshot type and hides the kind picker.
+ */
 export function ImportSnapshotsDialog({
   trigger,
   lockedKind,
@@ -83,12 +81,14 @@ export function ImportSnapshotsDialog({
     return opts;
   }, [accounts.data, debts.data, lockedKind]);
 
+  /** Clears parsed file state and column mapping choices. */
   function reset() {
     setParsed(null);
     setChoices({});
     setDateColumn(0);
   }
 
+  /** Parses a snapshot import file and seeds default column mapping choices. */
   async function onFile(file: File) {
     try {
       const res = await parse.mutateAsync(file);
@@ -124,10 +124,12 @@ export function ImportSnapshotsDialog({
     }
   }
 
+  /** Updates one parsed column's import mapping choice. */
   function setChoice(index: number, patch: Partial<ColumnChoice>) {
     setChoices((c) => ({ ...c, [index]: { ...c[index], ...patch } }));
   }
 
+  /** Converts UI mapping choices into the API column-import payload. */
   function buildColumns(): SnapshotImportColumn[] {
     if (!parsed) return [];
     const cols: SnapshotImportColumn[] = [];
@@ -154,6 +156,7 @@ export function ImportSnapshotsDialog({
     return cols;
   }
 
+  /** Commits the parsed snapshot rows with the configured column mappings. */
   async function submit() {
     if (!parsed) return;
     try {

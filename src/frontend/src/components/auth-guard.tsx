@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import { useSession } from "@/lib/auth-client";
 import { Spinner } from "@/components/ui/spinner";
 
-// Client-side route protection. Because the backend and frontend are separate
-// origins, the session is validated by calling the backend (via useSession)
-// rather than reading a cookie in Next middleware.
+/**
+ * Protects authenticated routes by validating the backend session client-side.
+ */
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { data: session, isPending } = useSession();

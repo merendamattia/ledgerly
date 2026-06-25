@@ -20,6 +20,7 @@ const chartConfig = {
   expense: { label: "Expense", color: "var(--negative)" },
 } satisfies ChartConfig;
 
+/** Renders monthly income and expense totals as a grouped bar chart. */
 export function CashFlowChart({
   data,
   currency,

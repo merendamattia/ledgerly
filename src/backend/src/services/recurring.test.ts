@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { computeNextDate, occurrenceDates } from "./recurring.ts";
 
+/** Formats a test date as an ISO day string for recurrence assertions. */
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 
 test("computeNextDate advances by days/weeks/months", () => {

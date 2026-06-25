@@ -6,10 +6,9 @@ import { useExpenses } from "@/hooks/use-expenses";
 import { useRecurringExpenses } from "@/hooks/use-recurring";
 import { cn } from "@/lib/utils";
 
-// Tag picker that edits the note string (tags = #hashtags in the note). There's
-// no text box: you type #tags directly in the note, and here every existing tag
-// is shown as a chip — clicking one toggles it in/out of the note. This keeps it
-// clean and lets you reuse tags instead of retyping them.
+/**
+ * Renders a tag picker that edits `#hashtags` directly in the note string.
+ */
 export function TagInput({
   note,
   onNoteChange,
@@ -76,8 +75,9 @@ export function TagInput({
   );
 }
 
-// Read-only tag chips for list rows / detail views. Optional onTagClick wires a
-// chip to the search (so tapping it filters the movements by that tag).
+/**
+ * Renders read-only tag chips, optionally wiring clicks to a tag filter.
+ */
 export function TagChips({
   note,
   onTagClick,

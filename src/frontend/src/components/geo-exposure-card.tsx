@@ -12,6 +12,7 @@ const REGIONS = [
   { flag: "🌐", name: "Global / other" },
 ];
 
+/** Renders the placeholder geographic exposure panel until provider data exists. */
 export function GeoExposureCard({ className }: { className?: string }) {
   return (
     <Card className={cn("gap-0 border shadow-card ring-0 p-6 animate-fu", className)}>

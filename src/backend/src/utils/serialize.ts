@@ -11,13 +11,16 @@ import type {
   Transaction,
 } from "@prisma/client";
 
-// Convert Prisma Decimal fields to plain numbers so JSON responses (and the
-// typed RPC client) deal in primitives rather than Decimal instances.
-
+/**
+ * Serializes a cash account by converting its Decimal balance to a number.
+ */
 export function serializeAccount(a: CashAccount) {
   return { ...a, balance: Number(a.balance) };
 }
 
+/**
+ * Serializes a holding and its optional account relation for JSON responses.
+ */
 export function serializeHolding(
   h: Holding & { ticker?: Ticker; cashAccount?: CashAccount | null },
 ) {
@@ -29,6 +32,9 @@ export function serializeHolding(
   };
 }
 
+/**
+ * Serializes an income/expense transaction by normalizing its amount.
+ */
 export function serializeTransaction(t: Transaction & { category?: Category | null }) {
   return {
     ...t,
@@ -36,6 +42,9 @@ export function serializeTransaction(t: Transaction & { category?: Category | nu
   };
 }
 
+/**
+ * Serializes a recurring expense rule by normalizing its amount.
+ */
 export function serializeRecurringExpense(
   r: RecurringExpense & { category?: Category | null },
 ) {
@@ -45,6 +54,9 @@ export function serializeRecurringExpense(
   };
 }
 
+/**
+ * Serializes an investment movement and optional cash account relation.
+ */
 export function serializeInvestmentTransaction(
   t: InvestmentTransaction & { ticker?: Ticker; cashAccount?: CashAccount | null },
 ) {
@@ -57,6 +69,9 @@ export function serializeInvestmentTransaction(
   };
 }
 
+/**
+ * Serializes a dated cash snapshot with an optional account relation.
+ */
 export function serializeCashSnapshot(s: CashSnapshot & { cashAccount?: CashAccount }) {
   return {
     ...s,
@@ -65,10 +80,16 @@ export function serializeCashSnapshot(s: CashSnapshot & { cashAccount?: CashAcco
   };
 }
 
+/**
+ * Serializes a debt row by converting its Decimal amount to a number.
+ */
 export function serializeDebt(d: Debt) {
   return { ...d, amount: Number(d.amount) };
 }
 
+/**
+ * Serializes a dated debt snapshot with an optional debt relation.
+ */
 export function serializeDebtSnapshot(s: DebtSnapshot & { debt?: Debt }) {
   return {
     ...s,

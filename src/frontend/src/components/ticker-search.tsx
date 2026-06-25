@@ -35,8 +35,9 @@ const TYPE_TINT: Record<string, string> = {
 
 const ISIN_RE = /^[A-Z]{2}[A-Z0-9]{9}[0-9]$/;
 
-// Debounced instrument search. On select, the asset is created (idempotently) so
-// its price backfill starts in the background; the resolved ticker is lifted up.
+/**
+ * Renders debounced instrument search and idempotently creates the selected asset.
+ */
 export function TickerSearch({
   selected,
   onSelect,
@@ -62,6 +63,7 @@ export function TickerSearch({
     return () => clearTimeout(id);
   }, [term]);
 
+  /** Creates or resolves a market-backed ticker from a search candidate. */
   async function choose(candidate: SearchCandidate) {
     setResolving(candidate.symbol);
     try {
@@ -86,6 +88,7 @@ export function TickerSearch({
     }
   }
 
+  /** Selects a manually created asset and clears the search UI. */
   function selectManual(ticker: { id: string; symbol: string; name: string }, type: TickerType, currency: string, price: number) {
     onSelect({ tickerId: ticker.id, symbol: ticker.symbol, name: ticker.name, type, currency, price });
     setManualOpen(false);
@@ -206,8 +209,7 @@ export function TickerSearch({
   );
 }
 
-// Inline form to create a manually-valued asset (a bond/commodity Yahoo can't
-// price). The user supplies the metadata and a current price; no backfill runs.
+/** Renders the inline form for creating manually priced assets. */
 function ManualAssetForm({
   initialTerm,
   onCancel,
@@ -231,6 +233,7 @@ function ManualAssetForm({
   const [currency, setCurrency] = useState("EUR");
   const [price, setPrice] = useState("");
 
+  /** Validates and creates a manually priced asset. */
   async function submit() {
     if (!symbol.trim() || !name.trim() || !price) {
       toast.error("Symbol, name and price are required");

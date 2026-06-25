@@ -37,7 +37,7 @@ const DIRECTION_OPTIONS = [
   { value: "INCOME" as const, label: "Income", icon: ArrowDownLeft },
 ];
 
-// Small segmented control (matches the Add drawer's pill switch).
+/** Renders the income/expense segmented control used by recurring forms. */
 function Segment({
   value,
   onChange,
@@ -68,6 +68,7 @@ function Segment({
   );
 }
 
+/** Renders the sheet used to create, edit, or delete a recurring movement. */
 export function RecurringExpenseDialog({
   rule,
   trigger,
@@ -107,6 +108,7 @@ export function RecurringExpenseDialog({
   );
 }
 
+/** Renders the recurring movement form, seeded from an optional existing rule. */
 function RecurringForm({ rule, onDone }: { rule?: RecurringExpense; onDone: () => void }) {
   const [direction, setDirection] = useState<Direction>(rule?.direction ?? "EXPENSE");
   const [categoryId, setCategoryId] = useState(rule?.categoryId ?? "");
@@ -127,6 +129,7 @@ function RecurringForm({ rule, onDone }: { rule?: RecurringExpense; onDone: () =
   const del = useDeleteRecurringExpense();
   const submitting = create.isPending || update.isPending;
 
+  /** Validates and persists the recurring movement rule. */
   function submit(e: React.FormEvent) {
     e.preventDefault();
     const err = validateRecurring(endMode, maxOccurrences, endDate);

@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 type Mode = "expense" | "income";
 const MAX_ROWS = 6;
 
+/** Renders the cashflow category breakdown with expense/income switching. */
 export function CategoryBreakdown({
   expenses,
   income,
