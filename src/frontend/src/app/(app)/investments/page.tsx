@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactElement } from "react";
+import { useMemo, useState, type ReactElement } from "react";
 import { toast } from "sonner";
 import { Eye, EyeOff, Plus, Pencil, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -1009,14 +1009,20 @@ function AddDebtDialog({
   const update = useUpdateDebt();
   const pending = create.isPending || update.isPending;
 
-  useEffect(() => {
-    if (!open) return;
+  /** Resets dialog fields from the current debt/default values when opened. */
+  function resetFields() {
     setName(debt?.name ?? "");
     setType(debt?.type ?? "LOAN");
     setCurrency(debt?.currency ?? "EUR");
     setAmount(debt ? String(debt.amount) : "");
     setNote(debt?.note ?? "");
-  }, [debt, open]);
+  }
+
+  /** Opens/closes the dialog and refreshes stale draft values before editing. */
+  function handleOpenChange(nextOpen: boolean) {
+    if (nextOpen) resetFields();
+    setOpen(nextOpen);
+  }
 
   /** Creates or updates the debt from the dialog form fields. */
   function submit(e: React.FormEvent) {
@@ -1039,7 +1045,7 @@ function AddDebtDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger
         render={
           trigger ?? (

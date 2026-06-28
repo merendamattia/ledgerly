@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactElement } from "react";
+import { useState, type ReactElement } from "react";
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -51,14 +51,20 @@ export function AddAccountDialog({
   const update = useUpdateAccount();
   const pending = create.isPending || update.isPending;
 
-  useEffect(() => {
-    if (!open) return;
+  /** Resets dialog fields from the current account/default values when opened. */
+  function resetFields() {
     setName(account?.name ?? "");
     setType(account?.type ?? "BANK");
     setCurrency(account?.currency ?? "EUR");
     setBalance(account ? String(account.balance) : "0");
     setNote(account?.note ?? "");
-  }, [account, open]);
+  }
+
+  /** Opens/closes the dialog and refreshes stale draft values before editing. */
+  function handleOpenChange(nextOpen: boolean) {
+    if (nextOpen) resetFields();
+    setOpen(nextOpen);
+  }
 
   /** Creates or updates the account from the current dialog fields. */
   function submit(e: React.FormEvent) {
@@ -84,7 +90,7 @@ export function AddAccountDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger
         render={
           trigger ?? (
