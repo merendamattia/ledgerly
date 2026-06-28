@@ -19,11 +19,17 @@ export const cashSnapshotRepository = {
     });
   },
 
-  upsertForAccountDate(cashAccountId: string, date: Date, balance: number) {
+  upsertForAccountDate(
+    cashAccountId: string,
+    date: Date,
+    balance: number,
+    note?: string | null,
+  ) {
+    const notePatch = note === undefined ? {} : { note };
     return prisma.cashSnapshot.upsert({
       where: { cashAccountId_date: { cashAccountId, date } },
-      create: { cashAccountId, date, balance },
-      update: { balance },
+      create: { cashAccountId, date, balance, ...notePatch },
+      update: { balance, ...notePatch },
     });
   },
 

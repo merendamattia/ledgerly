@@ -148,6 +148,7 @@ model CashAccount {
   category     CashCategory  @default(LIQUIDITY)
   currency     String        @default("EUR")
   balance      Decimal       @default(0) @db.Decimal(20, 2)
+  note         String?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   holdings     Holding[]
@@ -165,6 +166,7 @@ model CashSnapshot {
   cashAccount   CashAccount @relation(fields: [cashAccountId], references: [id], onDelete: Cascade)
   date          DateTime    @db.Date
   balance       Decimal     @db.Decimal(20, 2)
+  note          String?
   createdAt     DateTime    @default(now())
 
   @@unique([cashAccountId, date])
@@ -195,6 +197,7 @@ model DebtSnapshot {
   debt      Debt     @relation(fields: [debtId], references: [id], onDelete: Cascade)
   date      DateTime @db.Date
   amount    Decimal  @db.Decimal(20, 2)
+  note      String?
   createdAt DateTime @default(now())
 
   @@unique([debtId, date])

@@ -28,7 +28,7 @@ export interface SnapshotHistoryPoint {
 /**
  * Generic "editable balances + dated snapshot + history chart" panel. Used for
  * both Liquidity (cash accounts) and Debts so the two share an identical layout.
- * Emits `{ id, value }[]` on snapshot; the caller maps to its own entry shape.
+ * Emits `{ id, value, note }[]` on snapshot; the caller maps to its own entry shape.
  */
 export function SnapshotPanel({
   title,
@@ -57,7 +57,7 @@ export function SnapshotPanel({
   addAction?: ReactNode;
   rowAction?: (row: SnapshotRow) => ReactNode;
   submitting: boolean;
-  onCreate: (date: string, entries: { id: string; value: number }[]) => void;
+  onCreate: (date: string, entries: { id: string; value: number; note: string | null }[]) => void;
   history: SnapshotHistoryPoint[];
   historyTitle: string;
   historySubtitle: string;
@@ -77,7 +77,14 @@ export function SnapshotPanel({
       toast.error("Nothing to snapshot yet");
       return;
     }
-    const entries = rows.map((r) => ({ id: r.id, value: Number(valueOf(r.id, r.value) || 0) }));
+    const entries = rows.map((r) => {
+      const note = (r.note ?? "").trim();
+      return {
+        id: r.id,
+        value: Number(valueOf(r.id, r.value) || 0),
+        note: note.length > 0 ? note : null,
+      };
+    });
     onCreate(date, entries);
     setDrafts({});
   }
@@ -137,7 +144,9 @@ export function SnapshotPanel({
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold">{r.name}</p>
-                  <p className="truncate text-xs text-muted-foreground">{r.note || r.type}</p>
+                  {r.note ? (
+                    <p className="truncate text-xs text-muted-foreground">{r.note}</p>
+                  ) : null}
                 </div>
                 <div className="flex w-full items-center gap-2 sm:w-auto">
                   <span className="font-mono text-xs text-muted-foreground">{r.currency}</span>
