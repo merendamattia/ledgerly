@@ -9,7 +9,7 @@ import { TagChips } from "@/components/tag-input";
 import { DayGroupedList } from "@/components/day-grouped-list";
 import { TransactionDetailDialog } from "@/components/transaction-detail-dialog";
 import { InvestmentTxDialog } from "@/components/investment-tx-dialog";
-import { UpcomingRecurring } from "@/components/cashflow/upcoming-recurring";
+import { UpcomingMovement } from "@/components/cashflow/upcoming-movement";
 import { RecurringList } from "@/components/recurring-list";
 import { Button } from "@/components/ui/button";
 import {
@@ -50,6 +50,15 @@ const FILTERS: { value: Filter; label: string }[] = [
   { value: "EXPENSE", label: "Expense" },
   { value: "INVESTMENT", label: "Investments" },
 ];
+
+/** Formats a local calendar day for date-only API filters. */
+function localISO(date: Date): string {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
+}
 
 /** Renders the transaction activity page with filters, search, and detail dialogs. */
 export default function TransactionsPage() {
@@ -94,13 +103,14 @@ export default function TransactionsPage() {
     return opts;
   }, []);
   const monthItems = Object.fromEntries(monthOptions.map((o) => [o.value, o.label]));
+  const today = localISO(new Date());
 
   const range = useMemo(() => {
-    if (month === "all") return { from: undefined, to: undefined };
+    if (month === "all") return { from: undefined, to: today };
     const [y, m] = month.split("-").map(Number);
-    const iso = (d: Date) => d.toISOString().slice(0, 10);
-    return { from: iso(new Date(y, m - 1, 1)), to: iso(new Date(y, m, 0)) };
-  }, [month]);
+    const monthEnd = localISO(new Date(y, m, 0));
+    return { from: localISO(new Date(y, m - 1, 1)), to: monthEnd > today ? today : monthEnd };
+  }, [month, today]);
 
   const categoryKind = filter === "INCOME" || filter === "EXPENSE" ? filter : undefined;
   const categories = useCategories(categoryKind, categoryKind !== undefined);
@@ -429,7 +439,7 @@ export default function TransactionsPage() {
                 delta={{ label: `${rows.length} ${rows.length === 1 ? "movement" : "movements"}` }}
               />
             ) : null}
-            <UpcomingRecurring currency={currency} />
+            <UpcomingMovement currency={currency} onTransactionClick={setDetailTx} />
             <RecurringList currency={currency} />
           </div>
         </aside>

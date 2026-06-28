@@ -21,10 +21,15 @@ export async function createDailyBalanceSnapshots(date: Date = new Date()) {
   const [accounts, debts] = await Promise.all([cashAccountRepository.list(), debtRepository.list()]);
   await Promise.all([
     ...accounts.map((account) =>
-      cashSnapshotRepository.upsertForAccountDate(account.id, day, Number(account.balance)),
+      cashSnapshotRepository.upsertForAccountDate(
+        account.id,
+        day,
+        Number(account.balance),
+        account.note,
+      ),
     ),
     ...debts.map((debt) =>
-      debtSnapshotRepository.upsertForDebtDate(debt.id, day, Number(debt.amount)),
+      debtSnapshotRepository.upsertForDebtDate(debt.id, day, Number(debt.amount), debt.note),
     ),
   ]);
 }
@@ -52,7 +57,7 @@ export async function createDailySnapshot(date: Date = new Date()) {
  */
 export async function createCashSnapshot(
   date: Date,
-  entries: { accountId: string; balance: number }[],
+  entries: { accountId: string; balance: number; note?: string | null }[],
 ) {
   const day = toUtcDate(date);
   const snapshots = [];
@@ -61,6 +66,7 @@ export async function createCashSnapshot(
       entry.accountId,
       day,
       entry.balance,
+      entry.note,
     );
     await cashAccountRepository.update(entry.accountId, { balance: entry.balance });
     snapshots.push(snap);
@@ -105,12 +111,17 @@ export async function deleteCashSnapshotsByCategory(category: CashCategory) {
  */
 export async function createDebtSnapshot(
   date: Date,
-  entries: { debtId: string; amount: number }[],
+  entries: { debtId: string; amount: number; note?: string | null }[],
 ) {
   const day = toUtcDate(date);
   const snapshots = [];
   for (const entry of entries) {
-    const snap = await debtSnapshotRepository.upsertForDebtDate(entry.debtId, day, entry.amount);
+    const snap = await debtSnapshotRepository.upsertForDebtDate(
+      entry.debtId,
+      day,
+      entry.amount,
+      entry.note,
+    );
     await debtRepository.update(entry.debtId, { amount: entry.amount });
     snapshots.push(snap);
   }

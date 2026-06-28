@@ -10,6 +10,7 @@ test("serializeAccount converts Decimal balance to a number", () => {
     category: "LIQUIDITY",
     currency: "EUR",
     balance: new Prisma.Decimal("1234.50"),
+    note: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   });

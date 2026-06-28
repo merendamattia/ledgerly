@@ -23,6 +23,23 @@ interface CategoryBreakdown {
   expense: number;
 }
 
+type DashboardTransaction = {
+  date: Date;
+  amount: unknown;
+  direction: "INCOME" | "EXPENSE";
+  category?: { id: string; name: string } | null;
+};
+
+/**
+ * Returns the current UTC month boundaries used by the Overview aggregates.
+ */
+export function dashboardMonthRange(now = new Date()) {
+  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const todayInclusive = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const nextStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+  return { start, todayInclusive, nextStart };
+}
+
 /**
  * Creates a zeroed category aggregate for a transaction category.
  */
@@ -67,27 +84,21 @@ function buildCashFlowBuckets(months: number, now: Date): Map<string, CashFlowPo
 }
 
 /**
- * Composes the overview dashboard payload from net worth, snapshots, cash flow,
- * category breakdowns, and recent transactions.
+ * Aggregates transactions into the Overview cash-flow series and category maps.
  */
-export async function getDashboardData(months = 6) {
-  const now = new Date();
-  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-  const rangeStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (months - 1), 1));
-
-  const [netWorth, snapshots, cashFlowMonth, recent, rangeTx] = await Promise.all([
-    computeNetWorth(),
-    snapshotRepository.history(180),
-    transactionRepository.sumByDirection(monthStart),
-    transactionRepository.recent(8),
-    transactionRepository.list({ from: rangeStart }),
-  ]);
-
+export function aggregateDashboardTransactions(
+  transactions: DashboardTransaction[],
+  months: number,
+  now = new Date(),
+) {
+  const monthRange = dashboardMonthRange(now);
   const buckets = buildCashFlowBuckets(months, now);
   const categoryBreakdown = new Map<string, CategoryBreakdown>();
   const categoryBreakdownMonth = new Map<string, CategoryBreakdown>();
 
-  for (const transaction of rangeTx) {
+  for (const transaction of transactions) {
+    if (transaction.date > monthRange.todayInclusive) continue;
+
     const bucket = buckets.get(monthKey(transaction.date));
     if (bucket) {
       if (transaction.direction === "INCOME") bucket.income += Number(transaction.amount);
@@ -95,10 +106,36 @@ export async function getDashboardData(months = 6) {
     }
 
     addTransactionToBreakdown(categoryBreakdown, transaction);
-    if (transaction.date >= monthStart) {
+    if (transaction.date >= monthRange.start && transaction.date < monthRange.nextStart) {
       addTransactionToBreakdown(categoryBreakdownMonth, transaction);
     }
   }
+
+  return {
+    cashFlowSeries: [...buckets.values()],
+    categoryBreakdown: [...categoryBreakdown.values()],
+    categoryBreakdownMonth: [...categoryBreakdownMonth.values()],
+  };
+}
+
+/**
+ * Composes the overview dashboard payload from net worth, snapshots, cash flow,
+ * category breakdowns, and recent transactions.
+ */
+export async function getDashboardData(months = 6) {
+  const now = new Date();
+  const monthRange = dashboardMonthRange(now);
+  const rangeStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (months - 1), 1));
+
+  const [netWorth, snapshots, cashFlowMonth, recent, rangeTx] = await Promise.all([
+    computeNetWorth(),
+    snapshotRepository.history(180),
+    transactionRepository.sumByDirection(monthRange.start, monthRange.todayInclusive),
+    transactionRepository.list({ to: monthRange.todayInclusive, limit: 8 }),
+    transactionRepository.list({ from: rangeStart, to: monthRange.todayInclusive }),
+  ]);
+
+  const aggregates = aggregateDashboardTransactions(rangeTx, months, now);
 
   return {
     netWorth,
@@ -108,9 +145,9 @@ export async function getDashboardData(months = 6) {
       breakdown: snapshot.breakdown,
     })),
     cashFlowMonth,
-    cashFlowSeries: [...buckets.values()],
-    categoryBreakdown: [...categoryBreakdown.values()],
-    categoryBreakdownMonth: [...categoryBreakdownMonth.values()],
+    cashFlowSeries: aggregates.cashFlowSeries,
+    categoryBreakdown: aggregates.categoryBreakdown,
+    categoryBreakdownMonth: aggregates.categoryBreakdownMonth,
     recentTransactions: recent.map(serializeTransaction),
   };
 }

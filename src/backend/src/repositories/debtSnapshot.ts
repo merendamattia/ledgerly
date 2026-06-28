@@ -18,11 +18,12 @@ export const debtSnapshotRepository = {
     });
   },
 
-  upsertForDebtDate(debtId: string, date: Date, amount: number) {
+  upsertForDebtDate(debtId: string, date: Date, amount: number, note?: string | null) {
+    const notePatch = note === undefined ? {} : { note };
     return prisma.debtSnapshot.upsert({
       where: { debtId_date: { debtId, date } },
-      create: { debtId, date, amount },
-      update: { amount },
+      create: { debtId, date, amount, ...notePatch },
+      update: { amount, ...notePatch },
     });
   },
 

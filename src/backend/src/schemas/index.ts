@@ -131,7 +131,13 @@ export const snapshotImportCommitSchema = z.object({
 export const createCashSnapshotSchema = z.object({
   date: z.coerce.date(),
   entries: z
-    .array(z.object({ accountId: z.string().min(1), balance: z.number() }))
+    .array(
+      z.object({
+        accountId: z.string().min(1),
+        balance: z.number(),
+        note: z.string().trim().max(280).nullable().optional(),
+      }),
+    )
     .min(1),
 });
 
@@ -139,7 +145,13 @@ export const createCashSnapshotSchema = z.object({
 export const createDebtSnapshotSchema = z.object({
   date: z.coerce.date(),
   entries: z
-    .array(z.object({ debtId: z.string().min(1), amount: z.number() }))
+    .array(
+      z.object({
+        debtId: z.string().min(1),
+        amount: z.number(),
+        note: z.string().trim().max(280).nullable().optional(),
+      }),
+    )
     .min(1),
 });
 
@@ -164,6 +176,7 @@ export const createAccountSchema = z.object({
   category: cashCategorySchema.default("LIQUIDITY"),
   currency: z.string().trim().length(3).toUpperCase(),
   balance: z.number().default(0),
+  note: z.string().trim().max(280).nullable().optional(),
 });
 
 export const updateAccountSchema = createAccountSchema.partial();
