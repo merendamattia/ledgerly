@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactElement } from "react";
+import { useMemo, useState, type ReactElement, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Eye, EyeOff, Plus, Pencil, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -127,12 +127,21 @@ const BAR_COLORS = [
   "var(--chart-5)",
   "var(--chart-6)",
 ];
+type CashCategory = "LIQUIDITY" | "CREDIT" | "OTHER_ASSET";
+type SnapshotSection = CashCategory | "DEBT";
+const SNAPSHOT_SECTIONS: { value: SnapshotSection; label: string }[] = [
+  { value: "LIQUIDITY", label: "Liquidity" },
+  { value: "CREDIT", label: "Credits" },
+  { value: "OTHER_ASSET", label: "Other assets" },
+  { value: "DEBT", label: "Debts" },
+];
 
 /** Renders the investments page with portfolio, cash, debt, and benchmark views. */
 export default function InvestmentsPage() {
   const { data, isLoading } = useDashboard();
   const [period, setPeriod] = useState<string>("YTD");
   const [classFilter, setClassFilter] = useState<string>("ALL");
+  const [snapshotSection, setSnapshotSection] = useState<SnapshotSection>("LIQUIDITY");
   const [openPosition, setOpenPosition] = useState<Holding | null>(null);
   const [addPosition, setAddPosition] = useState<Holding | null>(null);
   const { shouldHidePrivateNumbers, togglePrivacyMode } = usePrivacyMode();
@@ -400,17 +409,13 @@ export default function InvestmentsPage() {
         </div>
       </Card>
 
-      {/* Liquidity panel + snapshot history */}
-      <CashCategoryPanel category="LIQUIDITY" currency={currency} />
-
-      {/* Credits (receivables) */}
-      <CashCategoryPanel category="CREDIT" currency={currency} />
-
-      {/* Other assets */}
-      <CashCategoryPanel category="OTHER_ASSET" currency={currency} />
-
-      {/* Debts */}
-      <DebtsCard currency={currency} />
+      <ActiveSnapshotPanel
+        section={snapshotSection}
+        currency={currency}
+        headerAction={
+          <SnapshotSectionMenu value={snapshotSection} onChange={setSnapshotSection} />
+        }
+      />
 
       {openPosition ? (
         <PositionTransactionsDialog
@@ -664,11 +669,63 @@ function PositionRow({
 }
 
 const addActionClass =
-  "flex w-fit items-center gap-1.5 text-sm font-semibold text-[#5b7d10] hover:underline";
+  "flex w-fit items-center gap-1.5 text-sm font-semibold text-primary hover:underline";
+
+/** Renders the compact menu that chooses which snapshot panel is visible. */
+function SnapshotSectionMenu({
+  value,
+  onChange,
+}: {
+  value: SnapshotSection;
+  onChange: (value: SnapshotSection) => void;
+}) {
+  return (
+    <div
+      role="group"
+      aria-label="Snapshot section"
+      className="grid w-full grid-cols-2 gap-1 rounded-xl bg-muted p-1 sm:flex sm:w-fit"
+    >
+      {SNAPSHOT_SECTIONS.map((item) => {
+        const active = value === item.value;
+        return (
+          <button
+            key={item.value}
+            type="button"
+            aria-pressed={active}
+            onClick={() => onChange(item.value)}
+            className={cn(
+              "rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors",
+              active
+                ? "bg-foreground text-background"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {item.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Mounts only the selected snapshot panel, instead of a vertical stack. */
+function ActiveSnapshotPanel({
+  section,
+  currency,
+  headerAction,
+}: {
+  section: SnapshotSection;
+  currency: string;
+  headerAction: ReactNode;
+}) {
+  if (section === "DEBT") {
+    return <DebtsCard currency={currency} headerAction={headerAction} />;
+  }
+  return <CashCategoryPanel category={section} currency={currency} headerAction={headerAction} />;
+}
 
 // Per-category copy for the three cash-account sections. They share one panel;
 // only labels and the category filter differ.
-type CashCategory = "LIQUIDITY" | "CREDIT" | "OTHER_ASSET";
 const CASH_PANEL_COPY: Record<
   CashCategory,
   {
@@ -720,9 +777,11 @@ const CASH_PANEL_COPY: Record<
 function CashCategoryPanel({
   category,
   currency,
+  headerAction,
 }: {
   category: CashCategory;
   currency: string;
+  headerAction?: ReactNode;
 }) {
   const accounts = useAccounts();
   const snapshots = useCashSnapshots();
@@ -862,12 +921,13 @@ function CashCategoryPanel({
       historyTitle={copy.historyTitle}
       historySubtitle={copy.historySubtitle}
       currency={currency}
+      headerAction={headerAction}
     />
   );
 }
 
 /** Renders editable debt amounts, dated snapshot capture, and debt history. */
-function DebtsCard({ currency }: { currency: string }) {
+function DebtsCard({ currency, headerAction }: { currency: string; headerAction?: ReactNode }) {
   const debts = useDebts();
   const snapshots = useDebtSnapshots();
   const createSnapshot = useCreateDebtSnapshot();
@@ -984,6 +1044,7 @@ function DebtsCard({ currency }: { currency: string }) {
       historyTitle="Debt history"
       historySubtitle="Liabilities over time"
       currency={currency}
+      headerAction={headerAction}
     />
   );
 }
