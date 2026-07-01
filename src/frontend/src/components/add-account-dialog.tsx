@@ -16,8 +16,15 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useCreateAccount, useUpdateAccount, type Account } from "@/hooks/use-accounts";
-import { shortDate } from "@/lib/format";
+import { CASH_CATEGORY_LABELS, shortDate } from "@/lib/format";
 
 export interface SnapshotNoteHistoryItem {
   date: string;
@@ -43,7 +50,7 @@ export function AddAccountDialog({
   const editing = account != null;
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(account?.name ?? "");
-  const [type, setType] = useState(account?.type ?? "BANK");
+  const [section, setSection] = useState<Account["category"]>(account?.category ?? category);
   const [currency, setCurrency] = useState(account?.currency ?? "EUR");
   const [balance, setBalance] = useState(account ? String(account.balance) : "0");
   const [note, setNote] = useState(account?.note ?? "");
@@ -54,7 +61,7 @@ export function AddAccountDialog({
   /** Resets dialog fields from the current account/default values when opened. */
   function resetFields() {
     setName(account?.name ?? "");
-    setType(account?.type ?? "BANK");
+    setSection(account?.category ?? category);
     setCurrency(account?.currency ?? "EUR");
     setBalance(account ? String(account.balance) : "0");
     setNote(account?.note ?? "");
@@ -69,10 +76,15 @@ export function AddAccountDialog({
   /** Creates or updates the account from the current dialog fields. */
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    // Editing keeps the account's existing category; creating uses the prop.
-    const payload = editing
-      ? { name, type, currency, balance: Number(balance), note: note || null }
-      : { name, type, category, currency, balance: Number(balance), note: note || null };
+    // `section` drives the category; the backend renames `type` to match it, so
+    // both create and edit send the chosen section (editing can reclassify).
+    const payload = {
+      name,
+      category: section,
+      currency,
+      balance: Number(balance),
+      note: note || null,
+    };
     const opts = {
       onSuccess: () => {
         toast.success(editing ? "Account updated" : "Account created");
@@ -117,8 +129,24 @@ export function AddAccountDialog({
               <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required />
             </Field>
             <Field>
-              <FieldLabel htmlFor="type">Type</FieldLabel>
-              <Input id="type" value={type} onChange={(e) => setType(e.target.value)} />
+              <FieldLabel htmlFor="section">Type</FieldLabel>
+              <Select
+                value={section}
+                items={CASH_CATEGORY_LABELS}
+                onValueChange={(v) => setSection((v ?? "LIQUIDITY") as Account["category"])}
+              >
+                <SelectTrigger id="section">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(CASH_CATEGORY_LABELS) as Account["category"][]).map((k) => (
+                    <SelectItem key={k} value={k}>
+                      {CASH_CATEGORY_LABELS[k]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FieldDescription>Choosing another type moves this account to that section.</FieldDescription>
             </Field>
             <Field>
               <FieldLabel htmlFor="currency">Currency</FieldLabel>

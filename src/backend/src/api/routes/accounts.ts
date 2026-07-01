@@ -47,6 +47,9 @@ export const accountsRoutes = new Hono<AppEnv>()
   })
   .post("/", zValidator("json", createAccountSchema), async (c) => {
     const input = c.req.valid("json");
+    // Keep `type` identifiable per section (LIQUIDITY/CREDIT/OTHER_ASSET), except
+    // for BROKER accounts, whose type drives investment-cash exclusion logic.
+    if (input.type !== "BROKER") input.type = input.category;
     const account = await cashAccountRepository.create(input);
     return c.json(serializeAccount(account), 201);
   })
@@ -54,7 +57,12 @@ export const accountsRoutes = new Hono<AppEnv>()
     const id = c.req.param("id");
     const existing = await cashAccountRepository.findById(id);
     if (!existing) throw new NotFoundError("Account not found");
-    const account = await cashAccountRepository.update(id, c.req.valid("json"));
+    const input = c.req.valid("json");
+    // Reclassifying a (non-broker) account to another section renames its type too.
+    if (input.category !== undefined && existing.type !== "BROKER") {
+      input.type = input.category;
+    }
+    const account = await cashAccountRepository.update(id, input);
     return c.json(serializeAccount(account));
   })
   .delete("/:id", async (c) => {

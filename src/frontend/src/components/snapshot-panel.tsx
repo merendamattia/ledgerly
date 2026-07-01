@@ -143,27 +143,33 @@ export function SnapshotPanel({
               rows.map((r) => (
                 <div
                   key={r.id}
-                  className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-sidebar-foreground/20 py-3 last:border-b-0"
+                  className="flex flex-col gap-2.5 border-b border-sidebar-foreground/15 py-3.5 last:border-b-0 sm:flex-row sm:items-center sm:gap-3 sm:py-3"
                 >
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary font-display text-xs font-semibold text-primary-foreground">
-                    {r.name.slice(0, 1).toUpperCase()}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold">{r.name}</p>
-                    {r.note ? (
-                      <p className="truncate text-xs text-sidebar-foreground">{r.note}</p>
-                    ) : null}
+                  <div className="flex min-w-0 items-center gap-3 sm:flex-1">
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary font-display text-sm font-semibold text-primary-foreground">
+                      {r.name.slice(0, 1).toUpperCase()}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold">{r.name}</p>
+                      {r.note ? (
+                        <p className="truncate text-xs text-sidebar-foreground">{r.note}</p>
+                      ) : null}
+                    </div>
                   </div>
-                  <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto">
-                    <span className="font-mono text-xs text-sidebar-foreground">{r.currency}</span>
-                    <Input
-                      type={shouldHidePrivateNumbers ? "password" : "number"}
-                      inputMode="decimal"
-                      step="0.01"
-                      value={valueOf(r.id, r.value)}
-                      onChange={(e) => setDrafts((d) => ({ ...d, [r.id]: e.target.value }))}
-                      className="h-9 min-w-0 flex-1 bg-background text-right font-mono text-foreground sm:w-28 sm:flex-none"
-                    />
+                  <div className="flex items-center gap-1.5 sm:shrink-0">
+                    <div className="flex h-10 min-w-0 flex-1 items-center gap-1.5 rounded-lg bg-background pl-2.5 focus-within:ring-2 focus-within:ring-ring sm:h-9 sm:w-36 sm:flex-none">
+                      <span className="font-mono text-[11px] font-medium text-muted-foreground">
+                        {r.currency}
+                      </span>
+                      <Input
+                        type={shouldHidePrivateNumbers ? "password" : "number"}
+                        inputMode="decimal"
+                        step="0.01"
+                        value={valueOf(r.id, r.value)}
+                        onChange={(e) => setDrafts((d) => ({ ...d, [r.id]: e.target.value }))}
+                        className="h-full min-w-0 flex-1 border-0 bg-transparent px-0 pr-2.5 text-right font-mono text-foreground shadow-none focus-visible:ring-0"
+                      />
+                    </div>
                     {rowAction?.(r)}
                   </div>
                 </div>
@@ -173,14 +179,18 @@ export function SnapshotPanel({
 
           {addAction && rows.length > 0 ? <div className="mt-3">{addAction}</div> : null}
 
-          <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
             <Input
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="h-9 w-40 bg-background text-foreground"
+              className="h-10 w-full bg-background text-foreground sm:h-9 sm:w-40"
             />
-            <Button onClick={submit} disabled={submitting || rows.length === 0}>
+            <Button
+              onClick={submit}
+              disabled={submitting || rows.length === 0}
+              className="w-full sm:w-auto"
+            >
               <Plus data-icon="inline-start" />
               Create snapshot
             </Button>

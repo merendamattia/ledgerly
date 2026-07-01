@@ -196,6 +196,13 @@ export const INVESTMENT_SIDE_LABELS: Record<string, string> = {
   SELL: "Sell",
 };
 
+/** Human-readable labels for the cash-account sections shown in selects. */
+export const CASH_CATEGORY_LABELS: Record<string, string> = {
+  LIQUIDITY: "Liquidity",
+  CREDIT: "Credits",
+  OTHER_ASSET: "Other assets",
+};
+
 export type DatePreset = "this-month" | "last-month" | "this-year" | "all";
 
 /** From/to ISO bounds for a transactions-list quick preset (empty string = unset). */

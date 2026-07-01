@@ -179,7 +179,18 @@ export const createAccountSchema = z.object({
   note: z.string().trim().max(280).nullable().optional(),
 });
 
-export const updateAccountSchema = createAccountSchema.partial();
+// NOTE: not `createAccountSchema.partial()` — Zod keeps the inner `.default()`
+// through `.partial()`, so an edit that omits `category`/`type` would silently
+// reset them (an OTHER_ASSET account would jump to LIQUIDITY). Redeclare the
+// fields optional with no defaults so partial updates only touch what they send.
+export const updateAccountSchema = z.object({
+  name: z.string().trim().min(1).max(80).optional(),
+  type: z.string().trim().min(1).max(40).optional(),
+  category: cashCategorySchema.optional(),
+  currency: z.string().trim().length(3).toUpperCase().optional(),
+  balance: z.number().optional(),
+  note: z.string().trim().max(280).nullable().optional(),
+});
 
 // --- Categories -------------------------------------------------------------
 export const createCategorySchema = z.object({
