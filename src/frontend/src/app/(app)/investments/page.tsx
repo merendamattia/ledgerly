@@ -694,7 +694,7 @@ function SnapshotSectionMenu({
             aria-pressed={active}
             onClick={() => onChange(item.value)}
             className={cn(
-              "rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors",
+              "rounded-lg px-2.5 py-2 text-[13px] font-semibold transition-colors sm:py-1.5 sm:text-xs",
               active
                 ? "bg-foreground text-background"
                 : "text-muted-foreground hover:text-foreground",
