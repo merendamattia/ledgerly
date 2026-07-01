@@ -4,6 +4,7 @@ import { requireAuth } from "../middlewares/auth.ts";
 import { getDashboardData } from "../../services/dashboard.ts";
 import { computeNetWorthHistory } from "../../services/netWorthHistory.ts";
 import { computeAssetMatrix } from "../../services/assetMatrix.ts";
+import { computeCashflowMatrix } from "../../services/cashflowMatrix.ts";
 import { dashboardQuerySchema } from "../../schemas/index.ts";
 import type { AppEnv } from "../types.ts";
 
@@ -14,6 +15,7 @@ export const dashboardRoutes = new Hono<AppEnv>()
     return c.json(points);
   })
   .get("/asset-matrix", async (c) => c.json(await computeAssetMatrix()))
+  .get("/cashflow-matrix", async (c) => c.json(await computeCashflowMatrix()))
   .get("/", zValidator("query", dashboardQuerySchema), async (c) => {
     const data = await getDashboardData(c.req.valid("query").months ?? 6);
     return c.json(data);

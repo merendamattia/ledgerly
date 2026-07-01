@@ -36,7 +36,7 @@ const TABS = [
 ] as const;
 
 const MORE_LINKS = [
-  { href: "/matrix", label: "Matrix", icon: Table },
+  { href: "/matrix", label: "Matrices", icon: Table },
   { href: "/imports", label: "Imports", icon: Upload },
   { href: "/settings", label: "Settings", icon: Settings },
   { href: "/database", label: "Database", icon: Database },

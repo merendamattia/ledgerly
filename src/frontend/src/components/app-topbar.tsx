@@ -38,7 +38,7 @@ const PAGE_META: Record<string, PageMeta> = {
   },
   "/cashflow": { title: "Expenses & Cash Flow", subtitle: "Income, spending and monthly flows" },
   "/transactions": { title: "Transactions", subtitle: "All your recent movements" },
-  "/matrix": { title: "Asset Matrix", subtitle: "Every asset's value across monthly snapshots" },
+  "/matrix": { title: "Matrices", subtitle: "Assets and cash flow across monthly snapshots" },
 };
 
 /**
