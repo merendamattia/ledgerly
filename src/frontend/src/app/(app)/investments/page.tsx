@@ -1062,7 +1062,6 @@ function AddDebtDialog({
   const editing = debt != null;
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(debt?.name ?? "");
-  const [type, setType] = useState(debt?.type ?? "LOAN");
   const [currency, setCurrency] = useState(debt?.currency ?? "EUR");
   const [amount, setAmount] = useState(debt ? String(debt.amount) : "");
   const [note, setNote] = useState(debt?.note ?? "");
@@ -1073,7 +1072,6 @@ function AddDebtDialog({
   /** Resets dialog fields from the current debt/default values when opened. */
   function resetFields() {
     setName(debt?.name ?? "");
-    setType(debt?.type ?? "LOAN");
     setCurrency(debt?.currency ?? "EUR");
     setAmount(debt ? String(debt.amount) : "");
     setNote(debt?.note ?? "");
@@ -1088,7 +1086,7 @@ function AddDebtDialog({
   /** Creates or updates the debt from the dialog form fields. */
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    const payload = { name, type, currency, amount: Number(amount), note: note || null };
+    const payload = { name, currency, amount: Number(amount), note: note || null };
     const opts = {
       onSuccess: () => {
         toast.success(editing ? "Debt updated" : "Debt added");
@@ -1129,10 +1127,6 @@ function AddDebtDialog({
             <Field>
               <FieldLabel htmlFor="debt-name">Name</FieldLabel>
               <Input id="debt-name" value={name} onChange={(e) => setName(e.target.value)} required />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="debt-type">Type</FieldLabel>
-              <Input id="debt-type" value={type} onChange={(e) => setType(e.target.value)} />
             </Field>
             <Field>
               <FieldLabel htmlFor="debt-currency">Currency</FieldLabel>
