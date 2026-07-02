@@ -24,7 +24,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useCreateAccount, useUpdateAccount, type Account } from "@/hooks/use-accounts";
+import { usePillars, useUpsertPillar } from "@/hooks/use-rebalance";
 import { CASH_CATEGORY_LABELS, shortDate } from "@/lib/format";
+
+const NO_PILLAR = "none";
 
 export interface SnapshotNoteHistoryItem {
   date: string;
@@ -58,6 +61,66 @@ export function AddAccountDialog({
   const update = useUpdateAccount();
   const pending = create.isPending || update.isPending;
 
+  // Pillar assignment: which of the 4 pillars (if any) this account belongs to.
+  const pillars = usePillars();
+  const upsertPillar = useUpsertPillar();
+  const currentPillar = account
+    ? (pillars.data?.find((p) => p.members.some((m) => m.cashAccountId === account.id))
+        ?.position ?? null)
+    : null;
+  const [pillar, setPillar] = useState<string>(currentPillar ? String(currentPillar) : NO_PILLAR);
+  const pillarItems = {
+    [NO_PILLAR]: "No pillar",
+    ...Object.fromEntries(
+      [1, 2, 3, 4].map((n) => [
+        String(n),
+        pillars.data?.find((p) => p.position === n)?.name ?? `Pillar ${n}`,
+      ]),
+    ),
+  };
+
+  /** Moves the account between pillars to match the dialog selection. */
+  function syncPillar(accountId: string) {
+    const desired = pillar === NO_PILLAR ? null : Number(pillar);
+    if (desired === currentPillar) return;
+    const opts = { onError: (err: Error) => toast.error(err.message) };
+    if (currentPillar != null) {
+      const old = pillars.data?.find((p) => p.position === currentPillar);
+      if (old) {
+        upsertPillar.mutate(
+          {
+            position: old.position,
+            name: old.name,
+            members: old.members
+              .filter((m) => m.cashAccountId !== accountId)
+              .map((m) =>
+                m.cashAccountId
+                  ? { cashAccountId: m.cashAccountId }
+                  : { tickerId: m.tickerId ?? "" },
+              ),
+          },
+          opts,
+        );
+      }
+    }
+    if (desired != null) {
+      const target = pillars.data?.find((p) => p.position === desired);
+      upsertPillar.mutate(
+        {
+          position: desired,
+          name: target?.name ?? `Pillar ${desired}`,
+          members: [
+            ...(target?.members ?? []).map((m) =>
+              m.cashAccountId ? { cashAccountId: m.cashAccountId } : { tickerId: m.tickerId ?? "" },
+            ),
+            { cashAccountId: accountId },
+          ],
+        },
+        opts,
+      );
+    }
+  }
+
   /** Resets dialog fields from the current account/default values when opened. */
   function resetFields() {
     setName(account?.name ?? "");
@@ -65,6 +128,7 @@ export function AddAccountDialog({
     setCurrency(account?.currency ?? "EUR");
     setBalance(account ? String(account.balance) : "0");
     setNote(account?.note ?? "");
+    setPillar(currentPillar ? String(currentPillar) : NO_PILLAR);
   }
 
   /** Opens/closes the dialog and refreshes stale draft values before editing. */
@@ -86,13 +150,15 @@ export function AddAccountDialog({
       note: note || null,
     };
     const opts = {
-      onSuccess: () => {
+      onSuccess: (saved: Account) => {
+        syncPillar(saved.id);
         toast.success(editing ? "Account updated" : "Account created");
         setOpen(false);
         if (!editing) {
           setName("");
           setBalance("0");
           setNote("");
+          setPillar(NO_PILLAR);
         }
       },
       onError: (err: Error) => toast.error(err.message),
@@ -147,6 +213,24 @@ export function AddAccountDialog({
                 </SelectContent>
               </Select>
               <FieldDescription>Choosing another type moves this account to that section.</FieldDescription>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="pillar">Pillar</FieldLabel>
+              <Select value={pillar} items={pillarItems} onValueChange={(v) => setPillar(v ?? NO_PILLAR)}>
+                <SelectTrigger id="pillar">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(pillarItems).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FieldDescription>
+                Counts this account inside one of the 4 pillars on the Investments page.
+              </FieldDescription>
             </Field>
             <Field>
               <FieldLabel htmlFor="currency">Currency</FieldLabel>

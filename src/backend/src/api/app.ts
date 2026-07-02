@@ -18,6 +18,8 @@ import { investmentTransactionsRoutes } from "./routes/investment-transactions.t
 import { investmentImportRoutes } from "./routes/investment-import.ts";
 import { snapshotImportRoutes } from "./routes/snapshot-import.ts";
 import { debtsRoutes } from "./routes/debts.ts";
+import { rebalanceRoutes } from "./routes/rebalance.ts";
+import { pillarsRoutes } from "./routes/pillars.ts";
 import { cronRoutes } from "./routes/cron.ts";
 import { dashboardRoutes } from "./routes/dashboard.ts";
 import { databaseRoutes } from "./routes/database.ts";
@@ -72,6 +74,8 @@ const routes = app
   .route("/investment-transactions", investmentTransactionsRoutes)
   .route("/snapshots/import", snapshotImportRoutes)
   .route("/debts", debtsRoutes)
+  .route("/rebalance-groups", rebalanceRoutes)
+  .route("/pillars", pillarsRoutes)
   .route("/cron", cronRoutes)
   .route("/dashboard", dashboardRoutes)
   .route("/database", databaseRoutes);

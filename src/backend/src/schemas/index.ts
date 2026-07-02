@@ -280,6 +280,38 @@ export const holdingReturnsQuerySchema = z.object({
     .optional(),
 });
 
+// --- Rebalance groups & pillars ----------------------------------------------
+export const createRebalanceGroupSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  targetPct: z.number().min(0).max(100),
+  thresholdPct: z.number().min(0).max(100).default(5),
+  tickerIds: z.array(z.string().min(1)).min(1).max(50),
+});
+
+export const updateRebalanceGroupSchema = z.object({
+  name: z.string().trim().min(1).max(80).optional(),
+  targetPct: z.number().min(0).max(100).optional(),
+  thresholdPct: z.number().min(0).max(100).optional(),
+  tickerIds: z.array(z.string().min(1)).min(1).max(50).optional(),
+});
+
+// A pillar member points at exactly one of a cash account or a ticker.
+export const upsertPillarSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  members: z
+    .array(
+      z
+        .object({
+          cashAccountId: z.string().min(1).optional(),
+          tickerId: z.string().min(1).optional(),
+        })
+        .refine((m) => (m.cashAccountId ? !m.tickerId : !!m.tickerId), {
+          message: "Set exactly one of cashAccountId or tickerId",
+        }),
+    )
+    .max(100),
+});
+
 // --- Settings ---------------------------------------------------------------
 export const updateSettingsSchema = z.object({
   baseCurrency: z.string().trim().length(3).toUpperCase(),

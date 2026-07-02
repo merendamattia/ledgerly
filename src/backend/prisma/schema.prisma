@@ -154,6 +154,7 @@ model CashAccount {
   holdings     Holding[]
   snapshots    CashSnapshot[]
   investmentTransactions InvestmentTransaction[]
+  pillarMembers PillarMember[]
 
   @@map("cash_account")
 }
@@ -219,6 +220,8 @@ model Ticker {
   prices      PriceHistory[]
   holdings    Holding[]
   investmentTransactions InvestmentTransaction[]
+  rebalanceMember RebalanceMember?
+  pillarMembers   PillarMember[]
 
   @@map("ticker")
 }
@@ -355,6 +358,61 @@ model NetWorthSnapshot {
   createdAt  DateTime @default(now())
 
   @@map("net_worth_snapshot")
+}
+
+/// A rebalance row: one or more tickers treated as a single asset with a target
+/// allocation. A buy/sell action triggers when |current% − target%| ≥ thresholdPct.
+model RebalanceGroup {
+  id           String            @id @default(cuid())
+  name         String
+  targetPct    Decimal           @db.Decimal(5, 2)
+  thresholdPct Decimal           @default(5) @db.Decimal(5, 2)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  members      RebalanceMember[]
+
+  @@map("rebalance_group")
+}
+
+/// Membership of a ticker in a rebalance group (a ticker belongs to at most one).
+model RebalanceMember {
+  id       String         @id @default(cuid())
+  groupId  String
+  group    RebalanceGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  tickerId String         @unique
+  ticker   Ticker         @relation(fields: [tickerId], references: [id], onDelete: Cascade)
+
+  @@index([groupId])
+  @@map("rebalance_member")
+}
+
+/// One of the four investment pillars: a named macro-bucket of cash accounts
+/// and/or tracked assets. `position` is the pillar number (1–4).
+model Pillar {
+  id        String         @id @default(cuid())
+  position  Int            @unique
+  name      String
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  members   PillarMember[]
+
+  @@map("pillar")
+}
+
+/// A pillar member: exactly one of cashAccountId / tickerId is set.
+model PillarMember {
+  id            String       @id @default(cuid())
+  pillarId      String
+  pillar        Pillar       @relation(fields: [pillarId], references: [id], onDelete: Cascade)
+  cashAccountId String?
+  cashAccount   CashAccount? @relation(fields: [cashAccountId], references: [id], onDelete: Cascade)
+  tickerId      String?
+  ticker        Ticker?      @relation(fields: [tickerId], references: [id], onDelete: Cascade)
+
+  @@unique([pillarId, cashAccountId])
+  @@unique([pillarId, tickerId])
+  @@index([pillarId])
+  @@map("pillar_member")
 }
 
 /// A cron job definition.

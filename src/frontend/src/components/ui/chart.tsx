@@ -208,6 +208,18 @@ function ChartTooltipContent({
             const itemConfig = getPayloadConfigFromPayload(config, item, key)
             const indicatorColor = color ?? item.payload?.fill ?? item.color
 
+            // A formatter that returns plain text only formats the value; the
+            // default row (color indicator + series label) still renders around
+            // it. Returning an element keeps the old replace-the-row behavior.
+            const formatted =
+              formatter && item?.value !== undefined && item.name
+                ? formatter(item.value, item.name, item, index, item.payload)
+                : undefined
+            const replacesRow =
+              formatted != null &&
+              typeof formatted !== "string" &&
+              typeof formatted !== "number"
+
             return (
               <div
                 key={index}
@@ -216,8 +228,8 @@ function ChartTooltipContent({
                   indicator === "dot" && "items-center"
                 )}
               >
-                {formatter && item?.value !== undefined && item.name ? (
-                  formatter(item.value, item.name, item, index, item.payload)
+                {replacesRow ? (
+                  formatted
                 ) : (
                   <>
                     {itemConfig?.icon ? (
@@ -258,9 +270,11 @@ function ChartTooltipContent({
                       </div>
                       {item.value != null && (
                         <span className="font-mono font-medium text-foreground tabular-nums">
-                          {typeof item.value === "number"
-                            ? item.value.toLocaleString()
-                            : String(item.value)}
+                          {formatted != null
+                            ? formatted
+                            : typeof item.value === "number"
+                              ? item.value.toLocaleString()
+                              : String(item.value)}
                         </span>
                       )}
                     </div>
