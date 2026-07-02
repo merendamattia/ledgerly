@@ -29,10 +29,10 @@ import { PrivateNumber } from "@/components/private-number";
 import { PeriodPerformance } from "@/components/period-performance";
 import { NetWorthChart } from "@/components/charts/net-worth-chart";
 import { AllocationChart } from "@/components/charts/allocation-chart";
-import { BenchmarkChart } from "@/components/charts/benchmark-chart";
-import { GeoExposureCard } from "@/components/geo-exposure-card";
+import { RebalanceCard } from "@/components/rebalance-card";
+import { PillarsCard } from "@/components/pillars-card";
 import { useDashboard, type DashboardData } from "@/hooks/use-dashboard";
-import { useInvestmentHistory, useBenchmark, useHoldingReturns } from "@/hooks/use-investments";
+import { useInvestmentHistory } from "@/hooks/use-investments";
 import {
   useAccounts,
   useDeleteAccount,
@@ -82,51 +82,12 @@ function snapshotDateKey(value: string | Date): string {
   return value instanceof Date ? value.toISOString().slice(0, 10) : value.slice(0, 10);
 }
 
-/** Computes simple period-over-period returns from a value series. */
-function seriesReturns(values: number[]): number[] {
-  const out: number[] = [];
-  for (let i = 1; i < values.length; i++) {
-    const prev = values[i - 1];
-    out.push(prev !== 0 ? values[i] / prev - 1 : 0);
-  }
-  return out;
-}
-
-/** Computes beta as covariance(asset, benchmark) divided by benchmark variance. */
-function betaOf(asset: number[], bench: number[]): number {
-  const n = Math.min(asset.length, bench.length);
-  if (n < 2) return 0;
-  let sa = 0;
-  let sb = 0;
-  for (let i = 0; i < n; i++) {
-    sa += asset[i];
-    sb += bench[i];
-  }
-  const ma = sa / n;
-  const mb = sb / n;
-  let cov = 0;
-  let varB = 0;
-  for (let i = 0; i < n; i++) {
-    cov += (asset[i] - ma) * (bench[i] - mb);
-    varB += (bench[i] - mb) ** 2;
-  }
-  return varB > 0 ? cov / varB : 0;
-}
-
 const CLASS_LABELS: Record<string, string> = { EQUITY: "Equity", ETF: "ETF", CRYPTO: "Crypto" };
 const CLASS_COLOR: Record<string, string> = {
   EQUITY: "var(--chart-1)",
   ETF: "var(--chart-2)",
   CRYPTO: "var(--chart-4)",
 };
-const BAR_COLORS = [
-  "var(--chart-1)",
-  "var(--chart-2)",
-  "var(--chart-3)",
-  "var(--chart-4)",
-  "var(--chart-5)",
-  "var(--chart-6)",
-];
 type CashCategory = "LIQUIDITY" | "CREDIT" | "OTHER_ASSET";
 type SnapshotSection = CashCategory | "DEBT";
 const SNAPSHOT_SECTIONS: { value: SnapshotSection; label: string }[] = [
@@ -162,7 +123,7 @@ export default function InvestmentsPage() {
     return sliced.length >= 2 ? sliced : points; // fall back if window predates first point
   }, [history.data, period]);
   const series = useMemo(
-    () => periodWindow.map((p) => ({ date: p.date, totalValue: p.value })),
+    () => periodWindow.map((p) => ({ date: p.date, totalValue: p.value, invested: p.invested })),
     [periodWindow],
   );
 
@@ -193,18 +154,6 @@ export default function InvestmentsPage() {
   const allocationLabels = useMemo(
     () => Object.fromEntries(holdings.map((h) => [h.holdingId, h.name])),
     [holdings],
-  );
-
-  // Per-position market returns for the selected window — synced with the
-  // portfolio timeframe pills (omit `from` for Max → since-inception price).
-  const positionReturns = useHoldingReturns(periodCutoff(period) ?? undefined);
-  const returnRows = useMemo(
-    () => [...(positionReturns.data ?? [])].sort((a, b) => b.returnPct - a.returnPct).slice(0, 6),
-    [positionReturns.data],
-  );
-  const maxAbsReturn = useMemo(
-    () => Math.max(1, ...returnRows.map((r) => Math.abs(r.returnPct))),
-    [returnRows],
   );
 
   const filteredHoldings =
@@ -282,7 +231,7 @@ export default function InvestmentsPage() {
         </div>
         <div className="mt-4">
           {series.length >= 2 ? (
-            <NetWorthChart data={series} currency={currency} />
+            <NetWorthChart data={series} currency={currency} valueLabel="Portfolio value" />
           ) : (
             <div className="flex h-[280px] items-center justify-center text-sm text-muted-foreground">
               Not enough history yet — snapshots build the portfolio curve over time.
@@ -303,47 +252,9 @@ export default function InvestmentsPage() {
         </div>
       </Card>
 
-      {/* Row 2 — three charts */}
-      {/* Return per position */}
-      <Card className={cn("col-span-12 gap-0 p-5 animate-fu lg:col-span-4")}>
-        <p className="font-display text-base font-semibold">Return by position</p>
-        <div className="mt-4 flex flex-col gap-3.5">
-          {returnRows.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">No positions yet.</p>
-          ) : (
-            returnRows.map((r, i) => (
-              <div key={r.holdingId}>
-                <div className="mb-1.5 flex items-center justify-between text-sm">
-                  <span className="truncate">{r.name}</span>
-                  <span
-                    className={cn(
-                      "font-mono font-semibold tabular-nums",
-                      r.returnPct >= 0 ? "text-positive" : "text-negative",
-                    )}
-                  >
-                    {formatPercent(r.returnPct)}
-                  </span>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full rounded-full animate-grow"
-                    style={{
-                      width: `${(Math.abs(r.returnPct) / maxAbsReturn) * 100}%`,
-                      background: BAR_COLORS[i % BAR_COLORS.length],
-                    }}
-                  />
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </Card>
-
-      {/* Portfolio vs benchmark */}
-      <BenchmarkCard className="col-span-12 lg:col-span-4" period={period} />
-
-      {/* Geographic exposure (placeholder until data lands) */}
-      <GeoExposureCard className="col-span-12 lg:col-span-4" />
+      {/* Row 2 — rebalancing + the 4 pillars */}
+      <RebalanceCard holdings={holdings} currency={currency} className="col-span-12 lg:col-span-6" />
+      <PillarsCard holdings={holdings} currency={currency} className="col-span-12 lg:col-span-6" />
 
       {/* Positions table */}
       <Card className={cn("col-span-12 gap-0 p-5 animate-fu")}>
@@ -447,114 +358,6 @@ export default function InvestmentsPage() {
         />
       ) : null}
     </div>
-  );
-}
-
-/**
- * Renders portfolio performance against the benchmark when benchmark data exists.
- */
-function BenchmarkCard({ className, period }: { className?: string; period: string }) {
-  const { data, isLoading } = useBenchmark();
-  const full = data && data.available ? data : null;
-
-  // Slice the full (lifetime) series to the selected window and recompute the
-  // stats client-side: rebase both lines to 100 at the window start, derive
-  // returns and beta from the windowed indices.
-  const available = useMemo(() => {
-    if (!full) return null;
-    const cutoff = periodCutoff(period);
-    let slice = cutoff ? full.series.filter((p) => p.date >= cutoff) : full.series;
-    if (slice.length < 2) slice = full.series; // fall back if window predates first point
-    const p0 = slice[0].portfolio;
-    const b0 = slice[0].benchmark;
-    const series = slice.map((p) => ({
-      date: p.date,
-      portfolio: (p.portfolio / p0) * 100,
-      benchmark: (p.benchmark / b0) * 100,
-    }));
-    const portfolioReturnPct = (slice.at(-1)!.portfolio / p0 - 1) * 100;
-    const benchmarkReturnPct = (slice.at(-1)!.benchmark / b0 - 1) * 100;
-    const beta = betaOf(
-      seriesReturns(slice.map((p) => p.portfolio)),
-      seriesReturns(slice.map((p) => p.benchmark)),
-    );
-    return { benchmarkName: full.benchmarkName, series, portfolioReturnPct, benchmarkReturnPct, beta };
-  }, [full, period]);
-
-  const outperf = available
-    ? available.portfolioReturnPct - available.benchmarkReturnPct
-    : 0;
-
-  return (
-    <Card className={cn("gap-0 p-5 animate-fu", className)}>
-      <div className="mb-1 flex flex-wrap items-start justify-between gap-2">
-        <p className="font-display text-base font-semibold">Portfolio vs benchmark</p>
-        {available ? (
-          <span
-            className={cn(
-              "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold",
-              outperf >= 0 ? "bg-positive/10 text-positive" : "bg-negative/10 text-negative",
-            )}
-          >
-            {outperf >= 0 ? "+" : ""}
-            {outperf.toFixed(1)} pp
-          </span>
-        ) : null}
-      </div>
-
-
-      {isLoading ? (
-        <div className="flex h-[200px] items-center justify-center text-sm text-muted-foreground">
-          Loading…
-        </div>
-      ) : available ? (
-        <>
-          <div className="mb-2 flex gap-3.5 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1.5">
-              <span className="size-2.5 rounded-[3px] bg-[var(--chart-1)]" />
-              You
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="size-2.5 rounded-[3px] bg-[var(--chart-3)]" />
-              {available.benchmarkName}
-            </span>
-          </div>
-          <BenchmarkChart data={available.series} />
-          <div className="mt-3.5 grid grid-cols-3 border-t pt-3.5 text-xs">
-            <div>
-              <p className="text-muted-foreground">Your return</p>
-              <p
-                className={cn(
-                  "font-mono text-sm font-semibold tabular-nums",
-                  available.portfolioReturnPct >= 0 ? "text-positive" : "text-negative",
-                )}
-              >
-                {formatPercent(available.portfolioReturnPct)}
-              </p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Benchmark</p>
-              <p className="font-mono text-sm font-semibold tabular-nums">
-                {formatPercent(available.benchmarkReturnPct)}
-              </p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Beta</p>
-              <p className="font-mono text-sm font-semibold tabular-nums">
-                {available.beta.toFixed(2)}
-              </p>
-            </div>
-          </div>
-        </>
-      ) : (
-        <div className="flex h-[200px] flex-col items-center justify-center gap-1.5 text-center">
-          <p className="text-sm font-medium text-muted-foreground">No benchmark yet</p>
-          <p className="max-w-[240px] text-xs text-muted-foreground">
-            Track the MSCI World ETF (IWDA.AS) to compare your portfolio against the market.
-          </p>
-        </div>
-      )}
-    </Card>
   );
 }
 

@@ -15,26 +15,38 @@ import {
 
 const chartConfig = {
   totalValue: { label: "Net worth", color: "var(--chart-1)" },
+  invested: { label: "Invested", color: "var(--muted-foreground)" },
 } satisfies ChartConfig;
 
-/** Renders historical net worth as an area chart. */
+/**
+ * Renders historical net worth as an area chart. When points carry an
+ * `invested` amount, a flat grey line tracks contributed capital so the gap
+ * to the value area reads as gain/loss.
+ */
 export function NetWorthChart({
   data,
   currency,
   className = "h-[280px] w-full",
+  valueLabel = "Net worth",
 }: {
-  data: { date: string; totalValue: number }[];
+  data: { date: string; totalValue: number; invested?: number }[];
   currency: string;
   className?: string;
+  valueLabel?: string;
 }) {
   const { privateText } = usePrivateNumberFormatter();
+  const hasInvested = data.some((d) => d.invested != null);
   const points = data.map((d) => ({
     date: shortDate(d.date),
     totalValue: d.totalValue,
+    ...(hasInvested ? { invested: d.invested ?? null } : {}),
   }));
 
   return (
-    <ChartContainer config={chartConfig} className={className}>
+    <ChartContainer
+      config={{ ...chartConfig, totalValue: { ...chartConfig.totalValue, label: valueLabel } }}
+      className={className}
+    >
       <AreaChart data={points} margin={{ left: 0, right: 8 }}>
         <defs>
           <linearGradient id="netWorthFill" x1="0" y1="0" x2="0" y2="1">
@@ -75,6 +87,18 @@ export function NetWorthChart({
           dot={false}
           activeDot={{ r: 4 }}
         />
+        {hasInvested ? (
+          <Area
+            dataKey="invested"
+            type="monotone"
+            fill="none"
+            stroke="var(--color-invested)"
+            strokeWidth={1.5}
+            strokeDasharray="5 4"
+            dot={false}
+            activeDot={{ r: 3 }}
+          />
+        ) : null}
       </AreaChart>
     </ChartContainer>
   );

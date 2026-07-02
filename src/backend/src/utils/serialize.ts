@@ -6,10 +6,24 @@ import type {
   DebtSnapshot,
   Holding,
   InvestmentTransaction,
+  RebalanceGroup,
   RecurringExpense,
   Ticker,
   Transaction,
 } from "@prisma/client";
+
+/**
+ * Serializes a rebalance group, converting Decimal percentages to numbers.
+ */
+export function serializeRebalanceGroup(g: RebalanceGroup & { members: { tickerId: string }[] }) {
+  const { members, ...rest } = g;
+  return {
+    ...rest,
+    targetPct: Number(g.targetPct),
+    thresholdPct: Number(g.thresholdPct),
+    tickerIds: members.map((m) => m.tickerId),
+  };
+}
 
 /**
  * Serializes a cash account by converting its Decimal balance to a number.
