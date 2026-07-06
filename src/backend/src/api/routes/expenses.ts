@@ -5,9 +5,11 @@ import { requireAuth } from "../middlewares/auth.ts";
 import { transactionRepository } from "../../repositories/transaction.ts";
 import {
   createTransactionSchema,
+  transactionTagsQuerySchema,
   transactionFiltersSchema,
   updateTransactionSchema,
 } from "../../schemas/index.ts";
+import { listTransactionTags } from "../../services/transactionTags.ts";
 import { serializeTransaction } from "../../utils/serialize.ts";
 import type { AppEnv } from "../types.ts";
 
@@ -36,6 +38,10 @@ function toTxData(input: TxInput): Prisma.TransactionUpdateInput {
 
 export const expensesRoutes = new Hono<AppEnv>()
   .use("*", requireAuth)
+  .get("/tags", zValidator("query", transactionTagsQuerySchema), async (c) => {
+    const tags = await listTransactionTags(c.req.valid("query"));
+    return c.json({ tags });
+  })
   .get("/", zValidator("query", transactionFiltersSchema), async (c) => {
     const filters = c.req.valid("query");
     const transactions = await transactionRepository.list(filters);

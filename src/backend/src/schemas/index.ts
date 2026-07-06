@@ -267,6 +267,13 @@ export const transactionFiltersSchema = z.object({
   offset: z.coerce.number().int().nonnegative().optional(),
 });
 
+export const transactionTagsQuerySchema = transactionFiltersSchema.pick({
+  from: true,
+  to: true,
+  categoryId: true,
+  direction: true,
+});
+
 // Dashboard query: how many trailing months of cash-flow to return.
 export const dashboardQuerySchema = z.object({
   months: z.coerce.number().int().min(1).max(60).optional(),
