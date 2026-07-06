@@ -51,11 +51,17 @@ const DATE_HINT = /\b(date|data|giorno)\b/i;
 export function ImportSnapshotsDialog({
   trigger,
   lockedKind,
+  open: openProp,
+  onOpenChange,
 }: {
   trigger?: ReactElement;
   lockedKind?: ColumnChoice["kind"];
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [openState, setOpenState] = useState(false);
+  const isControlled = openProp !== undefined;
+  const open = isControlled ? openProp : openState;
   const accounts = useAccounts();
   const debts = useDebts();
   const parse = useParseSnapshotImport();
@@ -86,6 +92,12 @@ export function ImportSnapshotsDialog({
     setParsed(null);
     setChoices({});
     setDateColumn(0);
+  }
+
+  function setOpen(o: boolean) {
+    if (!isControlled) setOpenState(o);
+    onOpenChange?.(o);
+    if (!o) reset();
   }
 
   /** Parses a snapshot import file and seeds default column mapping choices. */
@@ -181,21 +193,20 @@ export function ImportSnapshotsDialog({
   return (
     <Dialog
       open={open}
-      onOpenChange={(o) => {
-        setOpen(o);
-        if (!o) reset();
-      }}
+      onOpenChange={setOpen}
     >
-      <DialogTrigger
-        render={
-          trigger ?? (
-            <Button variant="outline">
-              <Upload data-icon="inline-start" />
-              {lockedKind ? `Import ${KIND_LABELS[lockedKind].toLowerCase()}` : "Import snapshots"}
-            </Button>
-          )
-        }
-      />
+      {!isControlled ? (
+        <DialogTrigger
+          render={
+            trigger ?? (
+              <Button variant="outline">
+                <Upload data-icon="inline-start" />
+                {lockedKind ? `Import ${KIND_LABELS[lockedKind].toLowerCase()}` : "Import snapshots"}
+              </Button>
+            )
+          }
+        />
+      ) : null}
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>

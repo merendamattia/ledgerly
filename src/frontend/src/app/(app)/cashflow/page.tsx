@@ -1,9 +1,9 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useMemo } from "react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { CashFlowChart } from "@/components/charts/cashflow-chart";
-import { CashFlowSankey } from "@/components/charts/cashflow-sankey";
 import { BalanceCard } from "@/components/cashflow/balance-card";
 import { ComparisonCard } from "@/components/cashflow/comparison-card";
 import { AccumulatedCard } from "@/components/cashflow/accumulated-card";
@@ -12,6 +12,14 @@ import { useCashflowPeriod } from "@/components/cashflow/period-context";
 import { resolvePeriod, trailingRange, ytdRange } from "@/components/cashflow/periods";
 import { useExpenses, type Transaction } from "@/hooks/use-expenses";
 import { useSettings } from "@/hooks/use-settings";
+
+const CashFlowSankey = dynamic(
+  () => import("@/components/charts/cashflow-sankey").then((mod) => mod.CashFlowSankey),
+  {
+    ssr: false,
+    loading: () => <p className="py-12 text-center text-sm text-muted-foreground">Loading cash flow...</p>,
+  },
+);
 
 /** Sums all transactions matching one cashflow direction. */
 const sumOf = (tx: Transaction[], dir: "INCOME" | "EXPENSE") =>

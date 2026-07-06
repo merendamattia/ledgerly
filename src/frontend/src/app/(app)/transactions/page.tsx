@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import { Calendar, Repeat } from "lucide-react";
 import { MoneyAmount } from "@/components/money-amount";
@@ -7,8 +8,6 @@ import { StatCard } from "@/components/stat-card";
 import { CategoryIcon } from "@/components/category-badge";
 import { TagChips } from "@/components/tag-input";
 import { DayGroupedList } from "@/components/day-grouped-list";
-import { TransactionDetailDialog } from "@/components/transaction-detail-dialog";
-import { InvestmentTxDialog } from "@/components/investment-tx-dialog";
 import { UpcomingMovement } from "@/components/cashflow/upcoming-movement";
 import { RecurringList } from "@/components/recurring-list";
 import { Button } from "@/components/ui/button";
@@ -20,10 +19,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useSearch } from "@/components/search-context";
-import { extractTags } from "@/lib/tags";
 import { useSettings } from "@/hooks/use-settings";
 import {
   useExpenses,
+  useExpenseTags,
   type Transaction,
   type TransactionFilters,
 } from "@/hooks/use-expenses";
@@ -32,8 +31,17 @@ import {
   type InvestmentTransaction,
 } from "@/hooks/use-investments";
 import { useCategories } from "@/hooks/use-categories";
-import { formatMoney, INVESTMENT_SIDE_LABELS } from "@/lib/format";
+import { formatMoney, formatMonthYear, INVESTMENT_SIDE_LABELS } from "@/lib/format";
 import { cn } from "@/lib/utils";
+
+const TransactionDetailDialog = dynamic(
+  () => import("@/components/transaction-detail-dialog").then((mod) => mod.TransactionDetailDialog),
+  { ssr: false },
+);
+const InvestmentTxDialog = dynamic(
+  () => import("@/components/investment-tx-dialog").then((mod) => mod.InvestmentTxDialog),
+  { ssr: false },
+);
 
 // Keep the initial list short so the page stays clean: 10 rows on desktop, 5 on
 // mobile. "Load more" reveals another page.
@@ -97,7 +105,7 @@ export default function TransactionsPage() {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       opts.push({
         value: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
-        label: d.toLocaleDateString("en-US", { month: "long", year: "numeric" }),
+        label: formatMonthYear(d),
       });
     }
     return opts;
@@ -150,21 +158,8 @@ export default function TransactionsPage() {
 
   // Distinct tags within the selected period (most recent first) for the quick
   // filter — so changing the month only surfaces tags from that month.
-  const tagSource = useExpenses({ from: range.from, to: range.to, limit: 5000 });
-  const allTags = useMemo(() => {
-    const seen = new Set<string>();
-    const out: string[] = [];
-    for (const t of tagSource.data ?? []) {
-      for (const tag of extractTags(t.note)) {
-        const key = tag.toLowerCase();
-        if (!seen.has(key)) {
-          seen.add(key);
-          out.push(tag);
-        }
-      }
-    }
-    return out;
-  }, [tagSource.data]);
+  const tagSource = useExpenseTags({ from: range.from, to: range.to });
+  const allTags = tagSource.data?.tags ?? [];
   const activeTag = tagActive ? query.trim().slice(1).toLowerCase() : null;
 
   /**
@@ -178,7 +173,10 @@ export default function TransactionsPage() {
     setCategoryId("all");
     setQuery(`#${tag}`);
   }
-  const investments = useInvestmentTransactions({ limit: filter === "INVESTMENT" ? limit : 1 });
+  const investments = useInvestmentTransactions(
+    { limit },
+    { enabled: filter === "INVESTMENT" },
+  );
 
   const rows = useMemo(() => {
     if (filter === "INVESTMENT") return [];
@@ -445,22 +443,26 @@ export default function TransactionsPage() {
         </aside>
       </div>
 
-      <TransactionDetailDialog
-        transaction={detailTx}
-        open={detailTx !== null}
-        onOpenChange={(o) => {
-          if (!o) setDetailTx(null);
-        }}
-        currency={currency}
-      />
+      {detailTx ? (
+        <TransactionDetailDialog
+          transaction={detailTx}
+          open
+          onOpenChange={(o) => {
+            if (!o) setDetailTx(null);
+          }}
+          currency={currency}
+        />
+      ) : null}
 
-      <InvestmentTxDialog
-        tx={invTx}
-        open={invTx !== null}
-        onOpenChange={(o) => {
-          if (!o) setInvTx(null);
-        }}
-      />
+      {invTx ? (
+        <InvestmentTxDialog
+          tx={invTx}
+          open
+          onOpenChange={(o) => {
+            if (!o) setInvTx(null);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

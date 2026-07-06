@@ -3,6 +3,8 @@
 // the page (totals, deltas) is exact for the chosen range. All bounds are
 // local yyyy-mm-dd strings to avoid UTC off-by-one drift.
 
+import { formatMonthYear } from "@/lib/format";
+
 export type Period = "this-month" | "last-month" | "this-year" | "last-year" | "12m";
 
 export interface ResolvedPeriod {
@@ -26,10 +28,6 @@ const iso = (d: Date): string => {
   return `${y}-${m}-${day}`;
 };
 
-/** Formats a date as a human-readable month and year label. */
-const monthYear = (d: Date): string =>
-  d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
-
 /** Resolves a cashflow period preset into current and previous comparison ranges. */
 export function resolvePeriod(period: Period, now: Date = new Date()): ResolvedPeriod {
   const y = now.getFullYear();
@@ -43,8 +41,8 @@ export function resolvePeriod(period: Period, now: Date = new Date()): ResolvedP
         to: iso(new Date(y, m + 1, 0)),
         prevFrom: iso(prevFrom),
         prevTo: iso(new Date(y, m, 0)),
-        label: monthYear(from),
-        prevLabel: monthYear(prevFrom),
+        label: formatMonthYear(from),
+        prevLabel: formatMonthYear(prevFrom),
         kind: "month",
       };
     }
@@ -56,8 +54,8 @@ export function resolvePeriod(period: Period, now: Date = new Date()): ResolvedP
         to: iso(new Date(y, m, 0)),
         prevFrom: iso(prevFrom),
         prevTo: iso(new Date(y, m - 1, 0)),
-        label: monthYear(from),
-        prevLabel: monthYear(prevFrom),
+        label: formatMonthYear(from),
+        prevLabel: formatMonthYear(prevFrom),
         kind: "month",
       };
     }

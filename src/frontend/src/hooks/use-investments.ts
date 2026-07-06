@@ -100,12 +100,16 @@ export function useTickerSearch(query: string, type?: "EQUITY" | "ETF" | "CRYPTO
 /**
  * Loads investment buy/sell movements, optionally scoped to a ticker or limit.
  */
-export function useInvestmentTransactions(filters: { tickerId?: string; limit?: number } = {}) {
+export function useInvestmentTransactions(
+  filters: { tickerId?: string; limit?: number } = {},
+  options: { enabled?: boolean } = {},
+) {
   const query: Record<string, string> = {};
   if (filters.tickerId) query.tickerId = filters.tickerId;
   if (filters.limit != null) query.limit = String(filters.limit);
   return useQuery({
     queryKey: queryKeys.investmentTransactions(filters),
+    enabled: options.enabled ?? true,
     queryFn: async () =>
       unwrap<InvestmentTransaction[]>(
         await api["investment-transactions"].$get({ query }),
