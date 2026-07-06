@@ -1,37 +1,33 @@
 # Product
 
-## Register
+Ledgerly is a **self-hosted, single-user personal finance console** — one authenticated owner
+tracking their own net worth, investments and cash flow on their own server.
 
-product
+## User
 
-## Users
+One person: the owner running their own instance. Technical, fast, and already fluent in the
+financial domain — they don't need hand-holding, they need their numbers accurate and instant.
 
-The internal team operates this dashboard daily:
+Context of use: opened on a phone in the pocket and on a desktop tab that stays pinned, returned to
+throughout the day. They scan dense lists of holdings, transactions and expenses, drill into one
+record, act, and move on. Nobody is here to be entertained — the goal is zero-friction access to an
+honest picture of their money.
 
-- **Investment Managers** — manage the portfolio, track owned assets, monitor investment performance,
-  update valuations, and review allocation changes.
-- **Financial Analysts** — analyze expenses, cash flow, returns, asset distribution, and identify
-  areas requiring attention.
-- **Operations / Finance Team** — maintain financial records, categorize expenses, reconcile data,
-  and monitor overall financial health.
-
-Context of use: a financial operations dashboard open all day on a desktop monitor, returned to
-dozens of times. Users are technical, fast, and already understand the financial domain. They scan
-dense lists of investments, assets, transactions, and expenses, drill into one record, act, and move on.
-Nobody is here to be entertained. They need accurate information with zero friction.
+There is no team, no roles, no multi-tenant workspace: a single admin account is seeded on first
+start and owns everything.
 
 ## Product Purpose
 
-The Investment Dashboard is the operational control surface for managing financial assets and
-investment operations. It consolidates portfolio tracking, asset ownership, investment performance,
-expense monitoring, financial records, allocation analysis, and internal workflows into one
-authenticated workspace.
+Ledgerly is the operational control surface for one person's finances. It consolidates net-worth
+tracking, asset ownership and valuation, investment performance, expense and cash-flow monitoring,
+allocation analysis and a unified transaction ledger into one authenticated workspace — so the whole
+financial picture lives in one place instead of scattered across bank apps, brokers and spreadsheets.
 
-The dashboard provides a single place to understand the current state of assets, identify changes
-that require attention, monitor financial movements, and make informed decisions.
+It provides a single place to understand the current state of assets, spot changes that need
+attention, monitor movements, and make informed decisions.
 
 Success is measured in speed of analysis and clarity of financial state, not time-on-page. A good
-screen lets a user understand the position of multiple investments in one glance, identify risks or
+screen lets the owner grasp the position of every investment in one glance, see risks or
 opportunities, and act without searching through multiple systems.
 
 The interface is infrastructure, not a presentation layer.
@@ -78,7 +74,7 @@ Three words: **efficient, precise, balanced.**
    dropdown shows a readable label (e.g. "Last 3 years", "Income"), never a raw stored key or tag.
 
 3. **Warm-paper canvas, financial colors for meaning.**
-   The interface sits on a warm-paper canvas with an ink sidebar; lime is the brand accent.
+   The interface sits on a warm-paper canvas with an ink bottom-nav bar; lime is the brand accent.
    Color otherwise carries meaning:
    - Lime → brand, primary actions, the active nav item
    - Green → income, positive performance, growth, gains, healthy status

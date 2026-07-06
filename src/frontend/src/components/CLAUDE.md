@@ -16,8 +16,9 @@ Check this folder (and `ui/`) before writing new markup. Compose existing pieces
 - `cron-section.tsx` — cron jobs + run history + "Run now".
 - `category-badge.tsx` — `CategoryBadge` (per-category tinted pill) + `CategoryIcon` (matching
   tinted icon tile). Tints come from the design's categorical palette, keyed off the category name.
-- `app-sidebar.tsx` / `app-topbar.tsx` — the ink sidebar (4 nav items) + sticky blurred topbar
-  (per-route title/subtitle, search on Transactions, bell, lime **+ Add**).
+- `app-bottom-nav.tsx` / `app-topbar.tsx` — the fixed ink bottom tab bar (4 tabs + a "More" sheet
+  for secondary routes) + sticky blurred topbar (per-route title/subtitle, cash-flow period picker,
+  Transactions search, lime **+ Add**). Mobile-first; no left sidebar.
 - `charts/` — `net-worth-chart`, `allocation-chart`, `cashflow-chart` (shadcn Chart + Recharts).
 
 ## Design system ("modern ledger" — see root `DESIGN.md`)

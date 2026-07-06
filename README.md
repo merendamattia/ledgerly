@@ -1,8 +1,16 @@
-# Ledgerly
+<div align="center">
+  <img src="images/logo.png" alt="Ledgerly logo" width="180" height="180" />
+  <h1>Ledgerly</h1>
+  <p><strong>Self-hosted personal net worth &amp; expense tracker</strong><br/>
+  Assets, investments and cash flow in one dashboard.</p>
+</div>
 
-Self-hosted web app for tracking your **personal net worth and expenses**. It gives a
-centralized view of accounts, investments and cash flow, and **minimizes external provider
-calls** by storing all daily price/FX history in Postgres and caching hot reads in Redis.
+---
+
+Ledgerly is a self-hosted web app for tracking your **personal net worth and expenses**. It gives
+a centralized view of accounts, investments and cash flow, and **minimizes external provider
+calls** by storing all daily price/FX history in Postgres and caching hot reads in Redis — so your
+data stays on your own server and providers are hit only by background jobs.
 
 ## App sections
 

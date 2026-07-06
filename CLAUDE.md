@@ -10,13 +10,15 @@ view of assets, investments and cash flow, and **minimizes external provider cal
 persisting all price/FX history in Postgres and caching hot reads in Redis.
 
 ## UI sections (the "modern ledger" design — see `DESIGN.md`)
-The app shell is a dark ink sidebar + 12-column content grid with four sections:
+The app shell is mobile-first: a sticky topbar over a fixed **ink bottom tab bar** (no left sidebar)
+plus a 12-column content grid. Four primary tabs, with secondary routes under a "More" sheet:
 1. **Overview** (`/`) — net worth, KPIs, allocation, cash-flow + recent movements.
 2. **Assets & Investments** (`/investments`) — portfolio (currently a styled scaffold; full build later).
 3. **Expenses & Cash Flow** (`/cashflow`) — income/expense analytics.
 4. **Transactions** (`/transactions`) — one unified table of all movements. Income/expense exist
    today; investment buy/sell is a placeholder filter until the schema records them.
-Admin pages (`/settings`, `/database`, `/accounts`) live in the sidebar footer.
+Secondary routes live in the bottom-nav **More** sheet: `/matrix` (asset & cash-flow matrices),
+`/imports`, `/settings`, `/database`, `/dev` (plus `/accounts`).
 
 ## Monorepo layout (bun workspaces)
 ```
