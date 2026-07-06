@@ -21,7 +21,7 @@ const chartConfig = {
   investment: { label: "Investments", color: "var(--accent-gold)" },
 } satisfies ChartConfig;
 
-/** Renders monthly income, expense and investment totals as a grouped bar chart. */
+/** Renders monthly income vs. a stacked expense+investment bar (red under orange). */
 export function CashFlowChart({
   data,
   currency,
@@ -67,9 +67,9 @@ export function CashFlowChart({
           }
         />
         <ChartLegend content={<ChartLegendContent />} />
-        <Bar dataKey="income" fill="var(--color-income)" radius={4} />
-        <Bar dataKey="expense" fill="var(--color-expense)" radius={4} />
-        <Bar dataKey="investment" fill="var(--color-investment)" radius={4} />
+        <Bar dataKey="income" stackId="in" fill="var(--color-income)" radius={4} />
+        <Bar dataKey="expense" stackId="out" fill="var(--color-expense)" radius={[0, 0, 4, 4]} />
+        <Bar dataKey="investment" stackId="out" fill="var(--color-investment)" radius={[4, 4, 0, 0]} />
       </BarChart>
     </ChartContainer>
   );

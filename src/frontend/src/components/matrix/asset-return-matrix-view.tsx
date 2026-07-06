@@ -27,10 +27,20 @@ type AssetOption = {
   label: string;
   symbol: string;
   isBtp: boolean;
+  isDefault: boolean;
 };
 
 function isBtpAsset(asset: { name: string; symbol: string }) {
   return /\bbtp\b/i.test(`${asset.name} ${asset.symbol}`);
+}
+
+function isBitcoinAsset(asset: { name: string; symbol: string }) {
+  return /\bbtc\b/i.test(`${asset.name} ${asset.symbol}`);
+}
+
+/** Shown by default: ETFs and Bitcoin. Everything else (equities, bonds, other crypto) starts hidden. */
+function isDefaultAsset(asset: { name: string; symbol: string; type: string }) {
+  return asset.type === "ETF" || isBitcoinAsset(asset);
 }
 
 function assetOptions(data: AssetReturnMatrix): AssetOption[] {
@@ -42,6 +52,7 @@ function assetOptions(data: AssetReturnMatrix): AssetOption[] {
         label: row.name,
         symbol: row.symbol,
         isBtp: isBtpAsset(row),
+        isDefault: isDefaultAsset(row),
       });
     }
   }
@@ -150,7 +161,7 @@ function AssetFilterMenu({
 function ReturnMatrixTable({ data }: { data: AssetReturnMatrix }) {
   const assets = useMemo(() => assetOptions(data), [data]);
   const defaultSelected = useMemo(
-    () => new Set(assets.filter((asset) => !asset.isBtp).map((asset) => asset.id)),
+    () => new Set(assets.filter((asset) => asset.isDefault).map((asset) => asset.id)),
     [assets],
   );
   const [selectedIds, setSelectedIds] = useState<Set<string> | null>(null);
