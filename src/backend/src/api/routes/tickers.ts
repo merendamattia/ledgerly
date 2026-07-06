@@ -18,10 +18,9 @@ export const tickersRoutes = new Hono<AppEnv>()
   .use("*", requireAuth)
   .get("/", async (c) => {
     const tickers = await tickerRepository.list();
-    // Attach the stored price count so the UI can show backfill progress.
-    const withCounts = await Promise.all(
-      tickers.map(async (t) => ({ ...t, priceCount: await priceRepository.count(t.id) })),
-    );
+    const counts = await priceRepository.countByTickerIds(tickers.map((t) => t.id));
+    // Attach stored price counts so the UI can show backfill progress.
+    const withCounts = tickers.map((t) => ({ ...t, priceCount: counts.get(t.id) ?? 0 }));
     return c.json(withCounts);
   })
   .get("/search", zValidator("query", tickerSearchSchema), async (c) => {

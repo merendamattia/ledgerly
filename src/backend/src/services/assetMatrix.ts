@@ -1,7 +1,7 @@
 import { prisma } from "../core/db.ts";
 import { settingsRepository } from "../repositories/settings.ts";
 import { getFxRate } from "./market/fx.ts";
-import { latestPrice } from "./market/quotes.ts";
+import { latestPrice, latestPrices, type Quote } from "./market/quotes.ts";
 
 export interface MatrixRow {
   id: string; // tickerId | cashAccountId | debtId
@@ -151,9 +151,7 @@ export async function computeAssetMatrix(): Promise<AssetMatrix> {
     const qty = t.side === "BUY" ? Number(t.quantity) : -Number(t.quantity);
     txByTicker.get(t.tickerId)!.push({ date: dayMsOf(t.date), qty });
   }
-  const quoteByTicker = new Map(
-    await Promise.all(tickerIds.map(async (id) => [id, await latestPrice(id)] as const)),
-  );
+  const quoteByTicker = new Map<string, Quote | null>(await latestPrices(tickerIds));
 
   const tickerRowById = new Map<string, MatrixRow>();
   for (const id of tickerIds) {
