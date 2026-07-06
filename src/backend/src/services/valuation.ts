@@ -1,7 +1,7 @@
 import { prisma } from "../core/db.ts";
 import { settingsRepository } from "../repositories/settings.ts";
-import { latestPrice } from "./market/quotes.ts";
 import { getFxRate } from "./market/fx.ts";
+import { latestPrices } from "./market/quotes.ts";
 
 export interface HoldingValuation {
   holdingId: string;
@@ -60,14 +60,7 @@ export async function computeNetWorth(): Promise<NetWorth> {
     ),
   );
 
-  const quoteByTicker = new Map(
-    await Promise.all(
-      [...new Set(holdings.map((holding) => holding.tickerId))].map(async (tickerId) => [
-        tickerId,
-        await latestPrice(tickerId),
-      ] as const),
-    ),
-  );
+  const quoteByTicker = await latestPrices(holdings.map((holding) => holding.tickerId));
 
   // Cash accounts converted to base currency, split by category. The account's
   // current cached balance is the live source of truth (snapshots are kept only

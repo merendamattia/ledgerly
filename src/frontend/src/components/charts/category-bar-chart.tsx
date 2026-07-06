@@ -7,23 +7,13 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { formatMoney } from "@/lib/format";
+import { compactMoney, formatMoney } from "@/lib/format";
 import {
   PRIVATE_COMPACT_PLACEHOLDER,
   usePrivateNumberFormatter,
 } from "@/components/private-number";
 
 export type CategoryDatum = { name: string; value: number };
-
-/** Formats money compactly for dense chart axes. */
-function compactMoney(value: number, currency: string): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-    notation: "compact",
-    maximumFractionDigits: 1,
-  }).format(value);
-}
 
 /**
  * Renders horizontal category bars sorted for readable top-to-bottom scanning.

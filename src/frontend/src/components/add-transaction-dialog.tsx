@@ -280,11 +280,16 @@ const SHEET_META: Record<AddMode, { title: string; description: string }> = {
 export function AddTransactionDialog({
   trigger,
   mode = "full",
+  open: openProp,
+  onOpenChange,
 }: {
   trigger?: ReactElement;
   mode?: AddMode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [openState, setOpenState] = useState(false);
+  const open = openProp ?? openState;
   const [kind, setKind] = useState<Kind>("EXPENSE");
   const [categoryId, setCategoryId] = useState("");
   const [date, setDate] = useState(todayISO());
@@ -303,6 +308,11 @@ export function AddTransactionDialog({
   const createRecurring = useCreateRecurringExpense();
   const meta = SHEET_META[mode];
   const kindOptions = mode === "full" ? KIND_OPTIONS : KIND_OPTIONS.filter((o) => o.value !== "INVESTMENT");
+
+  function setOpen(value: boolean) {
+    if (openProp === undefined) setOpenState(value);
+    onOpenChange?.(value);
+  }
 
   /** Creates either a one-off cashflow transaction or a recurring rule. */
   function submit(e: React.FormEvent) {
@@ -364,16 +374,18 @@ export function AddTransactionDialog({
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger
-        render={
-          trigger ?? (
+      {trigger || openProp === undefined ? (
+        <SheetTrigger
+          render={
+            trigger ?? (
             <Button>
               <Plus data-icon="inline-start" />
               Add transaction
             </Button>
-          )
-        }
-      />
+            )
+          }
+        />
+      ) : null}
       <SheetContent
         side="right"
         className="flex w-full flex-col gap-0 p-0 data-[side=right]:w-[88%] sm:max-w-xl"

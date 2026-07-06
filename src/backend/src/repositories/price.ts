@@ -1,3 +1,4 @@
+import { Prisma, type PriceHistory } from "@prisma/client";
 import { prisma } from "../core/db.ts";
 import type { Bar } from "../services/market/providers/types.ts";
 
@@ -53,6 +54,20 @@ export const priceRepository = {
     });
   },
 
+  /** Most recent stored close for each ticker, in one Postgres query. */
+  async latestByTickerIds(tickerIds: string[]): Promise<Map<string, PriceHistory>> {
+    const ids = [...new Set(tickerIds)];
+    if (ids.length === 0) return new Map();
+
+    const rows = await prisma.$queryRaw<PriceHistory[]>(Prisma.sql`
+      SELECT DISTINCT ON ("tickerId") id, "tickerId", date, close
+      FROM "price_history"
+      WHERE "tickerId" IN (${Prisma.join(ids)})
+      ORDER BY "tickerId", date DESC
+    `);
+    return new Map(rows.map((row) => [row.tickerId, row]));
+  },
+
   /** Full ascending close series for a ticker (for benchmark comparison). */
   series(tickerId: string) {
     return prisma.priceHistory.findMany({
@@ -72,5 +87,15 @@ export const priceRepository = {
 
   count(tickerId: string) {
     return prisma.priceHistory.count({ where: { tickerId } });
+  },
+
+  async countByTickerIds(tickerIds: string[]): Promise<Map<string, number>> {
+    if (tickerIds.length === 0) return new Map();
+    const rows = await prisma.priceHistory.groupBy({
+      by: ["tickerId"],
+      where: { tickerId: { in: tickerIds } },
+      _count: { _all: true },
+    });
+    return new Map(rows.map((row) => [row.tickerId, row._count._all]));
   },
 };

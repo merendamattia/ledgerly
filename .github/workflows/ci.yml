@@ -7,7 +7,7 @@ on:
 
 jobs:
   backend:
-    name: Backend (typecheck + tests)
+    name: Backend (typecheck + tests + build)
     runs-on: ubuntu-latest
 
     services:
@@ -57,9 +57,12 @@ jobs:
       - name: Test
         working-directory: src/backend
         run: bun test
+      - name: Build
+        working-directory: src/backend
+        run: bun run build
 
   frontend:
-    name: Frontend (lint + build)
+    name: Frontend (lint + tests + build)
     runs-on: ubuntu-latest
     env:
       NEXT_PUBLIC_API_URL: http://localhost:3001
@@ -76,6 +79,9 @@ jobs:
       - name: Lint
         working-directory: src/frontend
         run: bun run lint
+      - name: Test
+        working-directory: src/frontend
+        run: bun test
       - name: Build
         working-directory: src/frontend
         run: bun run build

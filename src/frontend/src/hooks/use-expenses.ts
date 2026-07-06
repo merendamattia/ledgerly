@@ -10,6 +10,7 @@ import {
 export type { TransactionFilters } from "@/lib/query-keys";
 
 export type Transaction = InferResponseType<typeof api.expenses.$get, 200>[number];
+export type ExpenseTagsResponse = InferResponseType<typeof api.expenses.tags.$get, 200>;
 export type CreateTransactionInput = InferRequestType<typeof api.expenses.$post>["json"];
 type UpdateTransactionInput = InferRequestType<(typeof api.expenses)[":id"]["$put"]>["json"];
 
@@ -37,6 +38,17 @@ export function useExpenses(filters: TransactionFilters = {}) {
   return useQuery({
     queryKey: queryKeys.expenses(filters),
     queryFn: async () => fetchExpenses(filters),
+  });
+}
+
+/** Loads distinct note hashtags for the selected transaction slice. */
+export function useExpenseTags(
+  filters: Pick<TransactionFilters, "from" | "to" | "categoryId" | "direction"> = {},
+) {
+  return useQuery({
+    queryKey: queryKeys.expenseTags(filters),
+    queryFn: async () =>
+      unwrap<ExpenseTagsResponse>(await api.expenses.tags.$get({ query: toQuery(filters) })),
   });
 }
 

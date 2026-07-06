@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useMemo, useState, type ReactElement, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Eye, EyeOff, Plus, Pencil, Trash2 } from "lucide-react";
@@ -19,8 +20,6 @@ import {
 } from "@/components/ui/dialog";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { PositionTransactionsDialog } from "@/components/position-transactions-dialog";
-import { AddMovementSheet } from "@/components/add-transaction-dialog";
 import { SnapshotPanel } from "@/components/snapshot-panel";
 import type { SelectedTicker } from "@/components/ticker-search";
 import { AddAccountDialog, type SnapshotNoteHistoryItem } from "@/components/add-account-dialog";
@@ -51,6 +50,15 @@ import {
 import { usePrivacyMode } from "@/components/privacy-mode";
 import { formatNumber, formatPercent, shortDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
+
+const PositionTransactionsDialog = dynamic(
+  () => import("@/components/position-transactions-dialog").then((mod) => mod.PositionTransactionsDialog),
+  { ssr: false },
+);
+const AddMovementSheet = dynamic(
+  () => import("@/components/add-transaction-dialog").then((mod) => mod.AddMovementSheet),
+  { ssr: false },
+);
 
 type Holding = DashboardData["netWorth"]["holdings"][number];
 

@@ -6,26 +6,68 @@
  */
 const fractionDigits = (value: number): number => (Math.abs(value) > 1000 ? 0 : 2);
 
+const moneyFormatters = new Map<string, Intl.NumberFormat>();
+const numberFormatters = new Map<number, Intl.NumberFormat>();
+const compactMoneyFormatters = new Map<string, Intl.NumberFormat>();
+
+function cachedFormatter(
+  cache: Map<string, Intl.NumberFormat>,
+  key: string,
+  options: Intl.NumberFormatOptions,
+): Intl.NumberFormat {
+  let formatter = cache.get(key);
+  if (!formatter) {
+    formatter = new Intl.NumberFormat("en-US", options);
+    cache.set(key, formatter);
+  }
+  return formatter;
+}
+
+const dateFormatter = new Intl.DateTimeFormat("en-GB", {
+  day: "2-digit",
+  month: "short",
+  year: "numeric",
+});
+const dateTimeFormatter = new Intl.DateTimeFormat("en-GB", {
+  day: "2-digit",
+  month: "short",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+const longDateFormatter = new Intl.DateTimeFormat("en-GB", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+const shortMonthFormatter = new Intl.DateTimeFormat("en-GB", { month: "short" });
+const monthYearFormatter = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" });
+
 /** Format a currency value using Ledgerly's compact decimal rules. */
 export function formatMoney(value: number, currency = "EUR"): string {
-  return new Intl.NumberFormat("en-US", {
+  const digits = fractionDigits(value);
+  return cachedFormatter(moneyFormatters, `${currency}:${digits}`, {
     style: "currency",
     currency,
-    maximumFractionDigits: fractionDigits(value),
+    maximumFractionDigits: digits,
   }).format(value);
 }
 
 /** Format a plain number, trimming decimals for large magnitudes by default. */
-export function formatNumber(value: number, maximumFractionDigits = 2): string {
-  // When the caller leaves the default, apply the large-number rule; an explicit
-  // argument is always respected.
-  const digits = maximumFractionDigits === 2 ? fractionDigits(value) : maximumFractionDigits;
-  return new Intl.NumberFormat("en-US", { maximumFractionDigits: digits }).format(value);
+export function formatNumber(value: number, maximumFractionDigits?: number): string {
+  const digits = maximumFractionDigits ?? fractionDigits(value);
+  let formatter = numberFormatters.get(digits);
+  if (!formatter) {
+    formatter = new Intl.NumberFormat("en-US", { maximumFractionDigits: digits });
+    numberFormatters.set(digits, formatter);
+  }
+  return formatter.format(value);
 }
 
 /** Compact currency for tight spaces like chart axes, e.g. "€45k", "€2.0k". */
 export function compactMoney(value: number, currency = "EUR"): string {
-  return new Intl.NumberFormat("en-US", {
+  return cachedFormatter(compactMoneyFormatters, currency, {
     style: "currency",
     currency,
     notation: "compact",
@@ -47,23 +89,13 @@ export function formatPercent(value: number): string {
 /** Human-readable calendar date, e.g. "14 Jun 2026". */
 export function formatDate(value: string | Date): string {
   const date = typeof value === "string" ? new Date(value) : value;
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(date);
+  return dateFormatter.format(date);
 }
 
 /** Human-readable date and time for logs and cron run metadata. */
 export function formatDateTime(value: string | Date): string {
   const date = typeof value === "string" ? new Date(value) : value;
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
+  return dateTimeFormatter.format(date);
 }
 
 /**
@@ -95,14 +127,7 @@ export function numericDate(value: string | Date): string {
 /** Long, uppercase day label, e.g. "FRIDAY 19 JUNE 2026" — used as list day headers. */
 export function longDate(value: string | Date): string {
   const d = typeof value === "string" ? new Date(value) : value;
-  return new Intl.DateTimeFormat("en-GB", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  })
-    .format(d)
-    .toUpperCase();
+  return longDateFormatter.format(d).toUpperCase();
 }
 
 /**
@@ -135,7 +160,7 @@ export function groupByDay<T>(
 export function shortDate(value: string | Date): string {
   const d = typeof value === "string" ? new Date(value) : value;
   const day = String(d.getDate()).padStart(2, "0");
-  const month = d.toLocaleDateString("en-GB", { month: "short" });
+  const month = shortMonthFormatter.format(d);
   const yy = String(d.getFullYear()).slice(-2);
   return `${day} ${month} '${yy}`;
 }
@@ -143,9 +168,15 @@ export function shortDate(value: string | Date): string {
 /** Compact month label with year, e.g. "Jun '26" — used on month-bucketed charts. */
 export function monthLabel(value: string | Date): string {
   const d = typeof value === "string" ? new Date(value) : value;
-  const month = d.toLocaleDateString("en-GB", { month: "short" });
+  const month = shortMonthFormatter.format(d);
   const yy = String(d.getFullYear()).slice(-2);
   return `${month} '${yy}`;
+}
+
+/** Long month label, e.g. "June 2026" — used by period pickers. */
+export function formatMonthYear(value: string | Date): string {
+  const d = typeof value === "string" ? new Date(value) : value;
+  return monthYearFormatter.format(d);
 }
 
 /** Local date as an ISO yyyy-mm-dd string (avoids UTC off-by-one). */

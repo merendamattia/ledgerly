@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { ChevronDown, Trash2, Upload } from "lucide-react";
@@ -10,9 +11,6 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { ImportSnapshotsDialog } from "@/components/import-snapshots-dialog";
-import { ImportTransactionsDialog } from "@/components/import-transactions-dialog";
-import { ImportInvestmentTransactionsDialog } from "@/components/import-investment-transactions-dialog";
 import {
   useCashSnapshots,
   useDeleteCashSnapshot,
@@ -28,11 +26,30 @@ import {
 } from "@/hooks/use-debts";
 import { shortDate } from "@/lib/format";
 
+const ImportSnapshotsDialog = dynamic(
+  () => import("@/components/import-snapshots-dialog").then((mod) => mod.ImportSnapshotsDialog),
+  { ssr: false },
+);
+const ImportTransactionsDialog = dynamic(
+  () =>
+    import("@/components/import-transactions-dialog").then((mod) => mod.ImportTransactionsDialog),
+  { ssr: false },
+);
+const ImportInvestmentTransactionsDialog = dynamic(
+  () =>
+    import("@/components/import-investment-transactions-dialog").then(
+      (mod) => mod.ImportInvestmentTransactionsDialog,
+    ),
+  { ssr: false },
+);
+
 const CASH_SECTIONS: { category: Account["category"]; label: string }[] = [
   { category: "LIQUIDITY", label: "Liquidity" },
   { category: "CREDIT", label: "Credits" },
   { category: "OTHER_ASSET", label: "Other assets" },
 ];
+type SnapshotImportKind = Account["category"] | "DEBT";
+type ImportDialogKey = SnapshotImportKind | "TRANSACTIONS" | "INVESTMENTS" | null;
 
 /** Sorts dated import rows from newest to oldest. */
 const byDateDesc = (a: { date: string }, b: { date: string }) => b.date.localeCompare(a.date);
@@ -93,6 +110,7 @@ function snapshotCountLabel(count: number) {
 
 /** Renders data import tools and imported snapshot cleanup tables. */
 export default function ImportsPage() {
+  const [importDialog, setImportDialog] = useState<ImportDialogKey>(null);
   const cashSnapshots = useCashSnapshots();
   const debtSnapshots = useDebtSnapshots();
   const deleteCash = useDeleteCashSnapshot();
@@ -186,67 +204,42 @@ export default function ImportsPage() {
           <div>
             <p className="mb-2 text-sm font-semibold">Snapshots</p>
             <div className="flex flex-wrap gap-2">
-              <ImportSnapshotsDialog
-                lockedKind="LIQUIDITY"
-                trigger={
-                  <Button variant="outline" size="sm">
-                    <Upload data-icon="inline-start" />
-                    Liquidity
-                  </Button>
-                }
-              />
-              <ImportSnapshotsDialog
-                lockedKind="CREDIT"
-                trigger={
-                  <Button variant="outline" size="sm">
-                    <Upload data-icon="inline-start" />
-                    Credits
-                  </Button>
-                }
-              />
-              <ImportSnapshotsDialog
-                lockedKind="OTHER_ASSET"
-                trigger={
-                  <Button variant="outline" size="sm">
-                    <Upload data-icon="inline-start" />
-                    Other assets
-                  </Button>
-                }
-              />
-              <ImportSnapshotsDialog
-                lockedKind="DEBT"
-                trigger={
-                  <Button variant="outline" size="sm">
-                    <Upload data-icon="inline-start" />
-                    Debts
-                  </Button>
-                }
-              />
+              <ImportButton label="Liquidity" onClick={() => setImportDialog("LIQUIDITY")} />
+              <ImportButton label="Credits" onClick={() => setImportDialog("CREDIT")} />
+              <ImportButton label="Other assets" onClick={() => setImportDialog("OTHER_ASSET")} />
+              <ImportButton label="Debts" onClick={() => setImportDialog("DEBT")} />
             </div>
           </div>
           <div>
             <p className="mb-2 text-sm font-semibold">Transactions</p>
             <div className="flex flex-wrap gap-2">
-              <ImportTransactionsDialog
-                trigger={
-                  <Button variant="outline" size="sm">
-                    <Upload data-icon="inline-start" />
-                    Income & expenses
-                  </Button>
-                }
+              <ImportButton
+                label="Income & expenses"
+                onClick={() => setImportDialog("TRANSACTIONS")}
               />
-              <ImportInvestmentTransactionsDialog
-                trigger={
-                  <Button variant="outline" size="sm">
-                    <Upload data-icon="inline-start" />
-                    Investment movements
-                  </Button>
-                }
+              <ImportButton
+                label="Investment movements"
+                onClick={() => setImportDialog("INVESTMENTS")}
               />
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {importDialog === "TRANSACTIONS" ? (
+        <ImportTransactionsDialog open onOpenChange={(open) => !open && setImportDialog(null)} />
+      ) : importDialog === "INVESTMENTS" ? (
+        <ImportInvestmentTransactionsDialog
+          open
+          onOpenChange={(open) => !open && setImportDialog(null)}
+        />
+      ) : importDialog ? (
+        <ImportSnapshotsDialog
+          lockedKind={importDialog}
+          open
+          onOpenChange={(open) => !open && setImportDialog(null)}
+        />
+      ) : null}
 
       {CASH_SECTIONS.map(({ category, label }) => {
         const rows = (cashSnapshots.data ?? [])
@@ -332,5 +325,14 @@ export default function ImportsPage() {
         />
       </CollapsibleCard>
     </div>
+  );
+}
+
+function ImportButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <Button variant="outline" size="sm" onClick={onClick}>
+      <Upload data-icon="inline-start" />
+      {label}
+    </Button>
   );
 }

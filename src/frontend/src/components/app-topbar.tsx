@@ -1,15 +1,22 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Search } from "lucide-react";
+import { useState } from "react";
+import { Plus, Search } from "lucide-react";
 import { useSearch } from "@/components/search-context";
 import { useCashflowPeriod } from "@/components/cashflow/period-context";
 import { PeriodPicker } from "@/components/cashflow/period-picker";
 import { periodOptions, resolvePeriod } from "@/components/cashflow/periods";
-import { AddTransactionDialog, type AddMode } from "@/components/add-transaction-dialog";
+import type { AddMode } from "@/components/add-transaction-dialog";
 import { Button } from "@/components/ui/button";
+
+const AddTransactionDialog = dynamic(
+  () => import("@/components/add-transaction-dialog").then((mod) => mod.AddTransactionDialog),
+  { ssr: false },
+);
 
 /** Renders the Ledgerly app icon used in the sticky topbar. */
 function Logo() {
@@ -92,10 +99,12 @@ function CashflowPeriodControl() {
 export function AppTopbar() {
   const pathname = usePathname();
   const { query, setQuery } = useSearch();
+  const [addOpenFor, setAddOpenFor] = useState<string | null>(null);
   const meta = metaFor(pathname);
   const showSearch = pathname.startsWith("/transactions");
   const showPeriod = pathname.startsWith("/cashflow");
   const addMode = addModeFor(pathname);
+  const addOpen = addOpenFor === pathname;
 
   const searchField = (
     <div className="relative">
@@ -130,16 +139,20 @@ export function AppTopbar() {
           {showPeriod ? <CashflowPeriodControl /> : null}
 
           {addMode ? (
-            <AddTransactionDialog
-              mode={addMode}
-              trigger={
-                <Button className="gap-1.5">
-                  <span className="text-base leading-none">+</span>
-                  <span className="hidden sm:inline">{ADD_LABEL[addMode]}</span>
-                  <span className="sr-only sm:hidden">{ADD_LABEL[addMode]}</span>
-                </Button>
-              }
-            />
+            <>
+              <Button className="gap-1.5" onClick={() => setAddOpenFor(pathname)}>
+                <Plus data-icon="inline-start" />
+                <span className="hidden sm:inline">{ADD_LABEL[addMode]}</span>
+                <span className="sr-only sm:hidden">{ADD_LABEL[addMode]}</span>
+              </Button>
+              {addOpen ? (
+                <AddTransactionDialog
+                  mode={addMode}
+                  open
+                  onOpenChange={(open) => setAddOpenFor(open ? pathname : null)}
+                />
+              ) : null}
+            </>
           ) : null}
         </div>
       </div>

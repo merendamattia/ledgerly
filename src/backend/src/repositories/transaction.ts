@@ -1,5 +1,6 @@
 import type { Prisma, TxDirection } from "@prisma/client";
 import { prisma } from "../core/db.ts";
+import { invalidateTransactionTagCache } from "../services/transactionTagCache.ts";
 
 export interface TransactionFilters {
   from?: Date;
@@ -44,27 +45,49 @@ export const transactionRepository = {
     });
   },
 
-  create(data: Prisma.TransactionCreateInput) {
-    return prisma.transaction.create({ data, include: { category: true } });
+  async create(data: Prisma.TransactionCreateInput) {
+    const transaction = await prisma.transaction.create({ data, include: { category: true } });
+    await invalidateTransactionTagCache();
+    return transaction;
   },
 
-  createMany(data: Prisma.TransactionCreateManyInput[]) {
-    return prisma.transaction.createMany({ data });
+  async createMany(data: Prisma.TransactionCreateManyInput[]) {
+    const result = await prisma.transaction.createMany({ data });
+    if (result.count > 0) await invalidateTransactionTagCache();
+    return result;
   },
 
   /** Minimal fields needed to dedup an import against existing rows. */
-  naturalKeys() {
+  naturalKeys(filters: Pick<TransactionFilters, "from" | "to"> = {}) {
     return prisma.transaction.findMany({
+      where: whereFromFilters(filters),
       select: { date: true, amount: true, direction: true, categoryId: true, note: true },
     });
   },
 
-  update(id: string, data: Prisma.TransactionUpdateInput) {
-    return prisma.transaction.update({ where: { id }, data, include: { category: true } });
+  /** Notes that may contain tags, newest first, for the lightweight tag endpoint. */
+  tagNotes(filters: Pick<TransactionFilters, "from" | "to" | "categoryId" | "direction"> = {}) {
+    return prisma.transaction.findMany({
+      where: { ...whereFromFilters(filters), note: { contains: "#" } },
+      orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+      select: { note: true },
+    });
   },
 
-  delete(id: string) {
-    return prisma.transaction.delete({ where: { id } });
+  async update(id: string, data: Prisma.TransactionUpdateInput) {
+    const transaction = await prisma.transaction.update({
+      where: { id },
+      data,
+      include: { category: true },
+    });
+    await invalidateTransactionTagCache();
+    return transaction;
+  },
+
+  async delete(id: string) {
+    const transaction = await prisma.transaction.delete({ where: { id } });
+    await invalidateTransactionTagCache();
+    return transaction;
   },
 
 };

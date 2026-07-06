@@ -10,6 +10,12 @@ export interface InvestmentTxFilters {
   offset?: number;
 }
 
+export interface InvestmentNaturalKeyFilters {
+  tickerIds?: string[];
+  from?: Date;
+  to?: Date;
+}
+
 /**
  * Converts investment movement filters into a Prisma where clause.
  */
@@ -48,9 +54,18 @@ export const investmentTransactionRepository = {
     });
   },
 
-  /** Minimal fields of every movement — used to seed the import dedup set. */
-  naturalKeys() {
+  /** Minimal fields needed to dedup an import against existing movements. */
+  async naturalKeys(filters: InvestmentNaturalKeyFilters = {}) {
+    if (filters.tickerIds?.length === 0) return [];
+
     return prisma.investmentTransaction.findMany({
+      where: {
+        tickerId: filters.tickerIds ? { in: filters.tickerIds } : undefined,
+        date:
+          filters.from || filters.to
+            ? { gte: filters.from ?? undefined, lte: filters.to ?? undefined }
+            : undefined,
+      },
       select: { tickerId: true, date: true, side: true, quantity: true, price: true },
     });
   },

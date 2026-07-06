@@ -26,6 +26,8 @@ export const queryKeys = {
   categories: (kind?: string) => (kind ? (["categories", kind] as const) : (["categories"] as const)),
   expensesRoot: ["expenses"] as const,
   expenses: (filters?: TransactionFilters) => [...queryKeys.expensesRoot, filters ?? {}] as const,
+  expenseTags: (filters?: Pick<TransactionFilters, "from" | "to" | "categoryId" | "direction">) =>
+    [...queryKeys.expensesRoot, "tags", filters ?? {}] as const,
   recurringExpenses: ["recurring-expenses"] as const,
   tickers: ["tickers"] as const,
   tickerSearch: (q: string, type?: string) => ["tickers", "search", q, type ?? ""] as const,

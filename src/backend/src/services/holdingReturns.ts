@@ -1,6 +1,7 @@
 import { holdingRepository } from "../repositories/holding.ts";
 import { priceRepository } from "../repositories/price.ts";
 import { investmentTransactionRepository } from "../repositories/investmentTransaction.ts";
+import { latestPrices } from "./market/quotes.ts";
 
 export interface HoldingReturn {
   holdingId: string;
@@ -21,9 +22,10 @@ export interface HoldingReturn {
  */
 export async function computeHoldingReturns(from?: Date): Promise<HoldingReturn[]> {
   const holdings = await holdingRepository.list();
+  const latestByTicker = await latestPrices(holdings.map((h) => h.tickerId));
   const out: HoldingReturn[] = [];
   for (const h of holdings) {
-    const latest = await priceRepository.latest(h.tickerId);
+    const latest = latestByTicker.get(h.tickerId);
     if (!latest) continue;
 
     // Max (no `from`) starts at the oldest transaction for this asset.
