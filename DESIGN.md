@@ -65,7 +65,8 @@ financial data readable; color is reserved for meaning (growth, spending, alloca
 **Light theme only.** There is no dark mode — the warm-paper canvas is the single voice.
 
 **Key characteristics**
-- Warm paper canvas (`#F4F2EA`) with a subtle radial wash; a fixed **ink sidebar** (`#15160F`).
+- Warm paper canvas (`#F4F2EA`) with a subtle radial wash; navigation is a **fixed bottom tab bar**
+  (ink `#15160F`, no left sidebar) — the shell is mobile-first and identical on phone and desktop.
 - **Lime** (`#C7F046`) is the brand accent: primary CTAs, the active nav item, the logo tile.
 - Every figure is **JetBrains Mono, tabular-nums** so columns align like a ledger.
 - White cards with a **hairline border** + soft elevated shadow; ~18px radius.
@@ -79,7 +80,7 @@ Color carries meaning, never decoration.
 - **Lime `#C7F046`** — brand / primary actions / active navigation (ink text on lime).
 - **Growth green `#1C7A4D`** — income, gains, positive deltas, money in.
 - **Coral `#DB5A3C`** — expenses, losses, negative deltas, money out.
-- **Ink `#15160F`** — the sidebar and "spotlight" dark cards (e.g. savings rate, net flow),
+- **Ink `#15160F`** — the bottom-nav bar and "spotlight" dark cards (e.g. savings rate, net flow),
   where lime numerals pop.
 - **Categorical ramp** (`chart-1…6`: green, lime, blue, violet, amber, coral) for allocation
   donuts, category breakdowns and any multi-series chart.
@@ -98,13 +99,18 @@ family automatically in `globals.css`.
 
 ## 4. Layout & shell
 
-- **Sidebar:** fixed dark ink column (~254px). "Finance" group caption; four nav items
-  (Overview, Assets & Investments, Expenses & Cash Flow, Transactions). Active item = lime fill +
-  ink text. Admin links (Database, Settings, Logout) + the user block live in the footer.
-- **Topbar:** sticky, `bg-background/80` + `backdrop-blur`, hairline bottom border. Per-route
-  title (display font) + subtitle, a search field (Transactions only), a notification bell, and
-  the lime **+ Add** button.
-- **Content:** a 12-column grid (`grid-cols-12`, `gap-5`). Cards span 3/4/5/7/8/12 columns.
+Mobile-first: one shell for phone and desktop — a sticky topbar over a **fixed bottom tab bar**
+(there is no left sidebar).
+
+- **Topbar:** sticky, `bg-background/80` + `backdrop-blur`, hairline bottom border. App logo tile,
+  per-route title (display font) + subtitle, contextual controls (the cash-flow period picker,
+  Transactions search) and the lime **+ Add** button — shown only on sections that can create a
+  movement (Transactions, Cash Flow, Investments), with a section-scoped label.
+- **Bottom nav:** fixed at every screen size, ink-on-paper. Four primary tabs — **Overview,
+  Invest, Cash flow, Activity** — plus a **More** tab that opens a bottom sheet with the secondary
+  routes (Matrices, Imports, Settings, Database, Dev) and Logout. The active tab gets a lime pill.
+- **Content:** a responsive 12-column grid (`grid-cols-12`, `gap-4 md:gap-5`). Cards are full- or
+  half-width on mobile and take 3/4/5/7/8 columns from `lg` up.
 
 ## 5. Components
 
