@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { categoryRepository } from "../repositories/category.ts";
 import { transactionRepository } from "../repositories/transaction.ts";
 import { normalizeCategoryName } from "../utils/category.ts";
+import { importDayRange, isoDay } from "../utils/import-dedupe.ts";
 
 export interface ImportRow {
   direction: "INCOME" | "EXPENSE";
@@ -16,9 +17,6 @@ export interface ImportResult {
   skipped: number;
   createdCategories: number;
 }
-
-/** Formats a date as the ISO day used by import duplicate keys. */
-const isoDate = (d: Date) => d.toISOString().slice(0, 10);
 
 /** Stable natural key used to skip duplicates within the batch and against the DB. */
 function naturalKey(parts: {
@@ -44,8 +42,16 @@ export const importService = {
    * an earlier row in the same batch are skipped.
    */
   async commit(rows: ImportRow[]): Promise<ImportResult> {
+    const range = importDayRange(rows.map((row) => row.date));
+    if (!range) return { imported: 0, skipped: 0, createdCategories: 0 };
+
     // 1. Resolve / create categories, caching by `name\x00kind`.
-    const categoryCache = new Map<string, string>();
+    const categoryCache = new Map(
+      (await categoryRepository.list()).map((category) => [
+        `${category.name}\0${category.kind}`,
+        category.id,
+      ]),
+    );
     let createdCategories = 0;
     const categoryIdFor = async (
       name: string | null | undefined,
@@ -54,7 +60,7 @@ export const importService = {
       if (!name) return null;
       const normalized = normalizeCategoryName(name);
       if (!normalized) return null;
-      const cacheKey = `${normalized}:${kind}`;
+      const cacheKey = `${normalized}\0${kind}`;
       const cached = categoryCache.get(cacheKey);
       if (cached) return cached;
       const existing = await categoryRepository.findByNameKind(normalized, kind);
@@ -65,12 +71,29 @@ export const importService = {
       return category.id;
     };
 
-    // 2. Seed the dedup set from existing transactions.
+    const prepared: Array<{
+      date: Date;
+      amount: number;
+      direction: "INCOME" | "EXPENSE";
+      note: string | null;
+      categoryId: string | null;
+    }> = [];
+    for (const row of rows) {
+      prepared.push({
+        date: row.date,
+        amount: row.amount,
+        direction: row.direction,
+        note: row.note ?? null,
+        categoryId: await categoryIdFor(row.category, row.direction),
+      });
+    }
+
+    // 2. Seed the dedup set from existing transactions in the imported date span.
     const seen = new Set<string>();
-    for (const t of await transactionRepository.naturalKeys()) {
+    for (const t of await transactionRepository.naturalKeys(range)) {
       seen.add(
         naturalKey({
-          date: isoDate(t.date),
+          date: isoDay(t.date),
           amount: Number(t.amount),
           direction: t.direction,
           categoryId: t.categoryId,
@@ -82,15 +105,13 @@ export const importService = {
     // 3. Build the insert payload, skipping duplicates.
     const data: Prisma.TransactionCreateManyInput[] = [];
     let skipped = 0;
-    for (const row of rows) {
-      const categoryId = await categoryIdFor(row.category, row.direction);
-      const note = row.note ?? null;
+    for (const row of prepared) {
       const key = naturalKey({
-        date: isoDate(row.date),
+        date: isoDay(row.date),
         amount: row.amount,
         direction: row.direction,
-        categoryId,
-        note,
+        categoryId: row.categoryId,
+        note: row.note,
       });
       if (seen.has(key)) {
         skipped++;
@@ -101,8 +122,8 @@ export const importService = {
         date: row.date,
         amount: row.amount,
         direction: row.direction,
-        note,
-        categoryId,
+        note: row.note,
+        categoryId: row.categoryId,
       });
     }
 

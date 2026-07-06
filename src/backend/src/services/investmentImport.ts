@@ -1,5 +1,6 @@
 import type { InvestmentSide, Prisma } from "@prisma/client";
 import { investmentTransactionRepository } from "../repositories/investmentTransaction.ts";
+import { importDayRange, isoDay } from "../utils/import-dedupe.ts";
 import { recomputeHolding } from "./investments.ts";
 
 export interface InvestmentImportRow {
@@ -17,11 +18,6 @@ export interface InvestmentImportResult {
   imported: number;
   skipped: number;
 }
-
-/**
- * Formats an investment movement date for natural-key deduplication.
- */
-const isoDate = (d: Date) => d.toISOString().slice(0, 10);
 
 /** Stable natural key to skip duplicates within the batch and against the DB. */
 function naturalKey(parts: {
@@ -47,13 +43,17 @@ export const investmentImportService = {
    * affected holdings once per distinct ticker.
    */
   async commit(rows: InvestmentImportRow[]): Promise<InvestmentImportResult> {
-    // Seed the dedup set from existing movements.
+    const range = importDayRange(rows.map((row) => row.date));
+    if (!range) return { imported: 0, skipped: 0 };
+
+    // Seed the dedup set from existing movements in the imported date/ticker span.
     const seen = new Set<string>();
-    for (const t of await investmentTransactionRepository.naturalKeys()) {
+    const tickerIds = [...new Set(rows.map((row) => row.tickerId))];
+    for (const t of await investmentTransactionRepository.naturalKeys({ ...range, tickerIds })) {
       seen.add(
         naturalKey({
           tickerId: t.tickerId,
-          date: isoDate(t.date),
+          date: isoDay(t.date),
           side: t.side,
           quantity: Number(t.quantity),
           price: Number(t.price),
@@ -68,7 +68,7 @@ export const investmentImportService = {
     for (const row of rows) {
       const key = naturalKey({
         tickerId: row.tickerId,
-        date: isoDate(row.date),
+        date: isoDay(row.date),
         side: row.side,
         quantity: row.quantity,
         price: row.price,
