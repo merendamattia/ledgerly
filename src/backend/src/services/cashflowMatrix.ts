@@ -1,5 +1,6 @@
 import { prisma } from "../core/db.ts";
 import { settingsRepository } from "../repositories/settings.ts";
+import { isInvestmentCategoryName } from "../utils/category.ts";
 
 export interface CashflowRow {
   id: string; // categoryId | "__uncategorized__"
@@ -12,6 +13,7 @@ export interface CashflowMatrix {
   months: string[]; // yyyy-mm-01, ascending — one column per month
   expense: CashflowRow[]; // ordered by total spend, descending
   income: CashflowRow[]; // ordered by total income, descending
+  investment: CashflowRow[]; // ordered by invested amount, descending
 }
 
 /** yyyy-mm-01 key for the month a date falls in (UTC, matches @db.Date storage). */
@@ -20,7 +22,7 @@ function monthKey(d: Date): string {
 }
 
 /**
- * Wide cash-flow matrix: expense/income categories (rows) × month columns.
+ * Wide cash-flow matrix: expense/income/investment categories (rows) × month columns.
  * Each cell is the summed transaction amount for that category in that month.
  * Totals, per-year averages and the balance/savings-rate rows are derived by
  * the frontend from these monthly series.
@@ -30,7 +32,7 @@ export async function computeCashflowMatrix(): Promise<CashflowMatrix> {
     settingsRepository.baseCurrency(),
     prisma.transaction.findMany({ include: { category: true }, orderBy: { date: "asc" } }),
   ]);
-  if (txs.length === 0) return { baseCurrency, months: [], expense: [], income: [] };
+  if (txs.length === 0) return { baseCurrency, months: [], expense: [], income: [], investment: [] };
 
   // Month columns: first transaction's month through the current month.
   const first = txs[0].date;
@@ -49,10 +51,14 @@ export async function computeCashflowMatrix(): Promise<CashflowMatrix> {
 
   const sum = (values: number[]) => values.reduce((acc, v) => acc + v, 0);
 
-  const build = (direction: "INCOME" | "EXPENSE"): CashflowRow[] => {
+  const build = (direction: "INCOME" | "EXPENSE" | "INVESTMENT"): CashflowRow[] => {
     const byCategory = new Map<string, CashflowRow>();
     for (const t of txs) {
-      if (t.direction !== direction) continue;
+      const investmentExpense =
+        t.direction === "EXPENSE" && isInvestmentCategoryName(t.category?.name);
+      if (direction === "INVESTMENT" ? !investmentExpense : t.direction !== direction || investmentExpense) {
+        continue;
+      }
       const i = index.get(monthKey(t.date));
       if (i == null) continue;
       const id = t.category?.id ?? "__uncategorized__";
@@ -71,5 +77,11 @@ export async function computeCashflowMatrix(): Promise<CashflowMatrix> {
       .sort((a, b) => sum(b.values) - sum(a.values));
   };
 
-  return { baseCurrency, months, expense: build("EXPENSE"), income: build("INCOME") };
+  return {
+    baseCurrency,
+    months,
+    expense: build("EXPENSE"),
+    income: build("INCOME"),
+    investment: build("INVESTMENT"),
+  };
 }

@@ -21,7 +21,7 @@ function nextDay(date: Date): Date {
  */
 export async function backfillTicker(
   ticker: Ticker,
-  opts: { incremental?: boolean } = {},
+  opts: { incremental?: boolean; overwrite?: boolean } = {},
 ): Promise<number> {
   const provider = getPriceProvider(ticker.type);
 
@@ -43,7 +43,9 @@ export async function backfillTicker(
   }
 
   const bars = await provider.fetchHistory(ticker.symbol, from);
-  const inserted = await priceRepository.bulkInsert(ticker.id, bars);
+  const written = opts.overwrite
+    ? await priceRepository.bulkUpsert(ticker.id, bars)
+    : await priceRepository.bulkInsert(ticker.id, bars);
 
   // The latest-price cache may now be stale.
   await cacheDel(`price:${ticker.id}:latest`);
@@ -52,8 +54,9 @@ export async function backfillTicker(
     symbol: ticker.symbol,
     provider: provider.name,
     incremental: Boolean(opts.incremental),
-    inserted,
+    overwrite: Boolean(opts.overwrite),
+    written,
   });
 
-  return inserted;
+  return written;
 }

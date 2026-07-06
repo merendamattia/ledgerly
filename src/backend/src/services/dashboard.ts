@@ -1,5 +1,6 @@
 import { snapshotRepository } from "../repositories/snapshot.ts";
 import { transactionRepository } from "../repositories/transaction.ts";
+import { isInvestmentCategoryName } from "../utils/category.ts";
 import { serializeTransaction } from "../utils/serialize.ts";
 import { computeNetWorth } from "./valuation.ts";
 
@@ -14,6 +15,7 @@ interface CashFlowPoint {
   month: string;
   income: number;
   expense: number;
+  investment: number;
 }
 
 interface CategoryBreakdown {
@@ -70,6 +72,10 @@ function addTransactionToBreakdown(
   breakdown.set(key, entry);
 }
 
+function isInvestmentExpense(transaction: DashboardTransaction): boolean {
+  return transaction.direction === "EXPENSE" && isInvestmentCategoryName(transaction.category?.name);
+}
+
 /**
  * Builds the trailing month buckets used by the dashboard cash-flow chart.
  */
@@ -78,7 +84,7 @@ function buildCashFlowBuckets(months: number, now: Date): Map<string, CashFlowPo
   for (let i = months - 1; i >= 0; i--) {
     const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
     const month = monthKey(date);
-    buckets.set(month, { month, income: 0, expense: 0 });
+    buckets.set(month, { month, income: 0, expense: 0, investment: 0 });
   }
   return buckets;
 }
@@ -98,13 +104,16 @@ export function aggregateDashboardTransactions(
 
   for (const transaction of transactions) {
     if (transaction.date > monthRange.todayInclusive) continue;
+    const investmentExpense = isInvestmentExpense(transaction);
 
     const bucket = buckets.get(monthKey(transaction.date));
     if (bucket) {
       if (transaction.direction === "INCOME") bucket.income += Number(transaction.amount);
+      else if (investmentExpense) bucket.investment += Number(transaction.amount);
       else bucket.expense += Number(transaction.amount);
     }
 
+    if (investmentExpense) continue;
     addTransactionToBreakdown(categoryBreakdown, transaction);
     if (transaction.date >= monthRange.start && transaction.date < monthRange.nextStart) {
       addTransactionToBreakdown(categoryBreakdownMonth, transaction);
@@ -127,15 +136,20 @@ export async function getDashboardData(months = 6) {
   const monthRange = dashboardMonthRange(now);
   const rangeStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (months - 1), 1));
 
-  const [netWorth, snapshots, cashFlowMonth, recent, rangeTx] = await Promise.all([
+  const [netWorth, snapshots, recent, rangeTx] = await Promise.all([
     computeNetWorth(),
     snapshotRepository.history(180),
-    transactionRepository.sumByDirection(monthRange.start, monthRange.todayInclusive),
     transactionRepository.list({ to: monthRange.todayInclusive, limit: 8 }),
     transactionRepository.list({ from: rangeStart, to: monthRange.todayInclusive }),
   ]);
 
   const aggregates = aggregateDashboardTransactions(rangeTx, months, now);
+  const cashFlowMonth = aggregates.cashFlowSeries.find((p) => p.month === monthKey(monthRange.start)) ?? {
+    month: monthKey(monthRange.start),
+    income: 0,
+    expense: 0,
+    investment: 0,
+  };
 
   return {
     netWorth,

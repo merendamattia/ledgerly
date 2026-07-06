@@ -48,6 +48,7 @@ function collapse(items: SankeyFlow[]): SankeyFlow[] {
 export function CashFlowSankey({
   income,
   expense,
+  investments = [],
   sources,
   expenses,
   currency,
@@ -55,6 +56,7 @@ export function CashFlowSankey({
 }: {
   income: number;
   expense: number;
+  investments?: SankeyFlow[];
   sources: SankeyFlow[];
   expenses: SankeyFlow[];
   currency: string;
@@ -70,18 +72,20 @@ export function CashFlowSankey({
     const ink = token("--foreground", "#1a1b14");
     const green = token("--positive", "#1c7a4d");
     const lime = token("--primary", "#c7f046");
+    const orange = token("--accent-gold", "#eba23c");
     const expensePalette = [
-      token("--chart-5", "#eba23c"),
       token("--negative", "#db5a3c"),
-      token("--chart-4", "#7b5bd6"),
       token("--chart-3", "#3a72c4"),
-      token("--accent-gold", "#eba23c"),
+      token("--chart-4", "#7b5bd6"),
+      token("--chart-6", "#db5a3c"),
     ];
     const muted = token("--muted-foreground", "#807f70");
 
     const inflow = collapse(sources);
+    const investmentOutflow = collapse(investments);
     const outflow = collapse(expenses);
-    const net = Math.max(0, income - expense);
+    const invested = investments.reduce((total, item) => total + item.value, 0);
+    const net = Math.max(0, income - expense - invested);
 
     const HUB = "hub";
     const NET = "sav:net";
@@ -108,11 +112,20 @@ export function CashFlowSankey({
 
     if (net > 0) data.push({ from: HUB, to: NET, flow: net });
 
+    investmentOutflow.forEach((c, i) => {
+      const key = `inv:${c.label}`;
+      colorMap[key] = c.label === "Other" ? muted : lighten(orange, (i / Math.max(1, investmentOutflow.length)) * 0.25);
+      labelMap[key] = `${c.label}  ${privateText(formatMoney(c.value, currency))}`;
+      priority[key] = i + 1;
+      column[key] = 2;
+      data.push({ from: HUB, to: key, flow: c.value });
+    });
+
     outflow.forEach((c, i) => {
       const key = `out:${c.label}`;
       colorMap[key] = c.label === "Other" ? muted : expensePalette[i % expensePalette.length];
       labelMap[key] = `${c.label}  ${privateText(formatMoney(c.value, currency))}`;
-      priority[key] = i + 1; // net savings sits first
+      priority[key] = i + 1 + investmentOutflow.length; // net savings sits first
       column[key] = 2;
       data.push({ from: HUB, to: key, flow: c.value });
     });
@@ -161,7 +174,7 @@ export function CashFlowSankey({
     });
 
     return () => chart.destroy();
-  }, [income, expense, sources, expenses, currency, privateText]);
+  }, [income, expense, investments, sources, expenses, currency, privateText]);
 
   if (income <= 0) {
     return <p className="py-12 text-center text-sm text-muted-foreground">No cash flow in range.</p>;

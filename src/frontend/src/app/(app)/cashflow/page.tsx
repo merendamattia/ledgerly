@@ -17,6 +17,15 @@ import { useSettings } from "@/hooks/use-settings";
 const sumOf = (tx: Transaction[], dir: "INCOME" | "EXPENSE") =>
   tx.filter((t) => t.direction === dir).reduce((s, t) => s + t.amount, 0);
 
+const INVESTMENT_CATEGORY_RE =
+  /invest|etf|stock|equit|azion|crypto|btc|fund|fond[oi]?|bond|obblig|pac|accumul/i;
+
+/** Investment buys booked as expenses are savings/capital moves, not spending. */
+const isInvestmentTx = (t: Transaction) =>
+  t.direction === "EXPENSE" && INVESTMENT_CATEGORY_RE.test(t.category?.name ?? "");
+
+const spendingTx = (tx: Transaction[]) => tx.filter((t) => !isInvestmentTx(t));
+
 /** Groups transactions of one direction by category, sorted from high to low. */
 function byCategory(tx: Transaction[], dir: "INCOME" | "EXPENSE") {
   const map = new Map<string, number>();
@@ -28,13 +37,14 @@ function byCategory(tx: Transaction[], dir: "INCOME" | "EXPENSE") {
   return [...map.entries()].map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
 }
 
-/** Builds per-month income and expense buckets in ascending month order. */
+/** Builds per-month income, expense and investment buckets in ascending month order. */
 function monthBuckets(tx: Transaction[]) {
-  const buckets = new Map<string, { month: string; income: number; expense: number }>();
+  const buckets = new Map<string, { month: string; income: number; expense: number; investment: number }>();
   for (const t of tx) {
     const month = t.date.slice(0, 7);
-    const b = buckets.get(month) ?? { month, income: 0, expense: 0 };
+    const b = buckets.get(month) ?? { month, income: 0, expense: 0, investment: 0 };
     if (t.direction === "INCOME") b.income += t.amount;
+    else if (isInvestmentTx(t)) b.investment += t.amount;
     else b.expense += t.amount;
     buckets.set(month, b);
   }
@@ -58,16 +68,28 @@ export default function CashFlowPage() {
 
   const tx = useMemo(() => current.data ?? [], [current.data]);
   const prevTx = useMemo(() => previous.data ?? [], [previous.data]);
+  const spendTx = useMemo(() => spendingTx(tx), [tx]);
+  const prevSpendTx = useMemo(() => spendingTx(prevTx), [prevTx]);
+  const investment = useMemo(
+    () => tx.filter(isInvestmentTx).reduce((sum, t) => sum + t.amount, 0),
+    [tx],
+  );
+  const prevInvestment = useMemo(
+    () => prevTx.filter(isInvestmentTx).reduce((sum, t) => sum + t.amount, 0),
+    [prevTx],
+  );
 
   const income = sumOf(tx, "INCOME");
-  const expense = sumOf(tx, "EXPENSE");
-  const net = income - expense;
-  const savingsRate = income > 0 ? Math.round((net / income) * 100) : 0;
+  const expense = sumOf(spendTx, "EXPENSE");
+  const liquidNet = income - expense - investment;
+  const netSavings = liquidNet + investment;
+  const savingsRate = income > 0 ? Math.round((netSavings / income) * 100) : 0;
 
   const prevIncome = sumOf(prevTx, "INCOME");
-  const prevExpense = sumOf(prevTx, "EXPENSE");
+  const prevExpense = sumOf(prevSpendTx, "EXPENSE");
+  const prevLiquidNet = prevIncome - prevExpense - prevInvestment;
 
-  const expenseCats = useMemo(() => byCategory(tx, "EXPENSE"), [tx]);
+  const expenseCats = useMemo(() => byCategory(spendTx, "EXPENSE"), [spendTx]);
   const incomeCats = useMemo(() => byCategory(tx, "INCOME"), [tx]);
 
   const trendSeries = useMemo(() => monthBuckets(trend.data ?? []), [trend.data]);
@@ -86,6 +108,7 @@ export default function CashFlowPage() {
     const monthDelta = (months.find((m) => m.month === thisMonth) ?? { income: 0, expense: 0 }) as {
       income: number;
       expense: number;
+      investment?: number;
     };
     return { total, series, monthDelta: monthDelta.income - monthDelta.expense };
   }, [accumulated.data, rp.from]);
@@ -96,9 +119,10 @@ export default function CashFlowPage() {
         <div className="lg:col-span-5">
           <BalanceCard
             subtitle={`Net savings · ${rp.label}`}
-            net={net}
+            net={netSavings}
             income={income}
             expense={expense}
+            investment={investment}
             savingsRate={savingsRate}
             currency={currency}
           />
@@ -110,7 +134,12 @@ export default function CashFlowPage() {
             rows={[
               { label: "Income", prev: prevIncome, curr: income, goodWhenUp: true },
               { label: "Expenses", prev: prevExpense, curr: expense, goodWhenUp: false },
-              { label: "Net savings", prev: prevIncome - prevExpense, curr: net, goodWhenUp: true },
+              {
+                label: "Net savings",
+                prev: prevLiquidNet + prevInvestment,
+                curr: netSavings,
+                goodWhenUp: true,
+              },
             ]}
           />
         </div>
@@ -166,7 +195,7 @@ export default function CashFlowPage() {
                 </span>
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
-                How income splits into savings and spending
+                How income splits into net savings, investing and spending
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
@@ -176,7 +205,11 @@ export default function CashFlowPage() {
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="size-2.5 rounded-[3px] bg-primary" />
-                Savings
+                Net savings
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="size-2.5 rounded-[3px] bg-accent-gold" />
+                Investments
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="size-2.5 rounded-[3px] bg-negative" />
@@ -188,6 +221,7 @@ export default function CashFlowPage() {
             <CashFlowSankey
               income={income}
               expense={expense}
+              investments={investment > 0 ? [{ label: "Investments", value: investment }] : []}
               sources={incomeCats.map((c) => ({ label: c.name, value: c.value }))}
               expenses={expenseCats.map((c) => ({ label: c.name, value: c.value }))}
               currency={currency}

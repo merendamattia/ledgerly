@@ -16,6 +16,7 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "bun prisma/seed.ts",
+    "prices:backfill": "bun scripts/backfill-prices.ts",
     "db:studio": "prisma studio"
   },
   "prisma": {

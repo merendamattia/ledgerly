@@ -19,6 +19,15 @@ export async function runNightlyPrices(): Promise<number> {
   return tickers.length;
 }
 
+/** Full repair backfill: refetches and overwrites stored closes for every provider ticker. */
+export async function runFullPriceBackfill(): Promise<number> {
+  const tickers = (await tickerRepository.listAll()).filter((t) => t.provider !== "manual");
+  for (const ticker of tickers) {
+    await backfillTicker(ticker, { overwrite: true });
+  }
+  return tickers.length;
+}
+
 /**
  * Build the set of FX pairs to refresh nightly: always EUR/USD (both directions,
  * the reference "fix rate") plus every ticker currency converted to the base
@@ -87,6 +96,7 @@ export async function runRecurring(): Promise<number> {
 // Jobs that can be triggered by key via POST /api/cron/:key/run.
 export const cronHandlers: Record<string, () => Promise<number>> = {
   "nightly-prices": runNightlyPrices,
+  backfill: runFullPriceBackfill,
   "fx-rates": runFxRates,
   snapshots: runSnapshots,
   "recurring-expenses": runRecurring,

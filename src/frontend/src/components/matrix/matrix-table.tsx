@@ -8,11 +8,11 @@ import { cn } from "@/lib/utils";
 import { formatMoney, formatNumber, formatPercent, monthLabel } from "@/lib/format";
 import type { AssetMatrix } from "@/hooks/use-asset-matrix";
 
-// Sticky left columns: Asset (0) · Value (12rem) · Δ (19rem) · Trend (24.5rem). Month columns scroll.
+// Sticky left columns: Asset (0) · Value (12rem) · MoM (19rem) · YTD (24.5rem). Month columns scroll.
 const ASSET = "sticky left-0 z-20 w-48 min-w-48 px-4 py-2.5 text-left";
 const VALUE = "sticky left-48 z-20 w-28 min-w-28 px-3.5 py-2.5 text-right";
 const DELTA = "sticky left-[19rem] z-20 w-[5.5rem] min-w-[5.5rem] px-3 py-2.5 text-right";
-const TREND = "sticky left-[24.5rem] z-20 w-24 min-w-24 px-3.5 py-2.5 text-right";
+const YTD_COL = "sticky left-[24.5rem] z-20 w-24 min-w-24 px-3.5 py-2.5 text-right";
 const MONTH = "w-[5.75rem] min-w-[5.75rem] px-3 py-2.5 text-right";
 const SPAN = 4; // sticky columns before the month columns
 
@@ -30,7 +30,15 @@ function lastDelta(values: (number | null)[]): number | null {
   return ((cur - prev) / Math.abs(prev)) * 100;
 }
 
-/** A tiny trend line normalized over its own range; green/red by overall direction. */
+/** Percentage change from the first to last available value in a period. */
+function periodDelta(values: (number | null)[]): number | null {
+  const nums = values.filter((v): v is number => v != null);
+  if (nums.length < 2 || nums[0] === 0) return null;
+  return ((nums[nums.length - 1] - nums[0]) / Math.abs(nums[0])) * 100;
+}
+
+// Trend sparkline parked for now; YTD % is easier to scan in the sticky column.
+/*
 function Sparkline({ values }: { values: (number | null)[] }) {
   const pointsWithIndex = values
     .map((value, index) => ({ value, index }))
@@ -67,6 +75,7 @@ function Sparkline({ values }: { values: (number | null)[] }) {
     </svg>
   );
 }
+*/
 
 /** A signed delta figure, dimmed when undefined. */
 function Delta({ value }: { value: number | null }) {
@@ -138,7 +147,7 @@ export function MatrixTable({ data, isLoading }: { data?: AssetMatrix; isLoading
           {valueLabel}
         </th>
         <th className={cn(DELTA, "z-30 border-b border-r border-border bg-card")}>MoM %</th>
-        <th className={cn(TREND, "z-30 border-b border-r border-border bg-card text-right")}>Trend YTD</th>
+        <th className={cn(YTD_COL, "z-30 border-b border-r border-border bg-card text-right")}>YTD %</th>
         {months.map((m, i) => (
           <th
             key={m}
@@ -163,8 +172,8 @@ export function MatrixTable({ data, isLoading }: { data?: AssetMatrix; isLoading
         <td className={cn(DELTA, "border-r border-border bg-card")}>
           <Delta value={lastDelta(row.values)} />
         </td>
-        <td className={cn(TREND, "border-r border-border bg-card")}>
-          <Sparkline values={ytd(row.values)} />
+        <td className={cn(YTD_COL, "border-r border-border bg-card")}>
+          <Delta value={periodDelta(ytd(row.values))} />
         </td>
         {row.values.map((v, i) => (
           <td
@@ -213,8 +222,8 @@ export function MatrixTable({ data, isLoading }: { data?: AssetMatrix; isLoading
                         <td className={cn(DELTA, "border-r border-border bg-card")}>
                           <Delta value={lastDelta(row.values)} />
                         </td>
-                        <td className={cn(TREND, "border-r border-border bg-card")}>
-                          <Sparkline values={ytd(row.values)} />
+                        <td className={cn(YTD_COL, "border-r border-border bg-card")}>
+                          <Delta value={periodDelta(ytd(row.values))} />
                         </td>
                         {row.values.map((v, i) => (
                           <td key={i} className={cn(MONTH, i === months.length - 1 && CURRENT)}>
@@ -238,8 +247,8 @@ export function MatrixTable({ data, isLoading }: { data?: AssetMatrix; isLoading
                 <td className={cn(DELTA, "border-t-2 border-sidebar bg-sidebar")}>
                   <Delta value={summary.plPct[summary.plPct.length - 1] ?? null} />
                 </td>
-                <td className={cn(TREND, "border-t-2 border-sidebar bg-sidebar")}>
-                  <Sparkline values={ytd(summary.netWorth)} />
+                <td className={cn(YTD_COL, "border-t-2 border-sidebar bg-sidebar")}>
+                  <Delta value={periodDelta(ytd(summary.netWorth))} />
                 </td>
                 {summary.netWorth.map((v, i) => (
                   <td
@@ -258,7 +267,7 @@ export function MatrixTable({ data, isLoading }: { data?: AssetMatrix; isLoading
                 </td>
                 <td className={cn(VALUE, "border-r border-border bg-card")} />
                 <td className={cn(DELTA, "border-r border-border bg-card")} />
-                <td className={cn(TREND, "border-r border-border bg-card")} />
+                <td className={cn(YTD_COL, "border-r border-border bg-card")} />
                 {summary.plPct.map((v, i) => {
                   const intensity = v == null ? null : (6 + Math.min(1, Math.abs(v) / 60) * 30).toFixed(1);
                   const tint =

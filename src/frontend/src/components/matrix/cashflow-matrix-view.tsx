@@ -33,9 +33,11 @@ function downloadCsv(data: CashflowMatrix) {
   };
   section("Expenses", data.expense, "Total expenses");
   section("Income", data.income, "Total income");
+  section("Investments", data.investment, "Total investments");
   const expenseTotal = totals(data.expense, n);
   const incomeTotal = totals(data.income, n);
-  rows.push(["Balance", ...incomeTotal.map((v, i) => v - expenseTotal[i])]);
+  const investmentTotal = totals(data.investment, n);
+  rows.push(["Balance", ...incomeTotal.map((v, i) => v - expenseTotal[i] - investmentTotal[i])]);
   const csv = rows.map((row) => row.map(esc).join(",")).join("\n");
   const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
   const a = document.createElement("a");
@@ -55,14 +57,16 @@ export function CashflowMatrixView() {
   const n = data?.months.length ?? 0;
   const expenseTotal = data ? totals(data.expense, n) : [];
   const incomeTotal = data ? totals(data.income, n) : [];
-  const balance = incomeTotal.map((v, i) => v - expenseTotal[i]);
+  const investmentTotal = data ? totals(data.investment, n) : [];
+  const balance = incomeTotal.map((v, i) => v - expenseTotal[i] - investmentTotal[i]);
+  const saved = balance.map((v, i) => v + investmentTotal[i]);
 
   // Latest month figures + trailing-12-month savings rate for the ribbon.
   const lastBalance = n > 0 ? balance[n - 1] : null;
   const window12 = (series: number[]) => series.slice(Math.max(0, n - 12)).reduce((a, b) => a + b, 0);
   const income12 = window12(incomeTotal);
-  const savings12 = income12 === 0 ? null : (window12(balance) / income12) * 100;
-  const categoryCount = data ? data.expense.length + data.income.length : null;
+  const savings12 = income12 === 0 ? null : (window12(saved) / income12) * 100;
+  const categoryCount = data ? data.expense.length + data.income.length + data.investment.length : null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -85,7 +89,9 @@ export function CashflowMatrixView() {
           >
             {lastBalance == null ? "—" : <PrivateNumber text={formatMoney(lastBalance, base)} />}
           </div>
-          <div className="mt-1.5 text-xs text-sidebar-foreground">Income minus spending</div>
+          <div className="mt-1.5 text-xs text-sidebar-foreground">
+            Income minus spending and investments
+          </div>
         </Card>
 
         <Card className="gap-0 p-5">
@@ -102,9 +108,9 @@ export function CashflowMatrixView() {
           </div>
           <div className="mt-1.5 flex items-center gap-2 text-xs text-muted-foreground">
             <span className="font-mono font-semibold text-foreground">
-              <PrivateNumber text={formatMoney(window12(balance), base)} />
+              <PrivateNumber text={formatMoney(window12(saved), base)} />
             </span>
-            saved over 12 months
+            saved and invested over 12 months
           </div>
         </Card>
 
@@ -116,7 +122,7 @@ export function CashflowMatrixView() {
             <span className="font-mono text-2xl font-semibold tracking-tight tabular-nums">
               {categoryCount ?? "—"}
             </span>
-            <span className="text-xs text-muted-foreground">income + expense</span>
+            <span className="text-xs text-muted-foreground">income + expense + investment</span>
           </div>
           {data && n > 0 ? (
             <div className="mt-1.5 text-xs text-muted-foreground">
