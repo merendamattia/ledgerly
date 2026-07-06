@@ -347,10 +347,14 @@ export async function computeAssetMatrix(): Promise<AssetMatrix> {
 
   // ── Net worth in other currencies (historical FX/prices) ───────────────────
   const baseToUsd = sampleOnOrBefore(await fiatSeries(baseCurrency, "USD"), boundaries);
+  const baseToGbp = sampleOnOrBefore(await fiatSeries(baseCurrency, "GBP"), boundaries);
   const nwUsd = netWorth.map((nw, i) => (baseToUsd[i] == null ? null : nw * baseToUsd[i]!));
+  const nwGbp = netWorth.map((nw, i) => (baseToGbp[i] == null ? null : nw * baseToGbp[i]!));
   const currentUsd = await getFxRate(baseCurrency, "USD");
+  const currentGbp = await getFxRate(baseCurrency, "GBP");
   const netWorthOther: MatrixSeriesRow[] = [
     { label: "NW (USD)", current: netWorthCurrent * currentUsd, values: nwUsd, digits: 2 },
+    { label: "NW (GBP)", current: netWorthCurrent * currentGbp, values: nwGbp, digits: 2 },
   ];
   if (btc && btcUsd) {
     const q = await currentQuote(btc.id);

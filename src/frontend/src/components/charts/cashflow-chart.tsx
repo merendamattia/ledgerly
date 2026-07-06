@@ -18,15 +18,16 @@ import {
 const chartConfig = {
   income: { label: "Income", color: "var(--positive)" },
   expense: { label: "Expense", color: "var(--negative)" },
+  investment: { label: "Investments", color: "var(--accent-gold)" },
 } satisfies ChartConfig;
 
-/** Renders monthly income and expense totals as a grouped bar chart. */
+/** Renders monthly income vs. a stacked expense+investment bar (red under orange). */
 export function CashFlowChart({
   data,
   currency,
   className = "h-[260px] w-full",
 }: {
-  data: { month: string; income: number; expense: number }[];
+  data: { month: string; income: number; expense: number; investment?: number }[];
   currency: string;
   className?: string;
 }) {
@@ -35,6 +36,7 @@ export function CashFlowChart({
     month: monthLabel(`${d.month}-01`),
     income: d.income,
     expense: d.expense,
+    investment: d.investment ?? 0,
   }));
 
   return (
@@ -65,8 +67,9 @@ export function CashFlowChart({
           }
         />
         <ChartLegend content={<ChartLegendContent />} />
-        <Bar dataKey="income" fill="var(--color-income)" radius={4} />
-        <Bar dataKey="expense" fill="var(--color-expense)" radius={4} />
+        <Bar dataKey="income" stackId="in" fill="var(--color-income)" radius={4} />
+        <Bar dataKey="expense" stackId="out" fill="var(--color-expense)" radius={[0, 0, 4, 4]} />
+        <Bar dataKey="investment" stackId="out" fill="var(--color-investment)" radius={[4, 4, 0, 0]} />
       </BarChart>
     </ChartContainer>
   );

@@ -67,20 +67,4 @@ export const transactionRepository = {
     return prisma.transaction.delete({ where: { id } });
   },
 
-  /** Sum of amounts grouped by direction within an optional date range. */
-  async sumByDirection(from?: Date, to?: Date): Promise<{ income: number; expense: number }> {
-    const grouped = await prisma.transaction.groupBy({
-      by: ["direction"],
-      where: from || to ? { date: { gte: from ?? undefined, lte: to ?? undefined } } : undefined,
-      _sum: { amount: true },
-    });
-    let income = 0;
-    let expense = 0;
-    for (const g of grouped) {
-      const value = Number(g._sum.amount ?? 0);
-      if (g.direction === "INCOME") income = value;
-      else expense = value;
-    }
-    return { income, expense };
-  },
 };

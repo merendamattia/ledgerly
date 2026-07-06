@@ -8,7 +8,7 @@ export type CashflowMatrix = InferResponseType<
   200
 >;
 
-/** Wide cash-flow matrix: expense/income categories (rows) × month columns. */
+/** Wide cash-flow matrix: expense/income/investment categories (rows) × month columns. */
 export function useCashflowMatrix() {
   return useQuery({
     queryKey: queryKeys.cashflowMatrix,

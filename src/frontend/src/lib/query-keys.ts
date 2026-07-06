@@ -19,6 +19,7 @@ export const queryKeys = {
   dashboard: ["dashboard"] as const,
   netWorthHistory: ["dashboard", "networth-history"] as const,
   assetMatrix: ["dashboard", "asset-matrix"] as const,
+  assetReturnMatrix: ["dashboard", "asset-return-matrix"] as const,
   cashflowMatrix: ["dashboard", "cashflow-matrix"] as const,
   settings: ["settings"] as const,
   accounts: ["accounts"] as const,

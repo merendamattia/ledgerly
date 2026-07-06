@@ -60,7 +60,7 @@ function Amount({ value }: { value: number }) {
   );
 }
 
-/** Renders the cash-flow matrix: expenses, income and balance across month columns. */
+/** Renders the cash-flow matrix: expenses, income, investments and balance across month columns. */
 export function CashflowMatrixTable({
   data,
   isLoading,
@@ -72,22 +72,24 @@ export function CashflowMatrixTable({
   if (!data || data.months.length === 0) {
     return (
       <Card className="p-8 text-center text-sm text-muted-foreground">
-        No transactions yet. Record income and expenses to build your cash-flow history.
+        No transactions yet. Record income, expenses and investments to build your cash-flow history.
       </Card>
     );
   }
 
-  const { months, expense, income, baseCurrency } = data;
+  const { months, expense, income, investment, baseCurrency } = data;
   const columns = buildColumns(months);
   const n = months.length;
 
   const expenseTotal = totalsOf(expense, n);
   const incomeTotal = totalsOf(income, n);
-  const balance = incomeTotal.map((inc, i) => inc - expenseTotal[i]);
-  // Savings rate per column is derived from the column's income/balance, not per month.
+  const investmentTotal = totalsOf(investment, n);
+  const balance = incomeTotal.map((inc, i) => inc - expenseTotal[i] - investmentTotal[i]);
+  const saved = balance.map((v, i) => v + investmentTotal[i]);
+  // Savings rate per column counts both net savings and invested capital.
   const savingsRate = (column: Column) => {
     const inc = cellValue(incomeTotal, column);
-    return inc === 0 ? null : (cellValue(balance, column) / inc) * 100;
+    return inc === 0 ? null : (cellValue(saved, column) / inc) * 100;
   };
 
   const isSummary = (c: Column) => c.kind !== "month";
@@ -104,7 +106,7 @@ export function CashflowMatrixTable({
               MONTH,
               "border-b border-border font-mono",
               isSummary(c) && SUMMARY,
-              c.kind === "year" && "text-accent-foreground",
+              isSummary(c) && "font-bold text-foreground",
             )}
           >
             {c.label}
@@ -155,7 +157,7 @@ export function CashflowMatrixTable({
       <div className="border-b border-border px-6 py-5">
         <div className="font-display text-[17px] font-semibold tracking-tight">Cash-flow matrix</div>
         <div className="mt-0.5 text-sm text-muted-foreground">
-          Every category&apos;s income and spending per month, with yearly averages and totals ({baseCurrency})
+          Every category&apos;s income, spending and investing per month, with yearly averages and totals ({baseCurrency})
         </div>
       </div>
 
@@ -170,6 +172,10 @@ export function CashflowMatrixTable({
             {bandRow("Income", "bg-positive/12 text-positive")}
             {income.map(categoryRow)}
             {totalRow("Total income", incomeTotal, "text-positive")}
+
+            {bandRow("Investments", "bg-accent-gold/12 text-accent-gold")}
+            {investment.map(categoryRow)}
+            {totalRow("Total investments", investmentTotal, "text-accent-gold")}
 
             {bandRow("Balance", "bg-sidebar text-sidebar-accent-foreground")}
             {/* Balance total row (ink, like the net-worth row on the asset matrix). */}

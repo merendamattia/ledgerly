@@ -162,9 +162,11 @@ export default function OverviewPage() {
   const investments = nw?.investments ?? 0;
   const debts = nw?.debts ?? 0;
 
-  const cashFlow = data?.cashFlowMonth ?? { income: 0, expense: 0 };
-  const netFlow = cashFlow.income - cashFlow.expense;
-  const savingsRate = cashFlow.income > 0 ? Math.round((netFlow / cashFlow.income) * 100) : 0;
+  const cashFlow = data?.cashFlowMonth ?? { income: 0, expense: 0, investment: 0 };
+  const monthlyLiquidNet = cashFlow.income - cashFlow.expense - cashFlow.investment;
+  const monthlySavings = monthlyLiquidNet + cashFlow.investment;
+  const savingsRate =
+    cashFlow.income > 0 ? Math.round((monthlySavings / cashFlow.income) * 100) : 0;
 
   const nwHistory = useNetWorthHistory();
   const sliced = useMemo(() => {
@@ -407,8 +409,8 @@ export default function OverviewPage() {
       >
         <span className="text-xs font-medium text-sidebar-foreground">Monthly cash flow</span>
         <p className="mt-2.5 font-mono text-2xl font-semibold tabular-nums text-primary">
-          {netFlow >= 0 ? "+" : ""}
-          <MoneyAmount value={netFlow} currency={currency} />
+          {monthlySavings >= 0 ? "+" : ""}
+          <MoneyAmount value={monthlySavings} currency={currency} />
         </p>
         <span className="mt-1 text-xs text-sidebar-foreground">Savings rate {savingsRate}%</span>
       </Card>

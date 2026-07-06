@@ -156,8 +156,13 @@ export default function InvestmentsPage() {
     [holdings],
   );
 
-  const filteredHoldings =
-    classFilter === "ALL" ? holdings : holdings.filter((h) => h.type === classFilter);
+  const filteredHoldings = useMemo(
+    () =>
+      (classFilter === "ALL" ? [...holdings] : holdings.filter((h) => h.type === classFilter)).sort(
+        (a, b) => b.value - a.value,
+      ),
+    [classFilter, holdings],
+  );
   const classes = ["ALL", ...new Set(holdings.map((h) => h.type))];
   const totalValue = useMemo(() => holdings.reduce((s, h) => s + h.value, 0), [holdings]);
 

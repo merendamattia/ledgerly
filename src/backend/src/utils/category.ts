@@ -8,12 +8,20 @@ export function normalizeCategoryName(name: string): string {
   return name.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
+const INVESTMENT_CATEGORY_RE =
+  /invest|etf|stock|equit|azion|crypto|btc|fund|fond[oi]?|bond|obblig|pac|accumul/i;
+
+/** True when an expense category is really a capital move into investments. */
+export function isInvestmentCategoryName(name?: string | null): boolean {
+  return !!name && INVESTMENT_CATEGORY_RE.test(name);
+}
+
 // Name → default emoji guess, mirroring the frontend's `emojiFor` rules
 // (src/frontend/src/components/category-badge.tsx). Used to backfill existing
 // categories that have no stored emoji.
 const EMOJI_RULES: [RegExp, string][] = [
   [/income|salary|stipend|payroll|divid|entrat|wage|bonus|refund|rimbors|credit|win|lotter|premio/i, "💰"],
-  [/invest|etf|stock|equit|azion|crypto|btc|fund/i, "📈"],
+  [INVESTMENT_CATEGORY_RE, "📈"],
   [/groc|aliment|food|superm|spesa/i, "🛒"],
   [/rent|affitto|mortgage|mutuo|hous|home|casa/i, "🏠"],
   [/util|energ|enel|electric|gas|water|bollet/i, "💡"],

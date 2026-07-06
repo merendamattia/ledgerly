@@ -13,6 +13,19 @@ export const priceRepository = {
     return res.count;
   },
 
+  /** Upsert bars, correcting existing historical closes when a repair backfill runs. */
+  async bulkUpsert(tickerId: string, bars: Bar[]): Promise<number> {
+    // ponytail: repair path, sequential is fine; batch SQL if full-history repairs get slow.
+    for (const b of bars) {
+      await prisma.priceHistory.upsert({
+        where: { tickerId_date: { tickerId, date: b.date } },
+        create: { tickerId, date: b.date, close: b.close },
+        update: { close: b.close },
+      });
+    }
+    return bars.length;
+  },
+
   /** Insert or update a single daily close (used for manual price entry). */
   upsert(tickerId: string, date: Date, close: number) {
     return prisma.priceHistory.upsert({

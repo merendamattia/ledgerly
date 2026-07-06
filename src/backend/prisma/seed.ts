@@ -40,7 +40,7 @@ const CRON_JOBS: { key: string; name: string; description: string; schedule: str
   {
     key: "backfill",
     name: "Asset backfill",
-    description: "One-shot full price history download triggered when a new asset is added.",
+    description: "One-shot full price history repair for every provider-backed asset.",
     schedule: null,
   },
 ];

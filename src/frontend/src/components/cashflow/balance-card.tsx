@@ -8,6 +8,7 @@ import { MoneyAmount } from "@/components/money-amount";
 // the source design — same exception as category-badge.
 const GREEN = "#9fd356";
 const RED = "#e8765b";
+const ORANGE = "var(--accent-gold)";
 
 /** Renders the cashflow spotlight card with net, income, expense, and savings rate. */
 export function BalanceCard({
@@ -15,6 +16,7 @@ export function BalanceCard({
   net,
   income,
   expense,
+  investment,
   savingsRate,
   currency,
 }: {
@@ -22,6 +24,7 @@ export function BalanceCard({
   net: number;
   income: number;
   expense: number;
+  investment: number;
   savingsRate: number;
   currency: string;
 }) {
@@ -37,23 +40,32 @@ export function BalanceCard({
         </span>
       </div>
 
-      <div className="mt-6 flex gap-6 border-t border-sidebar-border pt-5">
-        <div className="flex-1">
+      <div className="mt-6 grid grid-cols-3 gap-4 border-t border-sidebar-border pt-5">
+        <div className="min-w-0">
           <div className="flex items-center gap-1.5 text-xs text-sidebar-foreground">
             <span className="size-2 rounded-[3px]" style={{ background: GREEN }} />
             Income
           </div>
-          <div className="mt-1.5 font-mono text-xl font-semibold tabular-nums" style={{ color: GREEN }}>
+          <div className="mt-1.5 font-mono text-base font-semibold tabular-nums xl:text-xl" style={{ color: GREEN }}>
             <MoneyAmount value={income} currency={currency} signed />
           </div>
         </div>
-        <div className="flex-1">
+        <div className="min-w-0">
           <div className="flex items-center gap-1.5 text-xs text-sidebar-foreground">
             <span className="size-2 rounded-[3px]" style={{ background: RED }} />
             Expenses
           </div>
-          <div className="mt-1.5 font-mono text-xl font-semibold tabular-nums" style={{ color: RED }}>
+          <div className="mt-1.5 font-mono text-base font-semibold tabular-nums xl:text-xl" style={{ color: RED }}>
             −<MoneyAmount value={expense} currency={currency} />
+          </div>
+        </div>
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5 text-xs text-sidebar-foreground">
+            <span className="size-2 rounded-[3px]" style={{ background: ORANGE }} />
+            Investments
+          </div>
+          <div className="mt-1.5 font-mono text-base font-semibold tabular-nums xl:text-xl" style={{ color: ORANGE }}>
+            <MoneyAmount value={investment} currency={currency} signed />
           </div>
         </div>
       </div>
