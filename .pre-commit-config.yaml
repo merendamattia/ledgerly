@@ -1,0 +1,36 @@
+repos:
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v3.0.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+        args: [--strict]
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-added-large-files
+
+  # TypeScript is the only language in this repo (bun workspace: backend + frontend).
+  # Local hooks reuse the project's own commands, so they stay in sync with CI and
+  # the "checks before pushing" in CLAUDE.md. They need bun + installed deps + a
+  # generated Prisma client (the CI pre-commit job sets these up).
+  - repo: local
+    hooks:
+      - id: frontend-eslint
+        name: eslint (frontend)
+        entry: bash -c 'cd src/frontend && bun run lint'
+        language: system
+        files: ^src/frontend/.*\.(ts|tsx|js|jsx|mjs)$
+        pass_filenames: false
+      - id: backend-typecheck
+        name: tsc --noEmit (backend)
+        entry: bash -c 'cd src/backend && bunx tsc --noEmit'
+        language: system
+        files: ^src/backend/.*\.ts$
+        pass_filenames: false
