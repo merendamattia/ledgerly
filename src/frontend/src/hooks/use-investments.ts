@@ -68,6 +68,16 @@ export function useSetManualPrice() {
   });
 }
 
+/** Renames a tracked asset (display nickname). */
+export function useRenameTicker() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, name }: { id: string; name: string }) =>
+      unwrap<Ticker>(await api.tickers[":id"].$patch({ param: { id }, json: { name } })),
+    onSuccess: () => invalidateLedgerQueries(qc, [queryKeys.tickers, queryKeys.holdings, queryKeys.dashboard]),
+  });
+}
+
 /**
  * Deletes an unused ticker and refreshes the tracked instrument list.
  */

@@ -24,6 +24,10 @@ export const tickerRepository = {
     return prisma.ticker.findMany();
   },
 
+  rename(id: string, name: string) {
+    return prisma.ticker.update({ where: { id }, data: { name } });
+  },
+
   delete(id: string) {
     return prisma.ticker.delete({ where: { id } });
   },

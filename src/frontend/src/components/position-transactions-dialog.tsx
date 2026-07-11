@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Pencil, Plus, Trash2, X } from "lucide-react";
+import { Check, Pencil, Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -27,6 +27,7 @@ import {
   useUpdateInvestmentTx,
   useDeleteInvestmentTx,
   useSetManualPrice,
+  useRenameTicker,
   type InvestmentTransaction,
 } from "@/hooks/use-investments";
 
@@ -66,7 +67,7 @@ export function PositionTransactionsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{holding.name}</DialogTitle>
+          <EditableTitle tickerId={holding.tickerId} name={holding.name} />
           <DialogDescription>
             {holding.symbol} · {rows.length} {rows.length === 1 ? "movement" : "movements"}
           </DialogDescription>
@@ -150,6 +151,72 @@ export function PositionTransactionsDialog({
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Renders the position title with an inline rename control (custom nickname). */
+function EditableTitle({ tickerId, name }: { tickerId: string; name: string }) {
+  const rename = useRenameTicker();
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(name);
+
+  function save() {
+    const next = value.trim();
+    if (!next || next === name) {
+      setEditing(false);
+      return;
+    }
+    rename.mutate(
+      { id: tickerId, name: next },
+      {
+        onSuccess: () => {
+          toast.success("Name updated");
+          setEditing(false);
+        },
+        onError: (e) => toast.error(e.message),
+      },
+    );
+  }
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-2">
+        <DialogTitle className="sr-only">{name}</DialogTitle>
+        <Input
+          autoFocus
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") save();
+            if (e.key === "Escape") {
+              setValue(name);
+              setEditing(false);
+            }
+          }}
+          className="h-8 max-w-xs font-display text-lg font-semibold"
+        />
+        <Button size="icon" className="size-8" disabled={rename.isPending} onClick={save} aria-label="Save name">
+          <Check />
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <DialogTitle className="flex items-center gap-2">
+      {name}
+      <button
+        type="button"
+        onClick={() => {
+          setValue(name);
+          setEditing(true);
+        }}
+        className="text-muted-foreground transition-colors hover:text-foreground"
+        aria-label="Rename asset"
+      >
+        <Pencil className="size-4" />
+      </button>
+    </DialogTitle>
   );
 }
 

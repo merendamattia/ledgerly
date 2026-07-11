@@ -146,6 +146,13 @@ export async function ensurePurchasePriceAnchor(tickerId: string): Promise<void>
   await priceRepository.upsert(tickerId, anchorDate, Number(earliest.price));
 }
 
+/** Rename a tracked asset (display nickname only; symbol/ISIN/prices untouched). */
+export async function renameAsset(id: string, name: string): Promise<Ticker> {
+  const ticker = await tickerRepository.findById(id);
+  if (!ticker) throw new NotFoundError("Asset not found");
+  return tickerRepository.rename(id, name);
+}
+
 /** Remove a tracked asset. Fails if any holding or movement still references it. */
 export async function removeAsset(id: string): Promise<void> {
   const count = await holdingRepository.countByTicker(id);

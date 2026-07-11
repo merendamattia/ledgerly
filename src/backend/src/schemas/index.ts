@@ -27,6 +27,11 @@ export const addManualAssetSchema = z.object({
   price: z.number().nonnegative(),
 });
 
+// Rename a tracked asset (a user-friendly nickname; symbol/ISIN are unchanged).
+export const renameTickerSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+});
+
 // Set/update the current price of a manually-tracked asset.
 export const setManualPriceSchema = z.object({
   price: z.number().nonnegative(),
