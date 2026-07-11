@@ -3,6 +3,10 @@ on:
   pull_request_target:
     types: [opened, ready_for_review]
 
+# pull_request_target runs with base-repo permissions; grant only what auto-assign needs.
+permissions:
+  pull-requests: write
+
 jobs:
   add-reviews:
     runs-on: ubuntu-latest

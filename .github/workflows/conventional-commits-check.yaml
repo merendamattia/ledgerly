@@ -50,7 +50,7 @@ jobs:
         run: bunx prisma generate
 
       - name: Install pre-commit
-        run: pip install pre-commit
+        run: pip install -r requirements.txt
 
       - name: Run pre-commit
         run: pre-commit run --all-files

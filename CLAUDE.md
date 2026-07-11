@@ -64,8 +64,10 @@ end-to-end — not just that it compiles. A green build is not proof the feature
 A task is NOT complete until every check that runs in `.github/workflows/` passes
 **locally on your machine** — do not defer this to CI. At the end of every task you MUST
 re-run them yourself and confirm green:
-- `pre-commit run --all-files` — mirrors `conventional-commits-check.yaml` (runs the
-  frontend eslint + backend tsc hooks; needs `bun install` + `src/backend` `prisma generate`).
+- `pre-commit run --all-files` — mirrors the `pre-commit` job in
+  `conventional-commits-check.yaml` (frontend eslint + backend tsc + whitespace/yaml/json
+  hooks; needs `bun install` + `src/backend` `prisma generate`). The Conventional Commits
+  rule is a `commit-msg`-stage hook, so it runs per commit, not in this all-files pass.
 - The "Checks before pushing" commands above — mirror `ci.yml`.
 - If Docker/compose or the Dockerfiles changed: build every image the way
   `check-docker-image.yaml` does — `docker build -f src/backend/Dockerfile .` and

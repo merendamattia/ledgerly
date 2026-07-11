@@ -17,12 +17,12 @@ Thank you for your interest in contributing! We welcome contributions from every
 1. **Fork the repository** on GitHub.
 2. **Clone your fork** locally:
    ```bash
-   git clone https://github.com/your-username/your-repo.git
-   cd your-repo
+   git clone https://github.com/<your-username>/ledgerly.git
+   cd ledgerly
    ```
 3. **Add the upstream repository** as a remote:
    ```bash
-   git remote add upstream https://github.com/original-owner/your-repo.git
+   git remote add upstream https://github.com/merendamattia/ledgerly.git
    ```
 4. **Create a feature branch** for your work:
    ```bash
@@ -72,7 +72,10 @@ All commits must follow this format:
 - **perf**: Code changes that improve performance
 - **test**: Adding or updating tests
 - **ci**: Changes to CI/CD configuration
-- **chore**: Changes to build process, dependencies, or tooling
+- **build**: Changes to the build system or external dependencies
+- **ops**: Changes to infrastructure, deployment, or operational components
+- **chore**: Other changes that don't modify source or test files
+- **merge**: Merge commits
 - **revert**: Revert a previous commit
 
 ### Examples
