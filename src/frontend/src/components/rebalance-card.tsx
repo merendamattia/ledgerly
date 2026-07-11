@@ -1,9 +1,9 @@
 "use client";
 
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import { Pencil, Plus, Trash2 } from "lucide-react";
-import { Cell, Pie, PieChart } from "recharts";
+import { Pencil, Trash2 } from "lucide-react";
+import { Bar, BarChart, Cell, LabelList, Pie, PieChart, XAxis, YAxis } from "recharts";
 import {
   ChartContainer,
   ChartTooltip,
@@ -11,6 +11,7 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import { formatMoney } from "@/lib/format";
+import { matchTrades } from "@/lib/rebalance";
 import { usePrivateNumberFormatter } from "@/components/private-number";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -78,6 +79,8 @@ export function RebalanceCard({
   const groups = useRebalanceGroups();
   const [editing, setEditing] = useState<RebalanceGroup | null>(null);
   const [creating, setCreating] = useState<{ tickerIds: string[] } | null>(null);
+  const [detail, setDetail] = useState<Row | null>(null);
+  const [planOpen, setPlanOpen] = useState(false);
 
   const totalValue = useMemo(() => holdings.reduce((s, h) => s + h.value, 0), [holdings]);
 
@@ -155,10 +158,20 @@ export function RebalanceCard({
             Keep the portfolio in line with the target allocation
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => setCreating({ tickerIds: [] })}>
-          <Plus data-icon="inline-start" />
-          Group
-        </Button>
+        <div className="flex items-center gap-3">
+          {rows.some((r) => r.action) ? (
+            <Button type="button" size="sm" onClick={() => setPlanOpen(true)}>
+              Rebalance now
+            </Button>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => setCreating({ tickerIds: [] })}
+            className="text-sm font-semibold text-positive"
+          >
+            New group →
+          </button>
+        </div>
       </div>
 
       {rows.length === 0 ? (
@@ -183,15 +196,15 @@ export function RebalanceCard({
             </thead>
             <tbody>
               {rows.map((r, i) => (
-                <tr key={r.key} className="group/row hover:bg-muted/50">
+                <tr
+                  key={r.key}
+                  className="group/row cursor-pointer hover:bg-muted/50"
+                  onClick={() =>
+                    r.group ? setDetail(r) : setCreating({ tickerIds: r.tickerIds })
+                  }
+                >
                   <td className={cn(cell, "px-0 text-left font-sans")}>
-                    <button
-                      type="button"
-                      className="flex min-w-0 items-center gap-2 text-left sm:gap-2.5"
-                      onClick={() =>
-                        r.group ? setEditing(r.group) : setCreating({ tickerIds: r.tickerIds })
-                      }
-                    >
+                    <span className="flex min-w-0 items-center gap-2 text-left sm:gap-2.5">
                       <span
                         className="flex size-6 shrink-0 items-center justify-center rounded-lg font-display text-[10px] font-semibold text-white sm:size-7"
                         style={{ background: TILE_COLORS[i % TILE_COLORS.length] }}
@@ -206,8 +219,7 @@ export function RebalanceCard({
                           {r.detail}
                         </span>
                       </span>
-                      <Pencil className="hidden size-3 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover/row:opacity-100 sm:block" />
-                    </button>
+                    </span>
                   </td>
                   <td className={cn(cell, "text-muted-foreground")}>
                     {r.targetPct != null ? `${r.targetPct.toFixed(1)}%` : "—"}
@@ -306,6 +318,31 @@ export function RebalanceCard({
           }}
         />
       ) : null}
+      {planOpen ? (
+        <RebalancePlanDialog
+          rows={rows}
+          currency={currency}
+          open
+          onOpenChange={(o) => {
+            if (!o) setPlanOpen(false);
+          }}
+        />
+      ) : null}
+      {detail ? (
+        <RebalanceDetailDialog
+          row={detail}
+          currency={currency}
+          open
+          onOpenChange={(o) => {
+            if (!o) setDetail(null);
+          }}
+          onEdit={() => {
+            const g = detail.group;
+            setDetail(null);
+            setEditing(g);
+          }}
+        />
+      ) : null}
     </Card>
   );
 }
@@ -371,6 +408,241 @@ function CurrentSplitDonut({ rows, currency }: { rows: Row[]; currency: string }
         })}
       </div>
     </div>
+  );
+}
+
+/**
+ * Read-only breakdown for one rebalance row: current vs target weight and value,
+ * the drift, and the exact amount to buy/sell to hit the target — with a bar
+ * comparing current and target value. "Edit" opens the group's config dialog.
+ */
+function RebalanceDetailDialog({
+  row,
+  currency,
+  open,
+  onOpenChange,
+  onEdit,
+}: {
+  row: Row;
+  currency: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onEdit: () => void;
+}) {
+  const { privateText } = usePrivateNumberFormatter();
+  const target = row.targetValue ?? row.value;
+  const trade = target - row.value; // > 0 → buy, < 0 → sell
+  const onTarget = Math.abs(trade) < 1;
+
+  const chartConfig = { value: { label: "Value", color: "var(--chart-1)" } } satisfies ChartConfig;
+  const chartData = [
+    { label: "Current", value: row.value, fill: "var(--chart-1)" },
+    { label: "Target", value: target, fill: "var(--chart-3)" },
+  ];
+
+  const stats: { label: string; node: ReactNode; tone?: string }[] = [
+    { label: "Current", node: `${row.currentPct.toFixed(1)}%` },
+    { label: "Target", node: row.targetPct != null ? `${row.targetPct.toFixed(1)}%` : "—" },
+    { label: "Current value", node: <MoneyAmount value={row.value} currency={currency} /> },
+    { label: "Target value", node: <MoneyAmount value={target} currency={currency} /> },
+    {
+      label: "Delta",
+      node:
+        row.deltaPct != null
+          ? `${row.deltaPct >= 0 ? "+" : ""}${row.deltaPct.toFixed(1)}%`
+          : "—",
+      tone:
+        row.deltaPct == null
+          ? "text-muted-foreground"
+          : row.deltaPct >= 0
+            ? "text-positive"
+            : "text-negative",
+    },
+    {
+      label: "To trade",
+      node: onTarget ? (
+        "On target"
+      ) : (
+        <MoneyAmount value={Math.abs(trade)} currency={currency} />
+      ),
+      tone: onTarget ? "text-muted-foreground" : trade > 0 ? "text-positive" : "text-negative",
+    },
+  ];
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{row.name}</DialogTitle>
+          <DialogDescription className="font-mono text-xs tabular-nums">
+            {row.detail}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div
+          className={cn(
+            "rounded-lg px-4 py-3 text-sm",
+            onTarget
+              ? "bg-muted text-muted-foreground"
+              : trade > 0
+                ? "bg-positive/10 text-positive"
+                : "bg-negative/10 text-negative",
+          )}
+        >
+          {onTarget ? (
+            "This position is on target — no action needed."
+          ) : (
+            <>
+              To reach the target, {trade > 0 ? "buy" : "sell"}{" "}
+              <span className="font-mono font-semibold tabular-nums">
+                <MoneyAmount value={Math.abs(trade)} currency={currency} />
+              </span>
+              .
+            </>
+          )}
+        </div>
+
+        <div className="grid grid-cols-3 gap-2.5">
+          {stats.map((s) => (
+            <div key={s.label} className="rounded-lg border bg-card px-3 py-2.5">
+              <p className="text-[10.5px] font-medium tracking-wide text-muted-foreground uppercase">
+                {s.label}
+              </p>
+              <p className={cn("mt-1 font-mono text-sm font-semibold tabular-nums", s.tone)}>
+                {s.node}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <ChartContainer config={chartConfig} className="h-[120px] w-full">
+          <BarChart data={chartData} layout="vertical" margin={{ left: 4, right: 64 }}>
+            <YAxis
+              type="category"
+              dataKey="label"
+              tickLine={false}
+              axisLine={false}
+              width={58}
+              tick={{ fontSize: 12 }}
+            />
+            <XAxis type="number" hide />
+            <ChartTooltip
+              content={
+                <ChartTooltipContent formatter={(v) => privateText(formatMoney(Number(v), currency))} />
+              }
+            />
+            <Bar dataKey="value" radius={5} barSize={24}>
+              {chartData.map((c) => (
+                <Cell key={c.label} fill={c.fill} />
+              ))}
+              <LabelList
+                dataKey="value"
+                position="right"
+                className="fill-foreground font-mono text-[11px] tabular-nums"
+                formatter={(v: ReactNode) => privateText(formatMoney(Number(v), currency))}
+              />
+            </Bar>
+          </BarChart>
+        </ChartContainer>
+
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onEdit}>
+            <Pencil data-icon="inline-start" />
+            Edit
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * Actionable "rebalance now" plan: the drifted positions to sell (over target)
+ * and the ones to buy (under target) to bring the portfolio back in line —
+ * the sell proceeds fund the buys. Only rows past their action threshold appear.
+ */
+function RebalancePlanDialog({
+  rows,
+  currency,
+  open,
+  onOpenChange,
+}: {
+  rows: Row[];
+  currency: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const sells = rows
+    .filter((r) => r.action === "SELL")
+    .map((r) => ({ key: r.key, name: r.name, amount: r.value - (r.targetValue ?? r.value) }));
+  const buys = rows
+    .filter((r) => r.action === "BUY")
+    .map((r) => ({ key: r.key, name: r.name, amount: (r.targetValue ?? r.value) - r.value }));
+  const { transfers, freeCash, needCash } = matchTrades(sells, buys);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Rebalance now</DialogTitle>
+          <DialogDescription>
+            Each move sells an over-weighted position and puts the proceeds straight into an
+            under-weighted one.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex flex-col gap-2.5">
+          {transfers.map((t, i) => (
+            <div
+              key={`${t.from}-${t.to}-${i}`}
+              className="flex items-center justify-between gap-3 rounded-lg border px-3.5 py-3 text-sm"
+            >
+              <span className="flex min-w-0 flex-col gap-0.5">
+                <span className="flex items-center gap-1.5">
+                  <span className="rounded bg-negative/10 px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-wider text-negative">
+                    SELL
+                  </span>
+                  <span className="min-w-0 truncate font-medium">{t.from}</span>
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="rounded bg-positive/10 px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-wider text-positive">
+                    BUY
+                  </span>
+                  <span className="min-w-0 truncate font-medium">{t.to}</span>
+                </span>
+              </span>
+              <span className="shrink-0 font-mono text-sm font-semibold tabular-nums">
+                <MoneyAmount value={t.amount} currency={currency} />
+              </span>
+            </div>
+          ))}
+
+          {freeCash > 0.5 ? (
+            <p className="text-xs text-muted-foreground">
+              <span className="font-mono font-semibold tabular-nums">
+                <MoneyAmount value={freeCash} currency={currency} />
+              </span>{" "}
+              left over as free cash to allocate.
+            </p>
+          ) : null}
+          {needCash > 0.5 ? (
+            <p className="text-xs text-muted-foreground">
+              Add{" "}
+              <span className="font-mono font-semibold tabular-nums">
+                <MoneyAmount value={needCash} currency={currency} />
+              </span>{" "}
+              in new cash to fully fund the buys.
+            </p>
+          ) : null}
+        </div>
+
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            Done
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
