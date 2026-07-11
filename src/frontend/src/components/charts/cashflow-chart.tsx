@@ -14,6 +14,7 @@ import {
   PRIVATE_COMPACT_PLACEHOLDER,
   usePrivateNumberFormatter,
 } from "@/components/private-number";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const chartConfig = {
   income: { label: "Income", color: "var(--positive)" },
@@ -32,7 +33,10 @@ export function CashFlowChart({
   className?: string;
 }) {
   const { privateText } = usePrivateNumberFormatter();
-  const points = data.map((d) => ({
+  const isMobile = useIsMobile();
+  // 6 bars get cramped on phones — show only the most recent 4.
+  const visible = isMobile ? data.slice(-4) : data;
+  const points = visible.map((d) => ({
     month: monthLabel(`${d.month}-01`),
     income: d.income,
     expense: d.expense,

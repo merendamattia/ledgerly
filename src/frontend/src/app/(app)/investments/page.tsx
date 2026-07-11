@@ -111,7 +111,9 @@ export default function InvestmentsPage() {
   const [period, setPeriod] = useState<string>("YTD");
   const [classFilter, setClassFilter] = useState<string>("ALL");
   const [snapshotSection, setSnapshotSection] = useState<SnapshotSection>("LIQUIDITY");
-  const [openPosition, setOpenPosition] = useState<Holding | null>(null);
+  // Track the open position by id (not a snapshot) so the dialog re-renders with
+  // fresh query data after a rename / price edit / new movement.
+  const [openPositionId, setOpenPositionId] = useState<string | null>(null);
   const [addPosition, setAddPosition] = useState<Holding | null>(null);
   const { shouldHidePrivateNumbers, togglePrivacyMode } = usePrivacyMode();
   const PrivacyIcon = shouldHidePrivateNumbers ? EyeOff : Eye;
@@ -119,6 +121,10 @@ export default function InvestmentsPage() {
   const nw = data?.netWorth;
   const currency = nw?.baseCurrency ?? "EUR";
   const holdings = useMemo(() => nw?.holdings ?? [], [nw]);
+  const openPosition = useMemo(
+    () => holdings.find((h) => h.holdingId === openPositionId) ?? null,
+    [holdings, openPositionId],
+  );
 
   // Portfolio area series: real daily portfolio value (from the first buy),
   // computed server-side from price history. The period pill slices a date window.
@@ -325,7 +331,7 @@ export default function InvestmentsPage() {
                   h={h}
                   currency={currency}
                   weight={totalValue > 0 ? (h.value / totalValue) * 100 : 0}
-                  onClick={() => setOpenPosition(h)}
+                  onClick={() => setOpenPositionId(h.holdingId)}
                 />
               ))
             )}
@@ -346,11 +352,11 @@ export default function InvestmentsPage() {
           holding={openPosition}
           open={openPosition !== null}
           onOpenChange={(o) => {
-            if (!o) setOpenPosition(null);
+            if (!o) setOpenPositionId(null);
           }}
           onAddMovement={() => {
             setAddPosition(openPosition);
-            setOpenPosition(null);
+            setOpenPositionId(null);
           }}
         />
       ) : null}

@@ -211,6 +211,19 @@ export default function TransactionsPage() {
 
   const hasMore = filter !== "INVESTMENT" && !query && !!data && data.length === limit;
 
+  // Keep the open detail dialogs bound to LIVE query data (looked up by id) rather
+  // than the snapshot captured on click, so an inline edit (date, amount, …)
+  // reflects immediately without closing and reopening the popup. Falls back to
+  // the snapshot for a row not in the current page (e.g. an upcoming movement).
+  const liveDetailTx = useMemo(
+    () => (detailTx ? ((data ?? []).find((t) => t.id === detailTx.id) ?? detailTx) : null),
+    [data, detailTx],
+  );
+  const liveInvTx = useMemo(
+    () => (invTx ? ((investments.data ?? []).find((t) => t.id === invTx.id) ?? invTx) : null),
+    [investments.data, invTx],
+  );
+
   return (
     <div className="flex flex-col gap-5 animate-fu">
       {/* Filters: full-width top bar */}
@@ -443,9 +456,9 @@ export default function TransactionsPage() {
         </aside>
       </div>
 
-      {detailTx ? (
+      {liveDetailTx ? (
         <TransactionDetailDialog
-          transaction={detailTx}
+          transaction={liveDetailTx}
           open
           onOpenChange={(o) => {
             if (!o) setDetailTx(null);
@@ -454,9 +467,9 @@ export default function TransactionsPage() {
         />
       ) : null}
 
-      {invTx ? (
+      {liveInvTx ? (
         <InvestmentTxDialog
-          tx={invTx}
+          tx={liveInvTx}
           open
           onOpenChange={(o) => {
             if (!o) setInvTx(null);

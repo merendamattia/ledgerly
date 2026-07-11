@@ -3,7 +3,7 @@ import type { Bar, InstrumentMeta, PriceProvider, SearchCandidate } from "./type
 
 // In v3 the client is instantiated. Suppress interactive notices and the version
 // check so the library is silent in a server context.
-const yahooFinance = new YahooFinance({
+export const yahooFinance = new YahooFinance({
   suppressNotices: ["yahooSurvey", "ripHistorical"],
   versionCheck: false,
 });

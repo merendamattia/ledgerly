@@ -3,11 +3,18 @@ import { zValidator } from "@hono/zod-validator";
 import { requireAuth } from "../middlewares/auth.ts";
 import { tickerRepository } from "../../repositories/ticker.ts";
 import { priceRepository } from "../../repositories/price.ts";
-import { addAsset, addManualAsset, removeAsset, setManualPrice } from "../../services/tickers.ts";
+import {
+  addAsset,
+  addManualAsset,
+  removeAsset,
+  renameAsset,
+  setManualPrice,
+} from "../../services/tickers.ts";
 import { searchInstruments } from "../../services/market/search.ts";
 import {
   addAssetSchema,
   addManualAssetSchema,
+  renameTickerSchema,
   setManualPriceSchema,
   tickerSearchSchema,
 } from "../../schemas/index.ts";
@@ -36,6 +43,12 @@ export const tickersRoutes = new Hono<AppEnv>()
   .post("/manual", zValidator("json", addManualAssetSchema), async (c) => {
     const ticker = await addManualAsset(c.req.valid("json"));
     return c.json(ticker, 201);
+  })
+  .patch("/:id", zValidator("json", renameTickerSchema), async (c) => {
+    const id = c.req.param("id");
+    const { name } = c.req.valid("json");
+    const ticker = await renameAsset(id, name);
+    return c.json(ticker);
   })
   .post("/:id/price", zValidator("json", setManualPriceSchema), async (c) => {
     const id = c.req.param("id");
