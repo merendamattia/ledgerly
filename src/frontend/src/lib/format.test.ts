@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import {
-  axisFloor,
+  axisBounds,
   compactMoney,
   formatDate,
   formatMoney,
@@ -15,11 +15,18 @@ test("formatMoney trims cents for large amounts and keeps small cents", () => {
   expect(formatMoney(999.5, "EUR")).toBe("€999.50"); // below 1000 → cents kept
 });
 
-test("axisFloor floors to a nice step below the data min, 0 when reaching zero", () => {
-  expect(axisFloor([66_000, 70_000, 75_000])).toBe(60_000);
-  expect(axisFloor([0, 40_000, 80_000])).toBe(0);
-  expect(axisFloor([-5, 10, 20])).toBe(0);
-  expect(axisFloor([])).toBe(0);
+test("axisBounds floors below the min and leaves a step of headroom above the peak", () => {
+  // The reported case: 60k–76k window should top out at 85k, not 100k.
+  const b = axisBounds([60_155, 68_000, 76_155]);
+  expect(b.min).toBe(60_000);
+  expect(b.max).toBe(85_000);
+  expect(b.ticks[0]).toBe(60_000);
+  expect(b.ticks.at(-1)).toBe(85_000);
+  // Peak sits strictly below the top so the line never hugs the edge.
+  expect(b.max).toBeGreaterThan(76_155);
+
+  expect(axisBounds([]).max).toBe(0);
+  expect(axisBounds([0, 40_000, 80_000]).min).toBe(0);
 });
 
 test("formatNumber respects explicit precision", () => {

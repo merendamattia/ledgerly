@@ -89,13 +89,25 @@ function niceStep(span: number): number {
  * 66k–75k range starts at 60k). Returns 0 when the series reaches at/below zero,
  * so full-range views still start at 0.
  */
-export function axisFloor(values: number[]): number {
-  if (values.length === 0) return 0;
-  const min = Math.min(...values);
-  if (min <= 0) return 0;
-  const max = Math.max(...values);
-  const step = niceStep(max - min || max * 0.05);
-  return Math.max(0, Math.floor(min / step) * step);
+/**
+ * Nice y-axis bounds + gridline ticks for a value series. Floors to a nice step
+ * below the data min and leaves at least one step of headroom above the max, so
+ * the line never hugs the top edge. Handing these to the chart stops the lib
+ * from over-nicing the range (e.g. showing €100K for a €76K peak).
+ */
+export function axisBounds(values: number[]): { min: number; max: number; ticks: number[] } {
+  if (values.length === 0) return { min: 0, max: 0, ticks: [0] };
+  const dataMin = Math.min(...values);
+  const dataMax = Math.max(...values);
+  // A quarter of the span keeps the step fine (~5k on a 76k/60k window) so the
+  // top rounds to a tight bound rather than the next 20k gridline.
+  const step = niceStep((dataMax - dataMin || dataMax * 0.05) / 4);
+  const min = dataMin <= 0 ? 0 : Math.max(0, Math.floor(dataMin / step) * step);
+  let max = Math.ceil(dataMax / step) * step;
+  if (max - dataMax < step) max += step; // guarantee visible headroom above the peak
+  const ticks: number[] = [];
+  for (let t = min; t <= max + 1e-6; t += step) ticks.push(t);
+  return { min, max, ticks };
 }
 
 /** Hard-truncate a string to `max` characters, appending an ellipsis if cut. */

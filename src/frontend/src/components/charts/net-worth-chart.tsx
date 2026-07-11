@@ -7,7 +7,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { axisFloor, compactMoney, formatMoney, shortDate } from "@/lib/format";
+import { axisBounds, compactMoney, formatMoney, shortDate } from "@/lib/format";
 import {
   PRIVATE_COMPACT_PLACEHOLDER,
   usePrivateNumberFormatter,
@@ -41,9 +41,9 @@ export function NetWorthChart({
     totalValue: d.totalValue,
     ...(hasInvested ? { invested: d.invested ?? null } : {}),
   }));
-  // Floor tracks the value line only; the invested reference sits far below in
+  // Bounds track the value line only; the invested reference sits far below in
   // zoomed windows and would otherwise drag the axis back down to ~0.
-  const yMin = axisFloor(data.map((d) => d.totalValue));
+  const { min: yMin, max: yMax, ticks: yTicks } = axisBounds(data.map((d) => d.totalValue));
 
   return (
     <ChartContainer
@@ -67,11 +67,11 @@ export function NetWorthChart({
           tick={{ fontSize: 11 }}
         />
         <YAxis
-          domain={[yMin, "auto"]}
+          domain={[yMin, yMax]}
+          ticks={yTicks}
           tickLine={false}
           axisLine={false}
           width={46}
-          tickCount={4}
           tick={{ fontSize: 11 }}
           tickFormatter={(v) =>
             privateText(compactMoney(Number(v), currency), PRIVATE_COMPACT_PLACEHOLDER)
