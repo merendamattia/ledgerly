@@ -60,6 +60,18 @@ end-to-end — not just that it compiles. A green build is not proof the feature
 - Frontend: `cd src/frontend && bun run lint && bun run build`
 - CI (`.github/workflows/ci.yml`) runs all of the above with Postgres + Redis services.
 
+## Before declaring a task/goal done: re-run what the GitHub Actions enforce
+A task is NOT complete until every check that runs in `.github/workflows/` passes
+**locally on your machine** — do not defer this to CI. At the end of every task you MUST
+re-run them yourself and confirm green:
+- `pre-commit run --all-files` — mirrors `conventional-commits-check.yaml` (runs the
+  frontend eslint + backend tsc hooks; needs `bun install` + `src/backend` `prisma generate`).
+- The "Checks before pushing" commands above — mirror `ci.yml`.
+- If Docker/compose or the Dockerfiles changed: build every image the way
+  `check-docker-image.yaml` does — `docker build -f src/backend/Dockerfile .` and
+  `docker build -f src/frontend/Dockerfile --build-arg NEXT_PUBLIC_API_URL=... .`.
+If any of these fail, fix and re-run. Never report a task done on red or unrun checks.
+
 ## Deployment (Coolify)
 Deploy with `docker-compose.prod.yml` (backend + frontend only). Postgres and Redis are managed
 Coolify resources — copy their internal credentials into `DATABASE_URL` / `REDIS_URL` (see
