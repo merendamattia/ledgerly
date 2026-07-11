@@ -183,7 +183,7 @@ console.log(`Server at ${server.url}`);
 2. **Create server code** (`server.ts`)
    ```typescript
    import index from "./index.html";
-   
+
    Bun.serve({
      routes: {
        "/": index,
@@ -236,7 +236,7 @@ console.log(`Server at ${server.url}`);
 1. **Create test file** (`math.test.ts`)
    ```typescript
    import { test, expect } from "bun:test";
-   
+
    test("addition", () => {
      expect(2 + 2).toBe(4);
    });

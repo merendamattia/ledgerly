@@ -1,0 +1,48 @@
+name: 'Check Docker Image building'
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+  push:
+    branches:
+      - main
+      - develop
+
+jobs:
+  docker-build:
+    name: Build ${{ matrix.name }} image
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: backend
+            dockerfile: src/backend/Dockerfile
+            build-args: ''
+          - name: frontend
+            dockerfile: src/frontend/Dockerfile
+            build-args: NEXT_PUBLIC_API_URL=http://localhost:3001
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Build only (no run): the containers need Postgres/Redis at runtime, which
+      # this job does not provision. Context is the repo root (bun workspace).
+      - name: Build ${{ matrix.name }} image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          tags: ledgerly-${{ matrix.name }}:test
+          build-args: ${{ matrix.build-args }}
+          push: false
+          load: false
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,scope=${{ matrix.name }},mode=max
