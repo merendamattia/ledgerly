@@ -113,18 +113,26 @@ export async function setManualPrice(id: string, price: number, date?: Date): Pr
 }
 
 /**
- * Seed a manually-valued asset's price history at its earliest transaction date so a
- * back-dated holding is valued from its purchase date instead of spiking on the day it was
- * added. Manual assets get no backfill, so without an anchor `computeInvestmentHistory` finds
- * no price ≤ the purchase day and reports 0 until today's manual price appears.
+ * Seed the price history of an asset that has no pre-purchase history at its earliest
+ * transaction date, so a back-dated holding is valued from its purchase date instead of
+ * spiking on the day it was added. Without an anchor `computeInvestmentHistory` finds no
+ * price ≤ the purchase day and reports 0 until the first tracked price appears.
  *
- * Idempotent and cheap: no-op for provider-backed assets (their history is fully backfilled),
- * for assets with no movements, or when a price already exists on/before the earliest movement.
- * The earliest movement is a BUY, so its `price` is the natural per-unit mark at that date.
+ * Applies to manual assets (no backfill at all) AND bonds: Yahoo has no historical series
+ * for bonds (only a live quote captured nightly from today on), so the pre-tracking window
+ * would otherwise read 0. The earliest movement is a BUY, so its `price` is the natural
+ * per-unit mark — for a bond that is its clean price (~100 at par), flat until the cron
+ * starts recording real closes.
+ *
+ * Idempotent and cheap: no-op for fully-backfilled provider assets (equity/ETF/crypto/
+ * commodity), for assets with no movements, or when a price already exists on/before the
+ * earliest movement.
  */
-export async function ensureManualPriceAnchor(tickerId: string): Promise<void> {
+export async function ensurePurchasePriceAnchor(tickerId: string): Promise<void> {
   const ticker = await tickerRepository.findById(tickerId);
-  if (!ticker || ticker.provider !== MANUAL_PROVIDER) return;
+  if (!ticker) return;
+  const needsAnchor = ticker.provider === MANUAL_PROVIDER || ticker.type === "BOND";
+  if (!needsAnchor) return;
 
   const txs = await investmentTransactionRepository.listByTicker(tickerId); // date asc
   const earliest = txs[0];
