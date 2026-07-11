@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/merendamattia/ledgerly/compare/v1.0.0...v1.0.1) (2026-07-11)
+
+
+### Bug Fixes
+
+* **charts:** span y-axis bounds across all series ([e9a3391](https://github.com/merendamattia/ledgerly/commit/e9a3391131306e7b3f9c2c9c51333b2d7bdf8e92))
+
 # 1.0.0 (2026-07-11)
 
 
