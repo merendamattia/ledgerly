@@ -1,10 +1,10 @@
 // Formatting helpers shared across the UI.
 
 /**
- * Decimal places for a money/number figure: 1 for large magnitudes (>1000), 2
- * otherwise. Large numbers with two decimals read poorly on mobile, so we trim.
+ * Decimal places for a money/number figure: 0 from 1000 up, 2 below. Large
+ * numbers with two decimals read poorly on mobile, so we trim at the thousand.
  */
-const fractionDigits = (value: number): number => (Math.abs(value) > 1000 ? 0 : 2);
+const fractionDigits = (value: number): number => (Math.abs(value) >= 1000 ? 0 : 2);
 
 const moneyFormatters = new Map<string, Intl.NumberFormat>();
 const numberFormatters = new Map<number, Intl.NumberFormat>();
@@ -73,6 +73,29 @@ export function compactMoney(value: number, currency = "EUR"): string {
     notation: "compact",
     maximumFractionDigits: 1,
   }).format(value);
+}
+
+/** A "nice" step (1/2/5 × 10ⁿ) roughly sized to a value span, for axis rounding. */
+function niceStep(span: number): number {
+  const mag = 10 ** Math.floor(Math.log10(span));
+  const norm = span / mag;
+  const nice = norm < 1.5 ? 1 : norm < 3 ? 2 : norm < 7 ? 5 : 10;
+  return nice * mag;
+}
+
+/**
+ * Lower bound for a chart Y-axis so zoomed-in series aren't squashed against a
+ * fixed 0 baseline. Floors the data minimum to a nice step below it (e.g. a
+ * 66k–75k range starts at 60k). Returns 0 when the series reaches at/below zero,
+ * so full-range views still start at 0.
+ */
+export function axisFloor(values: number[]): number {
+  if (values.length === 0) return 0;
+  const min = Math.min(...values);
+  if (min <= 0) return 0;
+  const max = Math.max(...values);
+  const step = niceStep(max - min || max * 0.05);
+  return Math.max(0, Math.floor(min / step) * step);
 }
 
 /** Hard-truncate a string to `max` characters, appending an ellipsis if cut. */
