@@ -41,9 +41,11 @@ export function NetWorthChart({
     totalValue: d.totalValue,
     ...(hasInvested ? { invested: d.invested ?? null } : {}),
   }));
-  // Bounds track the value line only; the invested reference sits far below in
-  // zoomed windows and would otherwise drag the axis back down to ~0.
-  const { min: yMin, max: yMax, ticks: yTicks } = axisBounds(data.map((d) => d.totalValue));
+  // Bounds span every rendered series so no line clips off the top or bottom.
+  const seriesValues = data.flatMap((d) =>
+    hasInvested && d.invested != null ? [d.totalValue, d.invested] : [d.totalValue],
+  );
+  const { min: yMin, max: yMax, ticks: yTicks } = axisBounds(seriesValues);
 
   return (
     <ChartContainer
