@@ -5,6 +5,7 @@ import { Chart, LinearScale, Tooltip } from "chart.js";
 import { SankeyController, Flow } from "chartjs-chart-sankey";
 import { formatMoney } from "@/lib/format";
 import { usePrivateNumberFormatter } from "@/components/private-number";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 // Tree-shakeable Chart.js: register only what the sankey needs (controller +
 // flow element + the linear scale it lays nodes on + tooltip).
@@ -37,11 +38,11 @@ function lighten(hex: string, amt: number): string {
 }
 
 /** Collapses a flow list to the top entries plus an aggregated "Other" row. */
-function collapse(items: SankeyFlow[]): SankeyFlow[] {
+function collapse(items: SankeyFlow[], limit = TOP_N): SankeyFlow[] {
   const sorted = [...items].sort((a, b) => b.value - a.value);
-  if (sorted.length <= TOP_N + 1) return sorted;
-  const rest = sorted.slice(TOP_N).reduce((t, c) => t + c.value, 0);
-  return [...sorted.slice(0, TOP_N), { label: "Other", value: rest }];
+  if (sorted.length <= limit + 1) return sorted;
+  const rest = sorted.slice(limit).reduce((t, c) => t + c.value, 0);
+  return [...sorted.slice(0, limit), { label: "Other", value: rest }];
 }
 
 /** Renders a Sankey diagram from income sources to savings and expense categories. */
@@ -64,6 +65,7 @@ export function CashFlowSankey({
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { privateText } = usePrivateNumberFormatter();
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -81,9 +83,10 @@ export function CashFlowSankey({
     ];
     const muted = token("--muted-foreground", "#807f70");
 
-    const inflow = collapse(sources);
-    const investmentOutflow = collapse(investments);
-    const outflow = collapse(expenses);
+    const topN = isMobile ? 4 : TOP_N;
+    const inflow = collapse(sources, topN);
+    const investmentOutflow = collapse(investments, topN);
+    const outflow = collapse(expenses, topN);
     const invested = investments.reduce((total, item) => total + item.value, 0);
     const net = Math.max(0, income - expense - invested);
 
@@ -147,18 +150,29 @@ export function CashFlowSankey({
             priority,
             column,
             size: "max",
-            nodeWidth: 14,
-            nodePadding: 28,
+            nodeWidth: isMobile ? 10 : 14,
+            nodePadding: isMobile ? 18 : 28,
             borderWidth: 0,
             color: ink,
-            font: { family: "Hanken Grotesk, sans-serif", size: 12, weight: 600 } as never,
+            font: {
+              family: "Hanken Grotesk, sans-serif",
+              size: isMobile ? 10 : 12,
+              weight: 600,
+            } as never,
           },
         ],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        layout: { padding: { top: 8, bottom: 8, left: 6, right: 6 } },
+        layout: {
+          padding: {
+            top: isMobile ? 4 : 8,
+            bottom: isMobile ? 4 : 8,
+            left: isMobile ? 4 : 6,
+            right: isMobile ? 4 : 6,
+          },
+        },
         plugins: {
           legend: { display: false },
           tooltip: {
@@ -174,7 +188,7 @@ export function CashFlowSankey({
     });
 
     return () => chart.destroy();
-  }, [income, expense, investments, sources, expenses, currency, privateText]);
+  }, [income, expense, investments, sources, expenses, currency, privateText, isMobile]);
 
   if (income <= 0) {
     return <p className="py-12 text-center text-sm text-muted-foreground">No cash flow in range.</p>;
@@ -184,7 +198,7 @@ export function CashFlowSankey({
     <div className={className}>
       {/* Scroll on narrow screens so nodes/labels keep room. */}
       <div className="-mx-1 overflow-x-auto px-1">
-        <div className="h-[460px] min-w-[720px]">
+        <div className="h-[380px] min-w-[560px] sm:h-[460px] sm:min-w-[720px]">
           <canvas ref={canvasRef} role="img" aria-label="Cash flow Sankey diagram" />
         </div>
       </div>

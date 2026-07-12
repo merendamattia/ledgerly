@@ -12,6 +12,7 @@ import {
   PRIVATE_COMPACT_PLACEHOLDER,
   usePrivateNumberFormatter,
 } from "@/components/private-number";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const chartConfig = {
   totalValue: { label: "Net worth", color: "var(--chart-1)" },
@@ -26,7 +27,7 @@ const chartConfig = {
 export function NetWorthChart({
   data,
   currency,
-  className = "h-[280px] w-full",
+  className = "h-[240px] w-full sm:h-[280px]",
   valueLabel = "Net worth",
 }: {
   data: { date: string; totalValue: number; invested?: number }[];
@@ -35,6 +36,7 @@ export function NetWorthChart({
   valueLabel?: string;
 }) {
   const { privateText } = usePrivateNumberFormatter();
+  const isMobile = useIsMobile();
   const hasInvested = data.some((d) => d.invested != null);
   const points = data.map((d) => ({
     date: shortDate(d.date),
@@ -52,7 +54,7 @@ export function NetWorthChart({
       config={{ ...chartConfig, totalValue: { ...chartConfig.totalValue, label: valueLabel } }}
       className={className}
     >
-      <AreaChart data={points} margin={{ left: 0, right: 8 }}>
+      <AreaChart data={points} margin={{ left: 0, right: isMobile ? 4 : 8 }}>
         <defs>
           <linearGradient id="netWorthFill" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="var(--color-totalValue)" stopOpacity={0.28} />
@@ -65,16 +67,16 @@ export function NetWorthChart({
           tickLine={false}
           axisLine={false}
           tickMargin={8}
-          minTickGap={32}
-          tick={{ fontSize: 11 }}
+          minTickGap={isMobile ? 20 : 32}
+          tick={{ fontSize: isMobile ? 10 : 11 }}
         />
         <YAxis
           domain={[yMin, yMax]}
           ticks={yTicks}
           tickLine={false}
           axisLine={false}
-          width={46}
-          tick={{ fontSize: 11 }}
+          width={isMobile ? 38 : 46}
+          tick={{ fontSize: isMobile ? 10 : 11 }}
           tickFormatter={(v) =>
             privateText(compactMoney(Number(v), currency), PRIVATE_COMPACT_PLACEHOLDER)
           }

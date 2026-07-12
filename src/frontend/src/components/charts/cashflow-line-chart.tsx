@@ -14,6 +14,7 @@ import {
   PRIVATE_COMPACT_PLACEHOLDER,
   usePrivateNumberFormatter,
 } from "@/components/private-number";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const chartConfig = {
   income: { label: "Income", color: "var(--positive)" },
@@ -29,6 +30,7 @@ export function CashFlowLineChart({
   currency: string;
 }) {
   const { privateText } = usePrivateNumberFormatter();
+  const isMobile = useIsMobile();
   const points = data.map((d) => ({
     month: monthLabel(`${d.month}-01`),
     income: d.income,
@@ -36,23 +38,23 @@ export function CashFlowLineChart({
   }));
 
   return (
-    <ChartContainer config={chartConfig} className="h-[260px] w-full">
-      <LineChart data={points} margin={{ left: 0, right: 8 }}>
+    <ChartContainer config={chartConfig} className="h-[240px] w-full sm:h-[260px]">
+      <LineChart data={points} margin={{ left: 0, right: isMobile ? 4 : 8 }}>
         <CartesianGrid vertical={false} strokeDasharray="4 4" />
         <XAxis
           dataKey="month"
           tickLine={false}
           axisLine={false}
           tickMargin={8}
-          minTickGap={16}
-          tick={{ fontSize: 11 }}
+          minTickGap={isMobile ? 10 : 16}
+          tick={{ fontSize: isMobile ? 10 : 11 }}
         />
         <YAxis
           tickLine={false}
           axisLine={false}
-          width={46}
+          width={isMobile ? 38 : 46}
           tickCount={4}
-          tick={{ fontSize: 11 }}
+          tick={{ fontSize: isMobile ? 10 : 11 }}
           tickFormatter={(v) =>
             privateText(compactMoney(Number(v), currency), PRIVATE_COMPACT_PLACEHOLDER)
           }
@@ -62,7 +64,11 @@ export function CashFlowLineChart({
             <ChartTooltipContent formatter={(v) => privateText(formatMoney(Number(v), currency))} />
           }
         />
-        <ChartLegend content={<ChartLegendContent />} />
+        <ChartLegend
+          content={
+            <ChartLegendContent className="flex-wrap gap-x-3 gap-y-1 text-[10.5px] sm:text-xs" />
+          }
+        />
         <Line
           dataKey="income"
           type="monotone"

@@ -10,6 +10,7 @@ import {
 import { formatMoney } from "@/lib/format";
 import { MoneyAmount } from "@/components/money-amount";
 import { usePrivateNumberFormatter } from "@/components/private-number";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const PALETTE = [
   "var(--chart-1)",
@@ -44,6 +45,7 @@ export function AllocationChart({
   labels?: Record<string, string>;
 }) {
   const { privateText } = usePrivateNumberFormatter();
+  const isMobile = useIsMobile();
   const data = Object.entries(allocation)
     .filter(([, value]) => value > 0)
     .sort(([, a], [, b]) => b - a)
@@ -71,14 +73,20 @@ export function AllocationChart({
   return (
     <div className="flex flex-col items-center gap-5">
       <div className="relative">
-        <ChartContainer config={chartConfig} className="aspect-square h-[200px]">
+        <ChartContainer config={chartConfig} className="aspect-square h-[176px] sm:h-[200px]">
           <PieChart>
             <ChartTooltip
               content={
                 <ChartTooltipContent formatter={(v) => privateText(formatMoney(Number(v), currency))} />
               }
             />
-            <Pie data={data} dataKey="value" nameKey="name" innerRadius={64} strokeWidth={2}>
+            <Pie
+              data={data}
+              dataKey="value"
+              nameKey="name"
+              innerRadius={isMobile ? 54 : 64}
+              strokeWidth={2}
+            >
               {data.map((entry) => (
                 <Cell key={entry.key} fill={entry.fill} />
               ))}
@@ -87,19 +95,23 @@ export function AllocationChart({
         </ChartContainer>
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
           <span className="text-xs text-muted-foreground">Total</span>
-          <MoneyAmount value={total} currency={currency} className="text-lg font-semibold" />
+          <MoneyAmount
+            value={total}
+            currency={currency}
+            className="block max-w-[8.5rem] truncate text-center text-base font-semibold sm:text-lg"
+          />
         </div>
       </div>
 
       <ul className="grid w-full gap-2.5">
         {data.map((d) => (
           <li key={d.key} className="flex items-center gap-2.5 text-sm">
-            <span className="size-2.5 rounded-[3px]" style={{ backgroundColor: d.fill }} />
-            <span>{d.name}</span>
-            <span className="ml-auto font-mono font-semibold tabular-nums">
+            <span className="size-2.5 shrink-0 rounded-[3px]" style={{ backgroundColor: d.fill }} />
+            <span className="min-w-0 flex-1 truncate">{d.name}</span>
+            <span className="shrink-0 font-mono font-semibold tabular-nums">
               {total > 0 ? Math.round((d.value / total) * 100) : 0}%
             </span>
-            <span className="min-w-[64px] text-right font-mono text-xs text-muted-foreground tabular-nums">
+            <span className="min-w-[56px] shrink-0 text-right font-mono text-xs text-muted-foreground tabular-nums sm:min-w-[64px]">
               <MoneyAmount value={d.value} currency={currency} />
             </span>
           </li>
