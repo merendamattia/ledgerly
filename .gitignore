@@ -31,3 +31,6 @@ coverage/
 *.tsbuildinfo
 
 tmp/
+
+# Local planning
+todo.md
