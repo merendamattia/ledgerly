@@ -10,6 +10,7 @@ import {
 import { formatMoney } from "@/lib/format";
 import { MoneyAmount } from "@/components/money-amount";
 import { usePrivateNumberFormatter } from "@/components/private-number";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const chartConfig = {
   income: { label: "Income", color: "var(--positive)" },
@@ -27,6 +28,7 @@ export function IncomeExpensePie({
   currency: string;
 }) {
   const { privateText } = usePrivateNumberFormatter();
+  const isMobile = useIsMobile();
   const data = [
     { key: "income", name: "Income", value: income, fill: "var(--positive)" },
     { key: "expense", name: "Expense", value: expense, fill: "var(--negative)" },
@@ -45,14 +47,20 @@ export function IncomeExpensePie({
   return (
     <div className="flex flex-col items-center gap-5">
       <div className="relative">
-        <ChartContainer config={chartConfig} className="aspect-square h-[200px]">
+        <ChartContainer config={chartConfig} className="aspect-square h-[176px] sm:h-[200px]">
           <PieChart>
             <ChartTooltip
               content={
                 <ChartTooltipContent formatter={(v) => privateText(formatMoney(Number(v), currency))} />
               }
             />
-            <Pie data={data} dataKey="value" nameKey="name" innerRadius={64} strokeWidth={2}>
+            <Pie
+              data={data}
+              dataKey="value"
+              nameKey="name"
+              innerRadius={isMobile ? 54 : 64}
+              strokeWidth={2}
+            >
               {data.map((entry) => (
                 <Cell key={entry.key} fill={entry.fill} />
               ))}
@@ -61,16 +69,20 @@ export function IncomeExpensePie({
         </ChartContainer>
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
           <span className="text-xs text-muted-foreground">Net</span>
-          <MoneyAmount value={net} currency={currency} className="text-lg font-semibold" />
+          <MoneyAmount
+            value={net}
+            currency={currency}
+            className="block max-w-[8.5rem] truncate text-center text-base font-semibold sm:text-lg"
+          />
         </div>
       </div>
 
       <ul className="grid w-full gap-2">
         {data.map((d) => (
           <li key={d.key} className="flex items-center gap-2 text-sm">
-            <span className="size-2.5 rounded-full" style={{ backgroundColor: d.fill }} />
-            <span className="text-muted-foreground">{d.name}</span>
-            <MoneyAmount value={d.value} currency={currency} className="ml-auto font-medium" />
+            <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: d.fill }} />
+            <span className="min-w-0 flex-1 truncate text-muted-foreground">{d.name}</span>
+            <MoneyAmount value={d.value} currency={currency} className="shrink-0 font-medium" />
           </li>
         ))}
       </ul>

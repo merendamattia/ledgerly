@@ -33,8 +33,8 @@ export function CategoryBars({
       {items.map((c, i) => (
         <div key={c.name}>
           <div className="mb-1.5 flex items-center justify-between gap-3 text-sm">
-            <span className="capitalize">{c.name}</span>
-            <span className="font-mono tabular-nums text-muted-foreground">
+            <span className="min-w-0 truncate capitalize">{c.name}</span>
+            <span className="shrink-0 font-mono tabular-nums text-muted-foreground">
               <MoneyAmount value={c.value} currency={currency} />
             </span>
           </div>
@@ -100,13 +100,13 @@ export function CategoryBreakdownCard({
 
   return (
     <Card className={cn("gap-0 p-6", className)}>
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <p className="font-display text-base font-semibold">{title}</p>
           {subtitle ? <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p> : null}
         </div>
         {headerExtra || action ? (
-          <div className="flex shrink-0 items-center gap-3">
+          <div className="flex shrink-0 flex-wrap items-center gap-3">
             {headerExtra}
             {action}
           </div>
@@ -122,9 +122,9 @@ export function CategoryBreakdownCard({
       </div>
 
       {total > 0 ? (
-        <div className="mt-4 flex items-center justify-between border-t pt-4">
-          <span className="text-sm font-medium text-muted-foreground">{totalLabel}</span>
-          <span className="font-mono text-base font-semibold tabular-nums">
+        <div className="mt-4 flex items-center justify-between gap-3 border-t pt-4">
+          <span className="min-w-0 truncate text-sm font-medium text-muted-foreground">{totalLabel}</span>
+          <span className="shrink-0 font-mono text-base font-semibold tabular-nums">
             <MoneyAmount value={total} currency={currency} />
           </span>
         </div>

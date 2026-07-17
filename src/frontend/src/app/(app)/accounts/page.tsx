@@ -8,8 +8,9 @@ import { DataTable, type Column } from "@/components/data-table";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { AddAccountDialog } from "@/components/add-account-dialog";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAccounts, useDeleteAccount, type Account } from "@/hooks/use-accounts";
+import { CASH_CATEGORY_LABELS } from "@/lib/format";
 
 /** Renders the account list and account-management actions. */
 export default function AccountsPage() {
@@ -18,7 +19,7 @@ export default function AccountsPage() {
 
   const columns: Column<Account>[] = [
     { header: "Name", cell: (a) => a.name },
-    { header: "Type", cell: (a) => a.type },
+    { header: "Section", cell: (a) => CASH_CATEGORY_LABELS[a.category] },
     { header: "Currency", cell: (a) => a.currency },
     {
       header: "Balance",
@@ -40,7 +41,7 @@ export default function AccountsPage() {
             })
           }
           trigger={
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" aria-label={`Delete ${a.name}`}>
               <Trash2 />
             </Button>
           }
@@ -53,10 +54,14 @@ export default function AccountsPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Accounts"
-        description="Your liquid balances."
+        description="Manage the accounts used by snapshots and net worth."
         action={<AddAccountDialog />}
       />
       <Card>
+        <CardHeader>
+          <CardTitle>Account registry</CardTitle>
+          <CardDescription>All tracked accounts used by snapshots and net worth.</CardDescription>
+        </CardHeader>
         <CardContent>
           <DataTable columns={columns} data={data} getRowKey={(a) => a.id} isLoading={isLoading} />
         </CardContent>

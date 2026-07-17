@@ -12,6 +12,7 @@ import { CategoryBreakdownCard } from "@/components/category-breakdown";
 import { DayGroupedList } from "@/components/day-grouped-list";
 import { PeriodPerformance } from "@/components/period-performance";
 import { NetWorthChart } from "@/components/charts/net-worth-chart";
+import { NetWorthCompositionChart } from "@/components/charts/net-worth-composition-chart";
 import { AllocationChart } from "@/components/charts/allocation-chart";
 import { CashFlowChart } from "@/components/charts/cashflow-chart";
 import { useDashboard, useNetWorthHistory, type DashboardData } from "@/hooks/use-dashboard";
@@ -35,6 +36,7 @@ type KpiDelta = {
   tone: "positive" | "negative" | "muted";
 };
 type TrendPoint = { date: string; total: number };
+type ChartMode = "total" | "composition";
 
 const PERIODS = [
   { value: "1M", label: "1M" },
@@ -43,6 +45,10 @@ const PERIODS = [
   { value: "1Y", label: "1Y" },
   { value: "Max", label: "Max" },
 ] as const;
+const CHART_MODES: { value: ChartMode; label: string; mobileLabel: string }[] = [
+  { value: "total", label: "Total", mobileLabel: "Total" },
+  { value: "composition", label: "Composition", mobileLabel: "Assets" },
+];
 const PERIOD_DAYS: Record<string, number> = { "1M": 30, "3M": 90, "1Y": 365 };
 
 /** Resolves the oldest date included by the selected overview period. */
@@ -151,6 +157,7 @@ export default function OverviewPage() {
   const accounts = useAccounts();
   const cashSnapshots = useCashSnapshots();
   const [period, setPeriod] = useState<string>("YTD");
+  const [chartMode, setChartMode] = useState<ChartMode>("total");
   const { shouldHidePrivateNumbers, togglePrivacyMode } = usePrivacyMode();
   const PrivacyIcon = shouldHidePrivateNumbers ? EyeOff : Eye;
 
@@ -169,13 +176,17 @@ export default function OverviewPage() {
     cashFlow.income > 0 ? Math.round((monthlySavings / cashFlow.income) * 100) : 0;
 
   const nwHistory = useNetWorthHistory();
-  const sliced = useMemo(() => {
-    const pts = (nwHistory.data ?? []).map((p) => ({ date: p.date, totalValue: p.totalValue }));
+  const historyWindow = useMemo(() => {
+    const pts = nwHistory.data ?? [];
     const cutoff = periodCutoff(period);
     if (!cutoff) return pts;
     const window = pts.filter((p) => p.date >= cutoff);
     return window.length >= 2 ? window : pts;
   }, [nwHistory.data, period]);
+  const sliced = useMemo(
+    () => historyWindow.map((p) => ({ date: p.date, totalValue: p.totalValue })),
+    [historyWindow],
+  );
 
   const nwDelta = useMemo(() => {
     if (sliced.length < 2) return null;
@@ -281,7 +292,7 @@ export default function OverviewPage() {
     <div className="grid grid-cols-12 gap-4 md:gap-5">
       {/* Net worth hero */}
       <Card className={cn("col-span-12 flex flex-col gap-0 p-5 animate-fu lg:col-span-8")}>
-        <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p className="text-xs font-medium text-muted-foreground">Net worth</p>
             <div className="mt-1.5 flex items-start gap-2.5">
@@ -325,30 +336,64 @@ export default function OverviewPage() {
               />
             ) : null}
           </div>
-          <div className="flex gap-0.5 self-start rounded-lg bg-muted p-0.5">
-            {PERIODS.map((p) => (
-              <button
-                key={p.value}
-                type="button"
-                onClick={() => setPeriod(p.value)}
-                className={cn(
-                  "rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
-                  period === p.value
-                    ? "bg-card text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {p.label}
-              </button>
-            ))}
+          <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:items-end">
+            <div className="grid grid-cols-2 gap-0.5 rounded-lg bg-muted p-0.5 sm:flex">
+              {CHART_MODES.map((m) => (
+                <button
+                  key={m.value}
+                  type="button"
+                  aria-pressed={chartMode === m.value}
+                  onClick={() => setChartMode(m.value)}
+                  className={cn(
+                    "min-w-0 rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
+                    chartMode === m.value
+                      ? "bg-card text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <span className="sm:hidden">{m.mobileLabel}</span>
+                  <span className="hidden sm:inline">{m.label}</span>
+                </button>
+              ))}
+            </div>
+            <div className="grid grid-cols-5 gap-0.5 rounded-lg bg-muted p-0.5 sm:flex">
+              {PERIODS.map((p) => (
+                <button
+                  key={p.value}
+                  type="button"
+                  aria-pressed={period === p.value}
+                  onClick={() => setPeriod(p.value)}
+                  className={cn(
+                    "min-w-0 rounded-md px-1.5 py-1 text-[11px] font-medium transition-colors sm:px-2",
+                    period === p.value
+                      ? "bg-card text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
         {/* Chart is absolutely positioned so it adds no intrinsic height; the
             row height is driven by the Allocation card on the right, which
             grows as new assets are added. */}
-        <div className="relative mt-4 min-h-[280px] flex-1">
+        <div className="relative mt-4 min-h-[240px] flex-1 sm:min-h-[280px]">
           <div className="absolute inset-0">
-            <NetWorthChart data={sliced} currency={currency} className="aspect-auto h-full w-full" />
+            {chartMode === "composition" ? (
+              <NetWorthCompositionChart
+                data={historyWindow}
+                currency={currency}
+                className="aspect-auto h-full w-full"
+              />
+            ) : (
+              <NetWorthChart
+                data={sliced}
+                currency={currency}
+                className="aspect-auto h-full w-full"
+              />
+            )}
           </div>
         </div>
       </Card>
@@ -420,7 +465,7 @@ export default function OverviewPage() {
           height and simply fills whatever height that gives. */}
       <Card className={cn("col-span-12 flex flex-col gap-0 p-5 animate-fu lg:col-span-7")}>
         <p className="font-display text-base font-semibold">Income vs expenses</p>
-        <div className="relative mt-4 min-h-[260px] flex-1">
+        <div className="relative mt-4 min-h-[240px] flex-1 sm:min-h-[260px]">
           <div className="absolute inset-0">
             <CashFlowChart
               data={series}

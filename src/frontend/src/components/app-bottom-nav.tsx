@@ -13,6 +13,7 @@ import {
   Upload,
   Settings,
   Database,
+  Landmark,
   Terminal,
   LogOut,
 } from "lucide-react";
@@ -30,12 +31,13 @@ import { cn } from "@/lib/utils";
 // "More" tab that opens a bottom sheet with the admin links (no left drawer).
 const TABS = [
   { href: "/", label: "Overview", icon: LayoutGrid },
-  { href: "/investments", label: "Invest", icon: PieChart },
+  { href: "/investments", label: "Wealth", icon: PieChart },
   { href: "/cashflow", label: "Cash flow", icon: ArrowLeftRight },
   { href: "/transactions", label: "Activity", icon: ListChecks },
 ] as const;
 
 const MORE_LINKS = [
+  { href: "/accounts", label: "Accounts", icon: Landmark },
   { href: "/matrix", label: "Matrices", icon: Table },
   { href: "/imports", label: "Imports", icon: Upload },
   { href: "/settings", label: "Settings", icon: Settings },

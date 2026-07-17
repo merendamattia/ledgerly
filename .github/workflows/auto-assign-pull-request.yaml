@@ -3,9 +3,10 @@ on:
   pull_request_target:
     types: [opened, ready_for_review]
 
-# pull_request_target runs with base-repo permissions; grant only what auto-assign needs.
-# assignees go through the Issues API, so `issues: write` is required alongside pull-requests.
+# The action reads its config through the Contents API, requests reviewers through
+# Pull Requests, and sets assignees through Issues.
 permissions:
+  contents: read
   pull-requests: write
   issues: write
 

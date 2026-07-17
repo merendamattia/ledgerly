@@ -1,28 +1,13 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useMemo, useState, type ReactElement, type ReactNode } from "react";
-import { toast } from "sonner";
-import { Eye, EyeOff, Plus, Pencil, Trash2 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { useMemo, useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { ConfirmDialog } from "@/components/confirm-dialog";
-import { SnapshotPanel } from "@/components/snapshot-panel";
+import { AccountSnapshotWorkbench } from "@/components/account-snapshot-workbench";
 import type { SelectedTicker } from "@/components/ticker-search";
-import { AddAccountDialog, type SnapshotNoteHistoryItem } from "@/components/add-account-dialog";
 import { MoneyAmount } from "@/components/money-amount";
 import { PrivateNumber } from "@/components/private-number";
 import { PeriodPerformance } from "@/components/period-performance";
@@ -32,23 +17,8 @@ import { RebalanceCard } from "@/components/rebalance-card";
 import { PillarsCard } from "@/components/pillars-card";
 import { useDashboard, type DashboardData } from "@/hooks/use-dashboard";
 import { useInvestmentHistory } from "@/hooks/use-investments";
-import {
-  useAccounts,
-  useDeleteAccount,
-  useCashSnapshots,
-  useCreateCashSnapshot,
-} from "@/hooks/use-accounts";
-import {
-  useDebts,
-  useCreateDebt,
-  useUpdateDebt,
-  useDeleteDebt,
-  useDebtSnapshots,
-  useCreateDebtSnapshot,
-  type Debt,
-} from "@/hooks/use-debts";
 import { usePrivacyMode } from "@/components/privacy-mode";
-import { formatNumber, formatPercent, shortDate } from "@/lib/format";
+import { formatNumber, formatPercent } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const PositionTransactionsDialog = dynamic(
@@ -85,32 +55,19 @@ function periodCutoff(period: string): string | null {
   return d.toISOString().slice(0, 10);
 }
 
-/** Normalizes API Date/ISO values to the yyyy-mm-dd key used by date inputs. */
-function snapshotDateKey(value: string | Date): string {
-  return value instanceof Date ? value.toISOString().slice(0, 10) : value.slice(0, 10);
-}
-
 const CLASS_LABELS: Record<string, string> = { EQUITY: "Equity", ETF: "ETF", CRYPTO: "Crypto" };
 const CLASS_COLOR: Record<string, string> = {
   EQUITY: "var(--chart-1)",
   ETF: "var(--chart-2)",
   CRYPTO: "var(--chart-4)",
 };
-type CashCategory = "LIQUIDITY" | "CREDIT" | "OTHER_ASSET";
-type SnapshotSection = CashCategory | "DEBT";
-const SNAPSHOT_SECTIONS: { value: SnapshotSection; label: string }[] = [
-  { value: "LIQUIDITY", label: "Liquidity" },
-  { value: "CREDIT", label: "Credits" },
-  { value: "OTHER_ASSET", label: "Other assets" },
-  { value: "DEBT", label: "Debts" },
-];
 
-/** Renders the investments page with portfolio, cash, debt, and benchmark views. */
+/** Renders portfolio analysis and account snapshot tracking in one wealth workspace. */
 export default function InvestmentsPage() {
+  const searchParams = useSearchParams();
   const { data, isLoading } = useDashboard();
   const [period, setPeriod] = useState<string>("YTD");
   const [classFilter, setClassFilter] = useState<string>("ALL");
-  const [snapshotSection, setSnapshotSection] = useState<SnapshotSection>("LIQUIDITY");
   // Track the open position by id (not a snapshot) so the dialog re-renders with
   // fresh query data after a rename / price edit / new movement.
   const [openPositionId, setOpenPositionId] = useState<string | null>(null);
@@ -179,6 +136,14 @@ export default function InvestmentsPage() {
   );
   const classes = ["ALL", ...new Set(holdings.map((h) => h.type))];
   const totalValue = useMemo(() => holdings.reduce((s, h) => s + h.value, 0), [holdings]);
+
+  if (searchParams.get("view") === "accounts") {
+    return (
+      <div className="grid grid-cols-12 gap-4 md:gap-5">
+        <AccountSnapshotWorkbench currency={currency} />
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-12 gap-4 md:gap-5">
@@ -339,14 +304,6 @@ export default function InvestmentsPage() {
         </div>
       </Card>
 
-      <ActiveSnapshotPanel
-        section={snapshotSection}
-        currency={currency}
-        headerAction={
-          <SnapshotSectionMenu value={snapshotSection} onChange={setSnapshotSection} />
-        }
-      />
-
       {openPosition ? (
         <PositionTransactionsDialog
           holding={openPosition}
@@ -487,530 +444,5 @@ function PositionRow({
         </div>
       </div>
     </button>
-  );
-}
-
-const addActionClass =
-  "flex w-fit items-center gap-1.5 text-sm font-semibold text-primary hover:underline";
-
-/** Renders the compact menu that chooses which snapshot panel is visible. */
-function SnapshotSectionMenu({
-  value,
-  onChange,
-}: {
-  value: SnapshotSection;
-  onChange: (value: SnapshotSection) => void;
-}) {
-  return (
-    <div
-      role="group"
-      aria-label="Snapshot section"
-      className="grid w-full grid-cols-2 gap-1 rounded-xl bg-muted p-1 sm:flex sm:w-fit"
-    >
-      {SNAPSHOT_SECTIONS.map((item) => {
-        const active = value === item.value;
-        return (
-          <button
-            key={item.value}
-            type="button"
-            aria-pressed={active}
-            onClick={() => onChange(item.value)}
-            className={cn(
-              "rounded-lg px-2.5 py-2 text-[13px] font-semibold transition-colors sm:py-1.5 sm:text-xs",
-              active
-                ? "bg-foreground text-background"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {item.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-/** Mounts only the selected snapshot panel, instead of a vertical stack. */
-function ActiveSnapshotPanel({
-  section,
-  currency,
-  headerAction,
-}: {
-  section: SnapshotSection;
-  currency: string;
-  headerAction: ReactNode;
-}) {
-  if (section === "DEBT") {
-    return <DebtsCard currency={currency} headerAction={headerAction} />;
-  }
-  return <CashCategoryPanel category={section} currency={currency} headerAction={headerAction} />;
-}
-
-// Per-category copy for the three cash-account sections. They share one panel;
-// only labels and the category filter differ.
-const CASH_PANEL_COPY: Record<
-  CashCategory,
-  {
-    title: string;
-    subtitle: string;
-    totalLabel: string;
-    emptyText: string;
-    historyTitle: string;
-    historySubtitle: string;
-    dialogTitle: string;
-    dialogDescription: string;
-  }
-> = {
-  LIQUIDITY: {
-    title: "Liquidity · Cash accounts",
-    subtitle: "Update balances and save a dated snapshot",
-    totalLabel: "Total liquidity",
-    emptyText: "No cash accounts yet — add one to start tracking liquidity.",
-    historyTitle: "Snapshot history",
-    historySubtitle: "Liquidity over time",
-    dialogTitle: "New cash account",
-    dialogDescription: "Add a cash or bank account.",
-  },
-  CREDIT: {
-    title: "Credits · Receivables",
-    subtitle: "Update amounts owed to you and save a dated snapshot",
-    totalLabel: "Total credits",
-    emptyText: "No credits yet — add one to track money owed to you.",
-    historyTitle: "Snapshot history",
-    historySubtitle: "Credits over time",
-    dialogTitle: "New credit",
-    dialogDescription: "Add a receivable (money owed to you).",
-  },
-  OTHER_ASSET: {
-    title: "Other assets",
-    subtitle: "Update values and save a dated snapshot",
-    totalLabel: "Total other assets",
-    emptyText: "No other assets yet — add anything outside the rest.",
-    historyTitle: "Snapshot history",
-    historySubtitle: "Other assets over time",
-    dialogTitle: "New asset",
-    dialogDescription: "Add any other asset tracked by value.",
-  },
-};
-
-/**
- * Renders editable balances, dated snapshot capture, and history for one cash category.
- */
-function CashCategoryPanel({
-  category,
-  currency,
-  headerAction,
-}: {
-  category: CashCategory;
-  currency: string;
-  headerAction?: ReactNode;
-}) {
-  const accounts = useAccounts();
-  const snapshots = useCashSnapshots();
-  const createSnapshot = useCreateCashSnapshot();
-  const del = useDeleteAccount();
-  const copy = CASH_PANEL_COPY[category];
-
-  const categoryAccounts = useMemo(
-    () => (accounts.data ?? []).filter((a) => a.category === category && a.type !== "BROKER"),
-    [accounts.data, category],
-  );
-  const accountIds = useMemo(() => new Set(categoryAccounts.map((a) => a.id)), [categoryAccounts]);
-  const accountsById = useMemo(
-    () => new Map(categoryAccounts.map((a) => [a.id, a])),
-    [categoryAccounts],
-  );
-
-  // Aggregate this category's snapshots into a per-date total for the history card.
-  const history = useMemo(() => {
-    const byDate = new Map<string, number>();
-    for (const s of snapshots.data ?? []) {
-      if (!accountIds.has(s.cashAccountId)) continue;
-      const dateKey = snapshotDateKey(s.date);
-      byDate.set(dateKey, (byDate.get(dateKey) ?? 0) + s.balance);
-    }
-    return [...byDate.entries()]
-      .map(([date, total]) => ({ date, total }))
-      .sort((a, b) => a.date.localeCompare(b.date));
-  }, [snapshots.data, accountIds]);
-
-  const noteHistoryByAccount = useMemo(() => {
-    const byAccount = new Map<string, SnapshotNoteHistoryItem[]>();
-    for (const s of snapshots.data ?? []) {
-      if (!accountIds.has(s.cashAccountId)) continue;
-      const note = s.note?.trim();
-      if (!note) continue;
-      const items = byAccount.get(s.cashAccountId) ?? [];
-      items.push({ date: snapshotDateKey(s.date), note });
-      byAccount.set(s.cashAccountId, items);
-    }
-    for (const items of byAccount.values()) {
-      items.sort((a, b) => b.date.localeCompare(a.date));
-    }
-    return byAccount;
-  }, [snapshots.data, accountIds]);
-
-  const latestNotesByAccount = useMemo(() => {
-    const latest = new Map<string, string>();
-    for (const [accountId, items] of noteHistoryByAccount) {
-      const [item] = items;
-      if (item) latest.set(accountId, item.note);
-    }
-    return latest;
-  }, [noteHistoryByAccount]);
-
-  const rows = useMemo(
-    () =>
-      categoryAccounts.map((a) => ({
-        id: a.id,
-        name: a.name,
-        type: a.type,
-        note: a.note ?? latestNotesByAccount.get(a.id) ?? null,
-        currency: a.currency,
-        value: a.balance,
-      })),
-    [categoryAccounts, latestNotesByAccount],
-  );
-
-  return (
-    <SnapshotPanel
-      title={copy.title}
-      subtitle={copy.subtitle}
-      totalLabel={copy.totalLabel}
-      rows={rows}
-      isLoading={accounts.isLoading}
-      emptyText={copy.emptyText}
-      addAction={
-        <AddAccountDialog
-          category={category}
-          labels={{ title: copy.dialogTitle, description: copy.dialogDescription }}
-          trigger={
-            <button type="button" className={addActionClass}>
-              <Plus className="size-4" />
-              Add account
-            </button>
-          }
-        />
-      }
-      rowAction={(r) => {
-        const account = accountsById.get(r.id);
-        return (
-          <>
-            {account ? (
-              <AddAccountDialog
-                account={account}
-                noteHistory={noteHistoryByAccount.get(account.id) ?? []}
-                trigger={
-                  <Button variant="ghost" size="icon" aria-label="Edit account">
-                    <Pencil />
-                  </Button>
-                }
-              />
-            ) : null}
-            <ConfirmDialog
-              title="Delete account?"
-              description={`This removes "${r.name}" and its snapshots.`}
-              confirmLabel="Delete"
-              onConfirm={() =>
-                del.mutate(r.id, {
-                  onSuccess: () => toast.success("Account deleted"),
-                  onError: (e) => toast.error(e.message),
-                })
-              }
-              trigger={
-                <Button variant="ghost" size="icon" aria-label="Delete account">
-                  <Trash2 />
-                </Button>
-              }
-            />
-          </>
-        );
-      }}
-      submitting={createSnapshot.isPending}
-      onCreate={(date, entries) =>
-        createSnapshot.mutate(
-          {
-            date,
-            entries: entries.map((e) => ({ accountId: e.id, balance: e.value, note: e.note })),
-          },
-          {
-            onSuccess: () => toast.success(`Snapshot saved for ${shortDate(date)}`),
-            onError: (e) => toast.error(e.message),
-          },
-        )
-      }
-      history={history}
-      historyTitle={copy.historyTitle}
-      historySubtitle={copy.historySubtitle}
-      currency={currency}
-      headerAction={headerAction}
-    />
-  );
-}
-
-/** Renders editable debt amounts, dated snapshot capture, and debt history. */
-function DebtsCard({ currency, headerAction }: { currency: string; headerAction?: ReactNode }) {
-  const debts = useDebts();
-  const snapshots = useDebtSnapshots();
-  const createSnapshot = useCreateDebtSnapshot();
-  const del = useDeleteDebt();
-
-  const debtsById = useMemo(() => new Map((debts.data ?? []).map((d) => [d.id, d])), [debts.data]);
-
-  const history = useMemo(() => {
-    const byDate = new Map<string, number>();
-    for (const s of snapshots.data ?? []) {
-      const dateKey = snapshotDateKey(s.date);
-      byDate.set(dateKey, (byDate.get(dateKey) ?? 0) + s.amount);
-    }
-    return [...byDate.entries()]
-      .map(([date, total]) => ({ date, total }))
-      .sort((a, b) => a.date.localeCompare(b.date));
-  }, [snapshots.data]);
-
-  const noteHistoryByDebt = useMemo(() => {
-    const byDebt = new Map<string, SnapshotNoteHistoryItem[]>();
-    for (const s of snapshots.data ?? []) {
-      const note = s.note?.trim();
-      if (!note) continue;
-      const items = byDebt.get(s.debtId) ?? [];
-      items.push({ date: snapshotDateKey(s.date), note });
-      byDebt.set(s.debtId, items);
-    }
-    for (const items of byDebt.values()) {
-      items.sort((a, b) => b.date.localeCompare(a.date));
-    }
-    return byDebt;
-  }, [snapshots.data]);
-
-  const latestNotesByDebt = useMemo(() => {
-    const latest = new Map<string, string>();
-    for (const [debtId, items] of noteHistoryByDebt) {
-      const [item] = items;
-      if (item) latest.set(debtId, item.note);
-    }
-    return latest;
-  }, [noteHistoryByDebt]);
-
-  const rows = useMemo(
-    () =>
-      (debts.data ?? []).map((d) => ({
-        id: d.id,
-        name: d.name,
-        type: d.type,
-        note: d.note ?? latestNotesByDebt.get(d.id) ?? null,
-        currency: d.currency,
-        value: d.amount,
-      })),
-    [debts.data, latestNotesByDebt],
-  );
-
-  return (
-    <SnapshotPanel
-      title="Debts"
-      subtitle="Update amounts and save a dated snapshot"
-      totalLabel="Total debt"
-      rows={rows}
-      isLoading={debts.isLoading}
-      emptyText="No debts. Use + Add debt to record a loan or credit balance."
-      negative
-      addAction={<AddDebtDialog />}
-      rowAction={(r) => {
-        const debt = debtsById.get(r.id);
-        return (
-          <>
-            {debt ? (
-              <AddDebtDialog
-                debt={debt}
-                noteHistory={noteHistoryByDebt.get(debt.id) ?? []}
-                trigger={
-                  <Button variant="ghost" size="icon" aria-label="Edit debt">
-                    <Pencil />
-                  </Button>
-                }
-              />
-            ) : null}
-            <ConfirmDialog
-              title="Delete debt?"
-              description={`This removes "${r.name}".`}
-              confirmLabel="Delete"
-              onConfirm={() =>
-                del.mutate(r.id, {
-                  onSuccess: () => toast.success("Debt deleted"),
-                  onError: (e) => toast.error(e.message),
-                })
-              }
-              trigger={
-                <Button variant="ghost" size="icon" aria-label="Delete debt">
-                  <Trash2 />
-                </Button>
-              }
-            />
-          </>
-        );
-      }}
-      submitting={createSnapshot.isPending}
-      onCreate={(date, entries) =>
-        createSnapshot.mutate(
-          {
-            date,
-            entries: entries.map((e) => ({ debtId: e.id, amount: e.value, note: e.note })),
-          },
-          {
-            onSuccess: () => toast.success(`Snapshot saved for ${shortDate(date)}`),
-            onError: (e) => toast.error(e.message),
-          },
-        )
-      }
-      history={history}
-      historyTitle="Debt history"
-      historySubtitle="Liabilities over time"
-      currency={currency}
-      headerAction={headerAction}
-    />
-  );
-}
-
-/** Renders the dialog used to create or edit a tracked debt. */
-function AddDebtDialog({
-  debt,
-  trigger,
-  noteHistory = [],
-}: {
-  debt?: Debt;
-  trigger?: ReactElement;
-  noteHistory?: SnapshotNoteHistoryItem[];
-}) {
-  const editing = debt != null;
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState(debt?.name ?? "");
-  const [currency, setCurrency] = useState(debt?.currency ?? "EUR");
-  const [amount, setAmount] = useState(debt ? String(debt.amount) : "");
-  const [note, setNote] = useState(debt?.note ?? "");
-  const create = useCreateDebt();
-  const update = useUpdateDebt();
-  const pending = create.isPending || update.isPending;
-
-  /** Resets dialog fields from the current debt/default values when opened. */
-  function resetFields() {
-    setName(debt?.name ?? "");
-    setCurrency(debt?.currency ?? "EUR");
-    setAmount(debt ? String(debt.amount) : "");
-    setNote(debt?.note ?? "");
-  }
-
-  /** Opens/closes the dialog and refreshes stale draft values before editing. */
-  function handleOpenChange(nextOpen: boolean) {
-    if (nextOpen) resetFields();
-    setOpen(nextOpen);
-  }
-
-  /** Creates or updates the debt from the dialog form fields. */
-  function submit(e: React.FormEvent) {
-    e.preventDefault();
-    const payload = { name, currency, amount: Number(amount), note: note || null };
-    const opts = {
-      onSuccess: () => {
-        toast.success(editing ? "Debt updated" : "Debt added");
-        setOpen(false);
-        if (!editing) {
-          setName("");
-          setAmount("");
-          setNote("");
-        }
-      },
-      onError: (err: Error) => toast.error(err.message),
-    };
-    if (editing) update.mutate({ id: debt.id, ...payload }, opts);
-    else create.mutate(payload, opts);
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger
-        render={
-          trigger ?? (
-            <button type="button" className={addActionClass}>
-              <Plus className="size-4" />
-              Add debt
-            </button>
-          )
-        }
-      />
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{editing ? "Edit debt" : "New debt"}</DialogTitle>
-          <DialogDescription>
-            {editing ? "Update this liability." : "Record a loan, mortgage or credit balance."}
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={submit}>
-          <FieldGroup>
-            <Field>
-              <FieldLabel htmlFor="debt-name">Name</FieldLabel>
-              <Input id="debt-name" value={name} onChange={(e) => setName(e.target.value)} required />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="debt-currency">Currency</FieldLabel>
-              <Input
-                id="debt-currency"
-                value={currency}
-                onChange={(e) => setCurrency(e.target.value.toUpperCase())}
-                maxLength={3}
-                required
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="debt-amount">Amount</FieldLabel>
-              <Input
-                id="debt-amount"
-                type="number"
-                step="0.01"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                required
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="debt-note">Note</FieldLabel>
-              <Textarea
-                id="debt-note"
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                maxLength={280}
-                rows={3}
-              />
-            </Field>
-            {editing ? (
-              <Field>
-                <FieldLabel>Note history</FieldLabel>
-                {noteHistory.length > 0 ? (
-                  <div className="flex max-h-44 flex-col overflow-auto rounded-lg border">
-                    {noteHistory.map((item) => (
-                      <div
-                        key={`${item.date}:${item.note}`}
-                        className="flex flex-col gap-1 border-b px-3 py-2.5 last:border-b-0"
-                      >
-                        <span className="font-mono text-xs text-muted-foreground">
-                          {shortDate(item.date)}
-                        </span>
-                        <span className="break-words text-sm">{item.note}</span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <FieldDescription>No saved snapshot notes yet.</FieldDescription>
-                )}
-              </Field>
-            ) : null}
-            <DialogFooter>
-              <Button type="submit" disabled={pending}>
-                {editing ? "Save changes" : "Add debt"}
-              </Button>
-            </DialogFooter>
-          </FieldGroup>
-        </form>
-      </DialogContent>
-    </Dialog>
   );
 }

@@ -170,7 +170,7 @@ export default function CashFlowPage() {
           {trendSeries.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">No data in range.</p>
           ) : (
-            <div className="relative mt-4 min-h-[280px] flex-1">
+            <div className="relative mt-4 min-h-[240px] flex-1 sm:min-h-[280px]">
               <div className="absolute inset-0">
                 <CashFlowChart
                   data={trendSeries}

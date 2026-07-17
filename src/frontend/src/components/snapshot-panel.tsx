@@ -130,20 +130,20 @@ export function SnapshotPanel({
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(260px,360px)]">
-        <div className="rounded-[var(--card-radius)] bg-sidebar p-4 text-background shadow-card sm:p-5">
+        <div className="min-w-0">
           <div className="flex flex-col">
             {isLoading ? (
-              <p className="py-6 text-center text-sm text-sidebar-foreground">Loading…</p>
+              <p className="py-6 text-center text-sm text-muted-foreground">Loading…</p>
             ) : rows.length === 0 ? (
               <div className="flex flex-col items-center gap-3 py-8 text-center">
-                <p className="text-sm text-sidebar-foreground">{emptyText}</p>
+                <p className="text-sm text-muted-foreground">{emptyText}</p>
                 {addAction}
               </div>
             ) : (
               rows.map((r) => (
                 <div
                   key={r.id}
-                  className="flex flex-col gap-2.5 border-b border-sidebar-foreground/15 py-3.5 last:border-b-0 sm:flex-row sm:items-center sm:gap-3 sm:py-3"
+                  className="flex flex-col gap-2.5 border-b py-3.5 last:border-b-0 sm:flex-row sm:items-center sm:gap-3 sm:py-3"
                 >
                   <div className="flex min-w-0 items-center gap-3 sm:flex-1">
                     <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary font-display text-sm font-semibold text-primary-foreground">
@@ -152,12 +152,12 @@ export function SnapshotPanel({
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold">{r.name}</p>
                       {r.note ? (
-                        <p className="truncate text-xs text-sidebar-foreground">{r.note}</p>
+                        <p className="truncate text-xs text-muted-foreground">{r.note}</p>
                       ) : null}
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 sm:shrink-0">
-                    <div className="flex h-10 min-w-0 flex-1 items-center gap-1.5 rounded-lg bg-background pl-2.5 focus-within:ring-2 focus-within:ring-ring sm:h-9 sm:w-36 sm:flex-none">
+                    <div className="flex h-10 min-w-0 flex-1 items-center gap-1.5 rounded-lg border bg-background pl-2.5 focus-within:ring-2 focus-within:ring-ring sm:h-9 sm:w-36 sm:flex-none">
                       <span className="font-mono text-[11px] font-medium text-muted-foreground">
                         {r.currency}
                       </span>
@@ -197,17 +197,17 @@ export function SnapshotPanel({
           </div>
         </div>
 
-        <aside className="rounded-[var(--card-radius)] bg-sidebar p-4 text-background shadow-card sm:p-5">
+        <aside className="border-t pt-4 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-4">
           <div>
             <p className="font-display text-base font-semibold">{historyTitle}</p>
-            <p className="mt-0.5 text-xs text-sidebar-foreground">{historySubtitle}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">{historySubtitle}</p>
           </div>
           {points ? (
             <svg viewBox="0 0 300 60" className="mt-3 h-14 w-full overflow-visible">
               <polyline
                 points={points}
                 fill="none"
-                stroke="var(--primary)"
+                stroke={negative ? "var(--negative)" : "var(--positive)"}
                 strokeWidth="2.4"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -215,8 +215,10 @@ export function SnapshotPanel({
             </svg>
           ) : null}
           <div className="mt-3">
-            {history.length === 0 ? (
-              <p className="py-6 text-center text-sm text-sidebar-foreground">No snapshots yet.</p>
+            {isLoading ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">Loading…</p>
+            ) : history.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">No snapshots yet.</p>
             ) : (
               [...history]
                 .reverse()
@@ -224,7 +226,7 @@ export function SnapshotPanel({
                 .map((s) => (
                   <div
                     key={s.date}
-                    className="flex items-center justify-between gap-3 border-b border-sidebar-foreground/20 py-2.5 last:border-b-0"
+                    className="flex items-center justify-between gap-3 border-b py-2.5 last:border-b-0"
                   >
                     <span className="text-sm font-semibold">{shortDate(s.date)}</span>
                     <span className="font-mono text-sm font-semibold tabular-nums">
