@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { Plus, Search } from "lucide-react";
 import { useSearch } from "@/components/search-context";
@@ -12,6 +12,7 @@ import { PeriodPicker } from "@/components/cashflow/period-picker";
 import { periodOptions, resolvePeriod } from "@/components/cashflow/periods";
 import type { AddMode } from "@/components/add-transaction-dialog";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 const AddTransactionDialog = dynamic(
   () => import("@/components/add-transaction-dialog").then((mod) => mod.AddTransactionDialog),
@@ -40,8 +41,8 @@ type PageMeta = { title: string; subtitle: string };
 const PAGE_META: Record<string, PageMeta> = {
   "/": { title: "Overview", subtitle: "An at-a-glance view of your wealth" },
   "/investments": {
-    title: "Assets & Investments",
-    subtitle: "Portfolio, performance and allocation",
+    title: "Wealth",
+    subtitle: "Portfolio, accounts and balance history",
   },
   "/cashflow": { title: "Expenses & Cash Flow", subtitle: "Income, spending and monthly flows" },
   "/transactions": { title: "Transactions", subtitle: "All your recent movements" },
@@ -98,11 +99,14 @@ function CashflowPeriodControl() {
 /** Renders the sticky app topbar with section metadata and contextual actions. */
 export function AppTopbar() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { query, setQuery } = useSearch();
   const [addOpenFor, setAddOpenFor] = useState<string | null>(null);
   const meta = metaFor(pathname);
   const showSearch = pathname.startsWith("/transactions");
   const showPeriod = pathname.startsWith("/cashflow");
+  const showWealthNav = pathname.startsWith("/investments");
+  const showAccounts = searchParams.get("view") === "accounts";
   const addMode = addModeFor(pathname);
   const addOpen = addOpenFor === pathname;
 
@@ -123,7 +127,7 @@ export function AppTopbar() {
       <div className="flex items-center justify-between gap-3">
         <Link href="/" className="flex min-w-0 items-center gap-2.5">
           <Logo />
-          <div className="min-w-0">
+          <div className={cn("min-w-0", showWealthNav && "hidden sm:block")}>
             <span className="block font-display text-lg font-bold tracking-tight md:text-xl">
               Ledgerly
             </span>
@@ -133,10 +137,39 @@ export function AppTopbar() {
           </div>
         </Link>
 
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 items-center gap-2">
           {showSearch ? <div className="hidden w-56 sm:block">{searchField}</div> : null}
 
           {showPeriod ? <CashflowPeriodControl /> : null}
+
+          {showWealthNav ? (
+            <nav aria-label="Wealth" className="flex h-9 min-w-0 items-center rounded-lg bg-muted p-0.5">
+              <Link
+                href="/investments"
+                aria-current={!showAccounts ? "page" : undefined}
+                className={cn(
+                  "rounded-md px-2 py-1.5 text-xs font-medium whitespace-nowrap transition-colors",
+                  !showAccounts
+                    ? "bg-card text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                Portfolio
+              </Link>
+              <Link
+                href="/investments?view=accounts"
+                aria-current={showAccounts ? "page" : undefined}
+                className={cn(
+                  "rounded-md px-2 py-1.5 text-xs font-medium whitespace-nowrap transition-colors",
+                  showAccounts
+                    ? "bg-card text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                Accounts
+              </Link>
+            </nav>
+          ) : null}
 
           {addMode ? (
             <>
