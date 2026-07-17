@@ -207,7 +207,7 @@ export function SnapshotPanel({
               <polyline
                 points={points}
                 fill="none"
-                stroke="var(--positive)"
+                stroke={negative ? "var(--negative)" : "var(--positive)"}
                 strokeWidth="2.4"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -215,7 +215,9 @@ export function SnapshotPanel({
             </svg>
           ) : null}
           <div className="mt-3">
-            {history.length === 0 ? (
+            {isLoading ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">Loading…</p>
+            ) : history.length === 0 ? (
               <p className="py-6 text-center text-sm text-muted-foreground">No snapshots yet.</p>
             ) : (
               [...history]
