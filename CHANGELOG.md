@@ -1,3 +1,17 @@
+# [1.1.0](https://github.com/merendamattia/ledgerly/compare/v1.0.1...v1.1.0) (2026-07-17)
+
+
+### Bug Fixes
+
+* **ci:** allow auto-assign to read its config ([70e623f](https://github.com/merendamattia/ledgerly/commit/70e623f6e7df1fda8484bddccdb08a8f7fd0ed71))
+* **frontend:** address snapshot review feedback ([95c0a5a](https://github.com/merendamattia/ledgerly/commit/95c0a5ab90d317994517ba0466b0ac217288fa7d))
+
+
+### Features
+
+* add responsive finance charts ([9f7eca4](https://github.com/merendamattia/ledgerly/commit/9f7eca448d344c3f057cef78c3abc6e21414d212))
+* **frontend:** integrate account snapshots into wealth ([5552251](https://github.com/merendamattia/ledgerly/commit/5552251341b68c86fa508525fd5803868fea283a))
+
 ## [1.0.1](https://github.com/merendamattia/ledgerly/compare/v1.0.0...v1.0.1) (2026-07-11)
 
 
