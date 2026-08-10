@@ -46,7 +46,7 @@ const InvestmentTxDialog = dynamic(
 // Keep the initial list useful without making the page unwieldy. "Load more"
 // reveals another page.
 const PAGE_DESKTOP = 20;
-const PAGE_MOBILE = 20;
+const PAGE_MOBILE = 10;
 
 // The "Investments" filter is shown for parity with the design; investment
 // movements (buy/sell) are not yet recorded as transactions, so it yields none.
