@@ -1,13 +1,16 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../core/db.ts";
+import { filterUnfinishedRecurringRules } from "../utils/recurring-status.ts";
 
 // Data access for recurring expense/income rules.
 export const recurringExpenseRepository = {
-  list() {
-    return prisma.recurringExpense.findMany({
+  /** Lists unfinished rules, including those paused manually. */
+  async list() {
+    const rules = await prisma.recurringExpense.findMany({
       include: { category: true },
       orderBy: [{ enabled: "desc" }, { nextRunDate: "asc" }],
     });
+    return filterUnfinishedRecurringRules(rules);
   },
 
   findById(id: string) {

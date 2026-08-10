@@ -2,6 +2,7 @@ import type { RecurInterval, RecurringExpense } from "@prisma/client";
 import { prisma } from "../core/db.ts";
 import { recurringExpenseRepository } from "../repositories/recurringExpense.ts";
 import { transactionRepository } from "../repositories/transaction.ts";
+import { isRecurringEnded } from "../utils/recurring-status.ts";
 
 // Safety cap on how many movements a single rule can generate in one run, to
 // guard against a misconfigured rule (e.g. very old start date) flooding the DB.
@@ -61,17 +62,6 @@ export function occurrenceDates(rule: OccurrenceRule, limit: number): Date[] {
   return dates;
 }
 
-/** Whether a rule has produced its final occurrence and should be disabled. */
-function isExhausted(rule: RecurringExpense): boolean {
-  if (rule.endMode === "AFTER_OCCURRENCES" && rule.maxOccurrences != null) {
-    return rule.occurrencesCount >= rule.maxOccurrences;
-  }
-  if (rule.endMode === "ON_DATE" && rule.endDate) {
-    return utcDay(rule.nextRunDate).getTime() > utcDay(rule.endDate).getTime();
-  }
-  return false;
-}
-
 /**
  * Book a Transaction for every due occurrence of every enabled rule, advancing
  * `nextRunDate`/`occurrencesCount` and disabling rules that reach their end
@@ -116,7 +106,7 @@ export async function generateDue(today: Date): Promise<number> {
       data: {
         occurrencesCount,
         nextRunDate,
-        enabled: isExhausted(updated) ? false : rule.enabled,
+        enabled: isRecurringEnded(updated) ? false : rule.enabled,
       },
     });
   }
