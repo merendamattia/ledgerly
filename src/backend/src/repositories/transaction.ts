@@ -3,6 +3,7 @@ import { prisma } from "../core/db.ts";
 import { invalidateTransactionTagCache } from "../services/transactionTagCache.ts";
 
 export interface TransactionFilters {
+  search?: string;
   from?: Date;
   to?: Date;
   categoryId?: string;
@@ -15,7 +16,17 @@ export interface TransactionFilters {
  * Converts transaction list filters into a Prisma where clause.
  */
 function whereFromFilters(f: TransactionFilters): Prisma.TransactionWhereInput {
+  const search = f.search?.trim();
+
   return {
+    ...(search
+      ? {
+          OR: [
+            { note: { contains: search, mode: "insensitive" } },
+            { category: { name: { contains: search, mode: "insensitive" } } },
+          ],
+        }
+      : {}),
     categoryId: f.categoryId,
     direction: f.direction,
     date:

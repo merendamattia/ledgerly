@@ -43,10 +43,10 @@ const InvestmentTxDialog = dynamic(
   { ssr: false },
 );
 
-// Keep the initial list short so the page stays clean: 10 rows on desktop, 5 on
-// mobile. "Load more" reveals another page.
-const PAGE_DESKTOP = 10;
-const PAGE_MOBILE = 5;
+// Keep the initial list useful without making the page unwieldy. "Load more"
+// reveals another page.
+const PAGE_DESKTOP = 20;
+const PAGE_MOBILE = 10;
 
 // The "Investments" filter is shown for parity with the design; investment
 // movements (buy/sell) are not yet recorded as transactions, so it yields none.
@@ -142,6 +142,7 @@ export default function TransactionsPage() {
   const tagActive = query.trim().startsWith("#");
 
   const filters: TransactionFilters = {
+    search: query.trim() || undefined,
     direction: filter === "INCOME" || filter === "EXPENSE" ? filter : undefined,
     from: range.from,
     to: range.to,
@@ -180,15 +181,8 @@ export default function TransactionsPage() {
 
   const rows = useMemo(() => {
     if (filter === "INVESTMENT") return [];
-    const q = query.trim().toLowerCase();
-    const list = data ?? [];
-    if (!q) return list;
-    return list.filter(
-      (t) =>
-        (t.note ?? "").toLowerCase().includes(q) ||
-        (t.category?.name ?? "").toLowerCase().includes(q),
-    );
-  }, [data, query, filter]);
+    return data ?? [];
+  }, [data, filter]);
 
   // Net balance of the currently-shown rows — surfaced when a tag is active so a
   // tag (e.g. a trip city) reads as a single signed total.
@@ -209,7 +203,7 @@ export default function TransactionsPage() {
     );
   }, [investments.data, query, filter]);
 
-  const hasMore = filter !== "INVESTMENT" && !query && !!data && data.length === limit;
+  const hasMore = filter !== "INVESTMENT" && !tagActive && !!data && data.length === limit;
 
   // Keep the open detail dialogs bound to LIVE query data (looked up by id) rather
   // than the snapshot captured on click, so an inline edit (date, amount, …)

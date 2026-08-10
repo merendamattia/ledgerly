@@ -4,6 +4,7 @@ import type { QueryClient, QueryKey } from "@tanstack/react-query";
  * Filters supported by the expenses query and all transaction list cache keys.
  */
 export interface TransactionFilters {
+  search?: string;
   from?: string;
   to?: string;
   categoryId?: string;

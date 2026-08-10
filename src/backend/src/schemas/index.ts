@@ -264,6 +264,7 @@ export const createRecurringSchema = recurringBaseSchema
 export const updateRecurringSchema = recurringBaseSchema.partial();
 
 export const transactionFiltersSchema = z.object({
+  search: z.string().trim().max(280).optional(),
   from: z.coerce.date().optional(),
   to: z.coerce.date().optional(),
   categoryId: z.string().min(1).optional(),
