@@ -1,3 +1,12 @@
+## [1.1.1](https://github.com/merendamattia/ledgerly/compare/v1.1.0...v1.1.1) (2026-08-10)
+
+
+### Bug Fixes
+
+* **recurring:** hide ended recurring rules ([36f9b7e](https://github.com/merendamattia/ledgerly/commit/36f9b7ecbcd83076dccff7f7f63404a162489363))
+* **transactions:** adjust mobile page size for better usability ([0254e68](https://github.com/merendamattia/ledgerly/commit/0254e68186ebb676c6ea26b6e48bbedb39ba8406))
+* **transactions:** search across all pages ([ae8e15d](https://github.com/merendamattia/ledgerly/commit/ae8e15d06d79a51c84a80bd5171d5aeb15a44d9f))
+
 # [1.1.0](https://github.com/merendamattia/ledgerly/compare/v1.0.1...v1.1.0) (2026-07-17)
 
 
