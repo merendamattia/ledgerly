@@ -50,3 +50,9 @@ test("naturalKeys limits duplicate preload to the requested date range", async (
 
   expect(returnedNotes).toEqual([notes[1]]);
 });
+
+test("list searches matching transactions before applying pagination", async () => {
+  const rows = await transactionRepository.list({ search: notes[0], limit: 1 });
+
+  expect(rows.map((row) => row.note)).toEqual([notes[0]]);
+});
