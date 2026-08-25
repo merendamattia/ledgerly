@@ -10,8 +10,8 @@ export function currentPeriodDelta(
 ): number | null {
   if (current == null) return null;
 
-  const year = asOf.getFullYear();
-  const month = period === "month" ? asOf.getMonth() + 1 : 1;
+  const year = asOf.getUTCFullYear();
+  const month = period === "month" ? asOf.getUTCMonth() + 1 : 1;
   const boundary = `${year}-${String(month).padStart(2, "0")}-01`;
   const boundaryIndex = months.indexOf(boundary);
   if (boundaryIndex < 0) return null;

@@ -1,6 +1,8 @@
 import { expect, test } from "bun:test";
 import { currentPeriodDelta } from "./matrix-delta";
 
+process.env.TZ = "America/Los_Angeles";
+
 const months = [
   "2025-12-01",
   "2026-01-01",
@@ -17,6 +19,17 @@ test("compares today's value with the current month's boundary", () => {
     0.6097,
     3,
   );
+});
+
+test("uses UTC calendar boundaries across local month and year transitions", () => {
+  const values = [100, 13_332, 15_072, 14_761, 15_000, 16_000];
+
+  expect(
+    currentPeriodDelta(14_851, values, months, "month", new Date("2026-08-01T00:30:00Z")),
+  ).toBeCloseTo(0.6097, 3);
+  expect(
+    currentPeriodDelta(14_000, values, months, "year", new Date("2026-01-01T00:30:00Z")),
+  ).toBeCloseTo(5.0105, 3);
 });
 
 test("compares today's value with January 1 of the current year", () => {
