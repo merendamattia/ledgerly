@@ -7,8 +7,9 @@ import { PrivateNumber } from "@/components/private-number";
 import { cn } from "@/lib/utils";
 import { formatMoney, formatNumber, formatPercent, monthLabel } from "@/lib/format";
 import type { AssetMatrix } from "@/hooks/use-asset-matrix";
+import { currentPeriodDelta } from "./matrix-delta";
 
-// Sticky left columns: Asset (0) · Value (12rem) · MoM (19rem) · YTD (24.5rem). Month columns scroll.
+// Sticky left columns: Asset (0) · Today (12rem) · MoM (19rem) · YTD (24.5rem). Month columns scroll.
 const ASSET = "sticky left-0 z-20 w-48 min-w-48 px-4 py-2.5 text-left";
 const VALUE = "sticky left-48 z-20 w-28 min-w-28 px-3.5 py-2.5 text-right";
 const DELTA = "sticky left-[19rem] z-20 w-[5.5rem] min-w-[5.5rem] px-3 py-2.5 text-right";
@@ -16,26 +17,9 @@ const YTD_COL = "sticky left-[24.5rem] z-20 w-24 min-w-24 px-3.5 py-2.5 text-rig
 const MONTH = "w-[5.75rem] min-w-[5.75rem] px-3 py-2.5 text-right";
 const SPAN = 4; // sticky columns before the month columns
 
-// Current column / Value highlight tint.
+// Current column highlight tint.
 const CURRENT = "bg-accent";
 const CURRENT_BORDER = "border-primary/25";
-
-/** Percentage change of the last value vs the previous one (null when undefined). */
-function lastDelta(values: (number | null)[]): number | null {
-  const n = values.length;
-  if (n < 2) return null;
-  const prev = values[n - 2];
-  const cur = values[n - 1];
-  if (prev == null || cur == null || prev === 0) return null;
-  return ((cur - prev) / Math.abs(prev)) * 100;
-}
-
-/** Percentage change from the first to last available value in a period. */
-function periodDelta(values: (number | null)[]): number | null {
-  const nums = values.filter((v): v is number => v != null);
-  if (nums.length < 2 || nums[0] === 0) return null;
-  return ((nums[nums.length - 1] - nums[0]) / Math.abs(nums[0])) * 100;
-}
 
 // Trend sparkline parked for now; YTD % is easier to scan in the sticky column.
 /*
@@ -110,14 +94,7 @@ export function MatrixTable({ data, isLoading }: { data?: AssetMatrix; isLoading
   }
 
   const { months, groups, summary, fx, netWorthOther, baseCurrency } = data;
-
-  // Trend sparklines cover year-to-date only: from the first month of the latest year.
-  const currentYear = new Date(months[months.length - 1]).getFullYear();
-  const ytdStart = Math.max(
-    0,
-    months.findIndex((m) => new Date(m).getFullYear() === currentYear),
-  );
-  const ytd = <T,>(values: T[]) => values.slice(ytdStart);
+  const asOf = new Date();
 
   /** A muted band row that introduces a section (sticky label, optional total). */
   const bandRow = (label: string, total?: string) => (
@@ -170,10 +147,10 @@ export function MatrixTable({ data, isLoading }: { data?: AssetMatrix; isLoading
         </td>
         <td className={cn(VALUE, "border-r font-mono", CURRENT_BORDER, CURRENT)}>{fmt(row.current)}</td>
         <td className={cn(DELTA, "border-r border-border bg-card")}>
-          <Delta value={lastDelta(row.values)} />
+          <Delta value={currentPeriodDelta(row.current, row.values, months, "month", asOf)} />
         </td>
         <td className={cn(YTD_COL, "border-r border-border bg-card")}>
-          <Delta value={periodDelta(ytd(row.values))} />
+          <Delta value={currentPeriodDelta(row.current, row.values, months, "year", asOf)} />
         </td>
         {row.values.map((v, i) => (
           <td
@@ -200,7 +177,7 @@ export function MatrixTable({ data, isLoading }: { data?: AssetMatrix; isLoading
 
         <div className="overflow-x-auto">
           <table className="w-full border-separate border-spacing-0 text-sm tabular-nums">
-            {head("Value")}
+            {head("Today")}
             <tbody>
               {groups.map((group) => {
                 const total = group.rows.reduce((acc, r) => acc + r.current, 0);
@@ -220,10 +197,10 @@ export function MatrixTable({ data, isLoading }: { data?: AssetMatrix; isLoading
                           <Money value={row.current} currency={baseCurrency} />
                         </td>
                         <td className={cn(DELTA, "border-r border-border bg-card")}>
-                          <Delta value={lastDelta(row.values)} />
+                          <Delta value={currentPeriodDelta(row.current, row.values, months, "month", asOf)} />
                         </td>
                         <td className={cn(YTD_COL, "border-r border-border bg-card")}>
-                          <Delta value={periodDelta(ytd(row.values))} />
+                          <Delta value={currentPeriodDelta(row.current, row.values, months, "year", asOf)} />
                         </td>
                         {row.values.map((v, i) => (
                           <td key={i} className={cn(MONTH, i === months.length - 1 && CURRENT)}>
@@ -245,10 +222,10 @@ export function MatrixTable({ data, isLoading }: { data?: AssetMatrix; isLoading
                   <PrivateNumber text={formatMoney(summary.netWorthCurrent, baseCurrency)} />
                 </td>
                 <td className={cn(DELTA, "border-t-2 border-sidebar bg-sidebar")}>
-                  <Delta value={summary.plPct[summary.plPct.length - 1] ?? null} />
+                  <Delta value={currentPeriodDelta(summary.netWorthCurrent, summary.netWorth, months, "month", asOf)} />
                 </td>
                 <td className={cn(YTD_COL, "border-t-2 border-sidebar bg-sidebar")}>
-                  <Delta value={periodDelta(ytd(summary.netWorth))} />
+                  <Delta value={currentPeriodDelta(summary.netWorthCurrent, summary.netWorth, months, "year", asOf)} />
                 </td>
                 {summary.netWorth.map((v, i) => (
                   <td
