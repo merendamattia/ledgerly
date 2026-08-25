@@ -11,6 +11,7 @@ import { DayGroupedList } from "@/components/day-grouped-list";
 import { UpcomingMovement } from "@/components/cashflow/upcoming-movement";
 import { RecurringList } from "@/components/recurring-list";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -22,6 +23,8 @@ import { useSearch } from "@/components/search-context";
 import { useSettings } from "@/hooks/use-settings";
 import {
   useExpenses,
+  useCompleteExpenses,
+  useExpenseSummary,
   useExpenseTags,
   type Transaction,
   type TransactionFilters,
@@ -32,6 +35,12 @@ import {
 } from "@/hooks/use-investments";
 import { useCategories } from "@/hooks/use-categories";
 import { formatMoney, formatMonthYear, INVESTMENT_SIDE_LABELS } from "@/lib/format";
+import {
+  CUSTOM_TRANSACTION_PERIOD,
+  resolveTransactionRange,
+  shouldLoadCompleteTransactionResults,
+  summarizeTransactionRows,
+} from "@/lib/transaction-period";
 import { cn } from "@/lib/utils";
 
 const TransactionDetailDialog = dynamic(
@@ -71,7 +80,9 @@ function localISO(date: Date): string {
 /** Renders the transaction activity page with filters, search, and detail dialogs. */
 export default function TransactionsPage() {
   const [filter, setFilter] = useState<Filter>("ALL");
-  const [month, setMonth] = useState<string>("all");
+  const [period, setPeriod] = useState<string>("all");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
   const [categoryId, setCategoryId] = useState<string>("all");
   const [pageSize, setPageSize] = useState(PAGE_DESKTOP);
   const [limit, setLimit] = useState(PAGE_DESKTOP);
@@ -97,9 +108,12 @@ export default function TransactionsPage() {
   const settings = useSettings();
   const currency = settings.data?.baseCurrency ?? "EUR";
 
-  // Last 12 months plus "All time" for the period pill.
-  const monthOptions = useMemo(() => {
-    const opts = [{ value: "all", label: "All time" }];
+  // Last 12 months plus "All time" and a custom range for the period control.
+  const periodOptions = useMemo(() => {
+    const opts = [
+      { value: "all", label: "All time" },
+      { value: CUSTOM_TRANSACTION_PERIOD, label: "Custom range" },
+    ];
     const now = new Date();
     for (let i = 0; i < 12; i++) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -110,15 +124,13 @@ export default function TransactionsPage() {
     }
     return opts;
   }, []);
-  const monthItems = Object.fromEntries(monthOptions.map((o) => [o.value, o.label]));
+  const periodItems = Object.fromEntries(periodOptions.map((o) => [o.value, o.label]));
   const today = localISO(new Date());
 
-  const range = useMemo(() => {
-    if (month === "all") return { from: undefined, to: today };
-    const [y, m] = month.split("-").map(Number);
-    const monthEnd = localISO(new Date(y, m, 0));
-    return { from: localISO(new Date(y, m - 1, 1)), to: monthEnd > today ? today : monthEnd };
-  }, [month, today]);
+  const range = useMemo(
+    () => resolveTransactionRange(period, today, customFrom, customTo),
+    [customFrom, customTo, period, today],
+  );
 
   const categoryKind = filter === "INCOME" || filter === "EXPENSE" ? filter : undefined;
   const categories = useCategories(categoryKind, categoryKind !== undefined);
@@ -152,19 +164,26 @@ export default function TransactionsPage() {
           ? undefined
           : categoryId
         : undefined,
-    limit: tagActive ? 5000 : limit,
   };
 
-  const { data, isLoading } = useExpenses(filters);
+  const completePeriod = shouldLoadCompleteTransactionResults(period);
+  const completeResults = filter !== "INVESTMENT" && (completePeriod || tagActive);
+  const paginatedTransactions = useExpenses({ ...filters, limit }, !completeResults);
+  const completeTransactions = useCompleteExpenses(filters, completeResults);
+  const periodSummary = useExpenseSummary(filters, completePeriod && filter !== "INVESTMENT");
+  const data = completeResults ? completeTransactions.data : paginatedTransactions.data;
+  const isLoading = completeResults
+    ? completeTransactions.isLoading
+    : paginatedTransactions.isLoading;
 
   // Distinct tags within the selected period (most recent first) for the quick
-  // filter — so changing the month only surfaces tags from that month.
+  // filter — so changing the period only surfaces tags from that period.
   const tagSource = useExpenseTags({ from: range.from, to: range.to });
   const allTags = tagSource.data?.tags ?? [];
   const activeTag = tagActive ? query.trim().slice(1).toLowerCase() : null;
 
   /**
-   * Applies a tag filter while preserving the selected month.
+   * Applies a tag filter while preserving the selected period.
    *
    * The transaction type and category filters are reset so both income and
    * expenses tagged with the value are included.
@@ -186,10 +205,7 @@ export default function TransactionsPage() {
 
   // Net balance of the currently-shown rows — surfaced when a tag is active so a
   // tag (e.g. a trip city) reads as a single signed total.
-  const tagNet = useMemo(
-    () => rows.reduce((s, t) => s + (t.direction === "EXPENSE" ? -t.amount : t.amount), 0),
-    [rows],
-  );
+  const tagNet = useMemo(() => summarizeTransactionRows(rows).net, [rows]);
 
   const investmentRows = useMemo(() => {
     if (filter !== "INVESTMENT") return [];
@@ -203,7 +219,7 @@ export default function TransactionsPage() {
     );
   }, [investments.data, query, filter]);
 
-  const hasMore = filter !== "INVESTMENT" && !tagActive && !!data && data.length === limit;
+  const hasMore = !completeResults && filter !== "INVESTMENT" && !!data && data.length === limit;
 
   // Keep the open detail dialogs bound to LIVE query data (looked up by id) rather
   // than the snapshot captured on click, so an inline edit (date, amount, …)
@@ -247,7 +263,7 @@ export default function TransactionsPage() {
           })}
         </div>
 
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
           {categoryKind ? (
             <Select
               value={categoryId}
@@ -271,10 +287,10 @@ export default function TransactionsPage() {
           ) : null}
 
           <Select
-            value={month}
-            items={monthItems}
+            value={period}
+            items={periodItems}
             onValueChange={(v) => {
-              setMonth(v ?? "all");
+              setPeriod(v ?? "all");
               setCategoryId("all");
               setLimit(pageSize);
             }}
@@ -284,17 +300,70 @@ export default function TransactionsPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {monthOptions.map((o) => (
+              {periodOptions.map((o) => (
                 <SelectItem key={o.value} value={o.value}>
                   {o.label}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
+
+          {period === CUSTOM_TRANSACTION_PERIOD ? (
+            <div className="grid grid-cols-2 gap-2 rounded-lg border border-input bg-card p-2 sm:flex sm:items-end">
+              <label className="flex min-w-0 flex-col gap-1 text-xs font-medium text-muted-foreground">
+                From
+                <Input
+                  type="date"
+                  value={customFrom}
+                  max={today}
+                  aria-label="From date"
+                  className="h-8 sm:w-[140px]"
+                  onChange={(event) => {
+                    const nextFrom = event.target.value > today ? today : event.target.value;
+                    setCustomFrom(nextFrom);
+                    if (customTo && nextFrom && nextFrom > customTo) setCustomTo(nextFrom);
+                    setLimit(pageSize);
+                  }}
+                />
+              </label>
+              <label className="flex min-w-0 flex-col gap-1 text-xs font-medium text-muted-foreground">
+                To
+                <Input
+                  type="date"
+                  value={customTo}
+                  min={customFrom || undefined}
+                  max={today}
+                  aria-label="To date"
+                  className="h-8 sm:w-[140px]"
+                  onChange={(event) => {
+                    const nextTo = event.target.value > today ? today : event.target.value;
+                    setCustomTo(nextTo);
+                    if (customFrom && nextTo && nextTo < customFrom) setCustomFrom(nextTo);
+                    setLimit(pageSize);
+                  }}
+                />
+              </label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="xs"
+                className="col-span-2 sm:mb-0.5 sm:self-end"
+                onClick={() => {
+                  setPeriod("all");
+                  setCustomFrom("");
+                  setCustomTo("");
+                  setCategoryId("all");
+                  setLimit(pageSize);
+                }}
+              >
+                Clear range
+              </Button>
+            </div>
+          ) : null}
         </div>
       </div>
 
-      {/* Tag quick-filter: click a tag to list every tagged movement (all time). */}
+      {/* Tag quick-filter: click a tag to list every tagged movement in the period. */}
       {allTags.length > 0 ? (
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="mr-1 text-xs font-medium text-muted-foreground">Tags</span>
@@ -436,6 +505,54 @@ export default function TransactionsPage() {
         {/* Recurring sidebar: upcoming forecast + full management, sticky on scroll. */}
         <aside className="lg:col-span-3">
           <div className="flex flex-col gap-5 lg:sticky lg:top-4">
+            {completePeriod && filter !== "INVESTMENT" ? (
+              <div className="flex flex-col gap-3">
+                <StatCard
+                  label="Total income"
+                  value={
+                    periodSummary.data ? (
+                      <MoneyAmount value={periodSummary.data.income} currency={currency} colored />
+                    ) : periodSummary.isLoading ? (
+                      "Loading…"
+                    ) : (
+                      "—"
+                    )
+                  }
+                  accent="positive"
+                />
+                <StatCard
+                  label="Total expenses"
+                  value={
+                    periodSummary.data ? (
+                      <MoneyAmount value={periodSummary.data.expenses} currency={currency} />
+                    ) : periodSummary.isLoading ? (
+                      "Loading…"
+                    ) : (
+                      "—"
+                    )
+                  }
+                  accent="negative"
+                />
+                <StatCard
+                  label="Net balance"
+                  value={
+                    periodSummary.data ? (
+                      <MoneyAmount
+                        value={periodSummary.data.net}
+                        currency={currency}
+                        colored
+                        signed
+                      />
+                    ) : periodSummary.isLoading ? (
+                      "Loading…"
+                    ) : (
+                      "—"
+                    )
+                  }
+                  accent={periodSummary.data && periodSummary.data.net < 0 ? "negative" : "positive"}
+                />
+              </div>
+            ) : null}
             {tagActive && activeTag ? (
               <StatCard
                 label={`Tag · #${activeTag}`}
