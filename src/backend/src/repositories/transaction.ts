@@ -48,6 +48,22 @@ export const transactionRepository = {
     });
   },
 
+  async summary(filters: Omit<TransactionFilters, "limit" | "offset"> = {}) {
+    const groups = await prisma.transaction.groupBy({
+      where: whereFromFilters(filters),
+      by: ["direction"],
+      _sum: { amount: true },
+    });
+    let income = 0;
+    let expenses = 0;
+    for (const group of groups) {
+      const amount = Number(group._sum.amount ?? 0);
+      if (group.direction === "INCOME") income = amount;
+      else expenses = amount;
+    }
+    return { income, expenses, net: income - expenses };
+  },
+
   recent(limit: number) {
     return prisma.transaction.findMany({
       include: { category: true },

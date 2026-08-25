@@ -9,6 +9,7 @@ import { MatrixTable } from "@/components/matrix/matrix-table";
 import { useAssetMatrix, type AssetMatrix } from "@/hooks/use-asset-matrix";
 import { formatMoney, formatPercent, monthLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { currentPeriodDelta } from "./matrix-delta";
 
 /** Serializes the matrix to CSV and triggers a client-side download. */
 function downloadCsv(data: AssetMatrix) {
@@ -52,7 +53,9 @@ export function AssetMatrixView() {
   const { data, isLoading, isError, error } = useAssetMatrix();
 
   const base = data?.baseCurrency ?? "EUR";
-  const lastDelta = data ? (data.summary.plPct[data.summary.plPct.length - 1] ?? null) : null;
+  const lastDelta = data
+    ? currentPeriodDelta(data.summary.netWorthCurrent, data.summary.netWorth, data.months, "month")
+    : null;
   const yearChange = data ? trailingChange(data.summary.netWorth, 12) : null;
   const assetCount = data ? data.groups.reduce((acc, g) => acc + g.rows.length, 0) : null;
   const groupCount = data?.groups.length ?? null;

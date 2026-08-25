@@ -24,7 +24,7 @@ The UI is organized into four sections (the "modern ledger" design — see [`DES
 - **Expenses & Cash Flow** — income/expense totals, monthly cash-flow chart, where-money-goes
   category breakdown, and cumulative savings.
 - **Transactions** — one unified table of all movements (income, expense and, in future,
-  investment buy/sell) with filter chips and a month selector.
+  investment buy/sell) with filter chips and a period selector.
 
 ## Features
 

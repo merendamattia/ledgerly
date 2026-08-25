@@ -6,11 +6,13 @@ import {
   queryKeys,
   type TransactionFilters,
 } from "@/lib/query-keys";
+import { loadCompletePages, MAX_TRANSACTION_PAGE_SIZE } from "@/lib/transaction-period";
 
 export type { TransactionFilters } from "@/lib/query-keys";
 
 export type Transaction = InferResponseType<typeof api.expenses.$get, 200>[number];
 export type ExpenseTagsResponse = InferResponseType<typeof api.expenses.tags.$get, 200>;
+export type TransactionSummary = InferResponseType<typeof api.expenses.summary.$get, 200>;
 export type CreateTransactionInput = InferRequestType<typeof api.expenses.$post>["json"];
 type UpdateTransactionInput = InferRequestType<(typeof api.expenses)[":id"]["$put"]>["json"];
 
@@ -31,13 +33,43 @@ export async function fetchExpenses(filters: TransactionFilters = {}): Promise<T
   return unwrap<Transaction[]>(await api.expenses.$get({ query: toQuery(filters) }));
 }
 
+/** Loads every matching page while keeping each request within the API limit. */
+export async function fetchCompleteExpenses(filters: TransactionFilters = {}): Promise<Transaction[]> {
+  return loadCompletePages((offset, limit) =>
+    fetchExpenses({ ...filters, limit: Math.min(limit, MAX_TRANSACTION_PAGE_SIZE), offset }),
+  );
+}
+
 /**
  * Loads paginated or filtered income/expense transactions.
  */
-export function useExpenses(filters: TransactionFilters = {}) {
+export function useExpenses(filters: TransactionFilters = {}, enabled = true) {
   return useQuery({
     queryKey: queryKeys.expenses(filters),
     queryFn: async () => fetchExpenses(filters),
+    enabled,
+  });
+}
+
+/** Loads the complete result for a bounded period or another analytical slice. */
+export function useCompleteExpenses(filters: TransactionFilters = {}, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.expenses({ ...filters, limit: MAX_TRANSACTION_PAGE_SIZE, offset: 0 }),
+    queryFn: async () => fetchCompleteExpenses(filters),
+    enabled,
+  });
+}
+
+/** Loads server-side financial totals for the complete filtered transaction set. */
+export function useExpenseSummary(
+  filters: Omit<TransactionFilters, "limit" | "offset"> = {},
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: queryKeys.expenseSummary(filters),
+    queryFn: async () =>
+      unwrap<TransactionSummary>(await api.expenses.summary.$get({ query: toQuery(filters) })),
+    enabled,
   });
 }
 

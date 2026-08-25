@@ -273,6 +273,11 @@ export const transactionFiltersSchema = z.object({
   offset: z.coerce.number().int().nonnegative().optional(),
 });
 
+export const transactionSummaryQuerySchema = transactionFiltersSchema.omit({
+  limit: true,
+  offset: true,
+});
+
 export const transactionTagsQuerySchema = transactionFiltersSchema.pick({
   from: true,
   to: true,
