@@ -1,7 +1,10 @@
 import { expect, test } from "bun:test";
 import {
   CUSTOM_TRANSACTION_PERIOD,
+  loadCompletePages,
   resolveTransactionRange,
+  shouldLoadCompleteTransactionResults,
+  summarizeTransactionRows,
 } from "./transaction-period";
 
 const TODAY = "2026-08-25";
@@ -41,4 +44,33 @@ test("clearing custom dates falls back to the current period boundary", () => {
     from: undefined,
     to: TODAY,
   });
+});
+
+test("keeps All time paginated and loads every bounded-period page", async () => {
+  expect(shouldLoadCompleteTransactionResults("all")).toBe(false);
+  expect(shouldLoadCompleteTransactionResults("2026-08")).toBe(true);
+  expect(shouldLoadCompleteTransactionResults(CUSTOM_TRANSACTION_PERIOD)).toBe(true);
+
+  const rows = Array.from({ length: 5_001 }, (_, index) => index);
+  const requests: Array<[number, number]> = [];
+  const loaded = await loadCompletePages((offset, limit) => {
+    requests.push([offset, limit]);
+    return Promise.resolve(rows.slice(offset, offset + limit));
+  });
+
+  expect(loaded).toEqual(rows);
+  expect(requests).toEqual([
+    [0, 5_000],
+    [5_000, 5_000],
+  ]);
+});
+
+test("calculates income, expenses, and net for the effective filtered rows", () => {
+  expect(
+    summarizeTransactionRows([
+      { direction: "INCOME", amount: 1_250 },
+      { direction: "EXPENSE", amount: 300 },
+      { direction: "EXPENSE", amount: 75.5 },
+    ]),
+  ).toEqual({ income: 1_250, expenses: 375.5, net: 874.5 });
 });

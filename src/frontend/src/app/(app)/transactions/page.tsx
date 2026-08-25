@@ -23,6 +23,8 @@ import { useSearch } from "@/components/search-context";
 import { useSettings } from "@/hooks/use-settings";
 import {
   useExpenses,
+  useCompleteExpenses,
+  useExpenseSummary,
   useExpenseTags,
   type Transaction,
   type TransactionFilters,
@@ -36,6 +38,8 @@ import { formatMoney, formatMonthYear, INVESTMENT_SIDE_LABELS } from "@/lib/form
 import {
   CUSTOM_TRANSACTION_PERIOD,
   resolveTransactionRange,
+  shouldLoadCompleteTransactionResults,
+  summarizeTransactionRows,
 } from "@/lib/transaction-period";
 import { cn } from "@/lib/utils";
 
@@ -160,10 +164,17 @@ export default function TransactionsPage() {
           ? undefined
           : categoryId
         : undefined,
-    limit: tagActive ? 5000 : limit,
   };
 
-  const { data, isLoading } = useExpenses(filters);
+  const completePeriod = shouldLoadCompleteTransactionResults(period);
+  const completeResults = filter !== "INVESTMENT" && (completePeriod || tagActive);
+  const paginatedTransactions = useExpenses({ ...filters, limit }, !completeResults);
+  const completeTransactions = useCompleteExpenses(filters, completeResults);
+  const periodSummary = useExpenseSummary(filters, completePeriod && filter !== "INVESTMENT");
+  const data = completeResults ? completeTransactions.data : paginatedTransactions.data;
+  const isLoading = completeResults
+    ? completeTransactions.isLoading
+    : paginatedTransactions.isLoading;
 
   // Distinct tags within the selected period (most recent first) for the quick
   // filter — so changing the period only surfaces tags from that period.
@@ -194,10 +205,7 @@ export default function TransactionsPage() {
 
   // Net balance of the currently-shown rows — surfaced when a tag is active so a
   // tag (e.g. a trip city) reads as a single signed total.
-  const tagNet = useMemo(
-    () => rows.reduce((s, t) => s + (t.direction === "EXPENSE" ? -t.amount : t.amount), 0),
-    [rows],
-  );
+  const tagNet = useMemo(() => summarizeTransactionRows(rows).net, [rows]);
 
   const investmentRows = useMemo(() => {
     if (filter !== "INVESTMENT") return [];
@@ -211,7 +219,7 @@ export default function TransactionsPage() {
     );
   }, [investments.data, query, filter]);
 
-  const hasMore = filter !== "INVESTMENT" && !tagActive && !!data && data.length === limit;
+  const hasMore = !completeResults && filter !== "INVESTMENT" && !!data && data.length === limit;
 
   // Keep the open detail dialogs bound to LIVE query data (looked up by id) rather
   // than the snapshot captured on click, so an inline edit (date, amount, …)
@@ -497,6 +505,54 @@ export default function TransactionsPage() {
         {/* Recurring sidebar: upcoming forecast + full management, sticky on scroll. */}
         <aside className="lg:col-span-3">
           <div className="flex flex-col gap-5 lg:sticky lg:top-4">
+            {completePeriod && filter !== "INVESTMENT" ? (
+              <div className="flex flex-col gap-3">
+                <StatCard
+                  label="Total income"
+                  value={
+                    periodSummary.data ? (
+                      <MoneyAmount value={periodSummary.data.income} currency={currency} colored />
+                    ) : periodSummary.isLoading ? (
+                      "Loading…"
+                    ) : (
+                      "—"
+                    )
+                  }
+                  accent="positive"
+                />
+                <StatCard
+                  label="Total expenses"
+                  value={
+                    periodSummary.data ? (
+                      <MoneyAmount value={periodSummary.data.expenses} currency={currency} />
+                    ) : periodSummary.isLoading ? (
+                      "Loading…"
+                    ) : (
+                      "—"
+                    )
+                  }
+                  accent="negative"
+                />
+                <StatCard
+                  label="Net balance"
+                  value={
+                    periodSummary.data ? (
+                      <MoneyAmount
+                        value={periodSummary.data.net}
+                        currency={currency}
+                        colored
+                        signed
+                      />
+                    ) : periodSummary.isLoading ? (
+                      "Loading…"
+                    ) : (
+                      "—"
+                    )
+                  }
+                  accent={periodSummary.data && periodSummary.data.net < 0 ? "negative" : "positive"}
+                />
+              </div>
+            ) : null}
             {tagActive && activeTag ? (
               <StatCard
                 label={`Tag · #${activeTag}`}

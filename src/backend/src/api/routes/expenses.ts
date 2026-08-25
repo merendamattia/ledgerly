@@ -7,6 +7,7 @@ import {
   createTransactionSchema,
   transactionTagsQuerySchema,
   transactionFiltersSchema,
+  transactionSummaryQuerySchema,
   updateTransactionSchema,
 } from "../../schemas/index.ts";
 import { listTransactionTags } from "../../services/transactionTags.ts";
@@ -41,6 +42,10 @@ export const expensesRoutes = new Hono<AppEnv>()
   .get("/tags", zValidator("query", transactionTagsQuerySchema), async (c) => {
     const tags = await listTransactionTags(c.req.valid("query"));
     return c.json({ tags });
+  })
+  .get("/summary", zValidator("query", transactionSummaryQuerySchema), async (c) => {
+    const summary = await transactionRepository.summary(c.req.valid("query"));
+    return c.json(summary);
   })
   .get("/", zValidator("query", transactionFiltersSchema), async (c) => {
     const filters = c.req.valid("query");
