@@ -17,7 +17,7 @@ export function TransactionContentLayout({
       {hasSummary ? (
         <section
           aria-label="Period summary"
-          className="min-w-0 lg:col-span-3 lg:col-start-10 lg:row-start-1"
+          className="min-w-0 lg:sticky lg:top-4 lg:self-start lg:col-span-3 lg:col-start-10 lg:row-start-1"
         >
           {summary}
         </section>
@@ -28,7 +28,7 @@ export function TransactionContentLayout({
         {movements}
       </div>
       <aside
-        className={`min-w-0 lg:col-span-3 lg:col-start-10 ${hasSummary ? "lg:row-start-2" : "lg:row-start-1"}`}
+        className={`min-w-0 lg:sticky lg:top-4 lg:self-start lg:col-span-3 lg:col-start-10 ${hasSummary ? "lg:row-start-2" : "lg:row-start-1"}`}
       >
         {sidebar}
       </aside>
