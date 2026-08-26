@@ -7,38 +7,31 @@ test("keeps sidebar widgets after movements when no period summary is active", (
     summary: null,
     sidebar: createElement("span", null, "sidebar"),
     movements: createElement("span", null, "movements"),
-    summaryFirstOnMobile: false,
   });
-  const [movements, sidebarContainer] = (layout.props as { children: ReactElement[] }).children;
-  const [sidebar] = Children.toArray(sidebarContainer.props.children) as ReactElement[];
+  const children = Children.toArray((layout.props as { children: ReactElement[] }).children) as ReactElement[];
+  const [movements, sidebar] = children;
 
-  expect(movements.props.className).toContain("order-1");
-  expect(sidebarContainer.type).toBe("div");
+  expect(children.map((child) => child.type)).toEqual(["div", "aside"]);
   expect(sidebar.type).toBe("aside");
-  expect(sidebar.props.className).toContain("order-2");
+  expect(movements.props.className).toContain("lg:col-start-1");
+  expect(sidebar.props.className).toContain("lg:col-start-10");
 });
 
-test("puts only the bounded-period summary before movements on mobile", () => {
+test("emits the bounded-period summary before movements in DOM order", () => {
   const layout = TransactionContentLayout({
     summary: createElement("span", null, "summary"),
     sidebar: createElement("span", null, "sidebar"),
     movements: createElement("span", null, "movements"),
-    summaryFirstOnMobile: true,
   });
-  const [movements, sidebarContainer] = (layout.props as { children: ReactElement[] }).children;
-  const [summary, sidebar] = Children.toArray(sidebarContainer.props.children) as ReactElement[];
+  const children = Children.toArray((layout.props as { children: ReactElement[] }).children) as ReactElement[];
+  const [summary, movements, sidebar] = children;
 
-  expect(movements.props.className).toContain("order-2");
-  expect(sidebarContainer.type).toBe("div");
-  expect(summary.props.className).toContain("order-1");
+  expect(children.map((child) => child.type)).toEqual(["section", "div", "aside"]);
   expect(summary.type).toBe("section");
-  expect(sidebar.props.className).toContain("order-3");
   expect(sidebar.type).toBe("aside");
-  expect(sidebarContainer.props.className).toContain("contents");
-  expect(movements.props.className).toContain("lg:col-span-9");
+  expect(summary.props.className).toContain("lg:col-start-10");
   expect(movements.props.className).toContain("lg:col-start-1");
-  expect(movements.props.className).toContain("lg:row-start-1");
-  expect(sidebarContainer.props.className).toContain("lg:col-span-3");
-  expect(sidebarContainer.props.className).toContain("lg:col-start-10");
-  expect(sidebarContainer.props.className).toContain("lg:row-start-1");
+  expect(movements.props.className).toContain("lg:col-span-9");
+  expect(movements.props.className).toContain("lg:row-span-2");
+  expect(sidebar.props.className).toContain("lg:row-start-2");
 });

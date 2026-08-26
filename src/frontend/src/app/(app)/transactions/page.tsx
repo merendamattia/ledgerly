@@ -477,7 +477,6 @@ export default function TransactionsPage() {
             <RecurringList currency={currency} />
           </div>
         }
-        summaryFirstOnMobile={showPeriodSummary}
         movements={
           <div className="flex flex-col gap-5">
             {/* Day-grouped movements card */}
