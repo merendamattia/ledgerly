@@ -6,6 +6,10 @@ import { Calendar, Repeat } from "lucide-react";
 import { MoneyAmount } from "@/components/money-amount";
 import { StatCard } from "@/components/stat-card";
 import { TransactionContentLayout } from "@/components/transaction-content-layout";
+import {
+  TRANSACTION_FILTERS_CLASS,
+  TRANSACTION_FILTER_TAB_CLASS,
+} from "@/components/transaction-filter-layout";
 import { CategoryIcon } from "@/components/category-badge";
 import { TagChips } from "@/components/tag-input";
 import { DayGroupedList } from "@/components/day-grouped-list";
@@ -221,6 +225,7 @@ export default function TransactionsPage() {
   }, [investments.data, query, filter]);
 
   const hasMore = !completeResults && filter !== "INVESTMENT" && !!data && data.length === limit;
+  const showPeriodSummary = completePeriod && filter !== "INVESTMENT";
 
   // Keep the open detail dialogs bound to LIVE query data (looked up by id) rather
   // than the snapshot captured on click, so an inline edit (date, amount, …)
@@ -239,7 +244,7 @@ export default function TransactionsPage() {
     <div className="flex min-w-0 flex-col gap-5 animate-fu">
       {/* Filters: full-width top bar */}
       <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="grid grid-cols-4 gap-0.5 rounded-lg bg-muted p-0.5 sm:inline-flex">
+        <div className={TRANSACTION_FILTERS_CLASS}>
           {FILTERS.map((f) => {
             const active = filter === f.value;
             return (
@@ -252,7 +257,7 @@ export default function TransactionsPage() {
                   setLimit(pageSize);
                 }}
                 className={cn(
-                  "rounded-md px-2 py-1.5 text-xs font-medium whitespace-nowrap transition-colors sm:px-3",
+                  TRANSACTION_FILTER_TAB_CLASS,
                   active
                     ? "bg-card text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground",
@@ -409,55 +414,57 @@ export default function TransactionsPage() {
 
       <TransactionContentLayout
         summary={
-          <div className="flex flex-col gap-5 lg:sticky lg:top-4">
-            {completePeriod && filter !== "INVESTMENT" ? (
-              <div className="flex flex-col gap-3">
-                <StatCard
-                  label="Total income"
-                  value={
-                    periodSummary.data ? (
-                      <MoneyAmount value={periodSummary.data.income} currency={currency} colored />
-                    ) : periodSummary.isLoading ? (
-                      "Loading…"
-                    ) : (
-                      "—"
-                    )
-                  }
-                  accent="positive"
-                />
-                <StatCard
-                  label="Total expenses"
-                  value={
-                    periodSummary.data ? (
-                      <MoneyAmount value={periodSummary.data.expenses} currency={currency} />
-                    ) : periodSummary.isLoading ? (
-                      "Loading…"
-                    ) : (
-                      "—"
-                    )
-                  }
-                  accent="negative"
-                />
-                <StatCard
-                  label="Net balance"
-                  value={
-                    periodSummary.data ? (
-                      <MoneyAmount
-                        value={periodSummary.data.net}
-                        currency={currency}
-                        colored
-                        signed
-                      />
-                    ) : periodSummary.isLoading ? (
-                      "Loading…"
-                    ) : (
-                      "—"
-                    )
-                  }
-                  accent={periodSummary.data && periodSummary.data.net < 0 ? "negative" : "positive"}
-                />
-              </div>
-            ) : null}
+          showPeriodSummary ? (
+            <div className="flex flex-col gap-3">
+              <StatCard
+                label="Total income"
+                value={
+                  periodSummary.data ? (
+                    <MoneyAmount value={periodSummary.data.income} currency={currency} colored />
+                  ) : periodSummary.isLoading ? (
+                    "Loading…"
+                  ) : (
+                    "—"
+                  )
+                }
+                accent="positive"
+              />
+              <StatCard
+                label="Total expenses"
+                value={
+                  periodSummary.data ? (
+                    <MoneyAmount value={periodSummary.data.expenses} currency={currency} />
+                  ) : periodSummary.isLoading ? (
+                    "Loading…"
+                  ) : (
+                    "—"
+                  )
+                }
+                accent="negative"
+              />
+              <StatCard
+                label="Net balance"
+                value={
+                  periodSummary.data ? (
+                    <MoneyAmount
+                      value={periodSummary.data.net}
+                      currency={currency}
+                      colored
+                      signed
+                    />
+                  ) : periodSummary.isLoading ? (
+                    "Loading…"
+                  ) : (
+                    "—"
+                  )
+                }
+                accent={periodSummary.data && periodSummary.data.net < 0 ? "negative" : "positive"}
+              />
+            </div>
+          ) : null
+        }
+        sidebar={
+          <div className="flex flex-col gap-5">
             {tagActive && activeTag ? (
               <StatCard
                 label={`Tag · #${activeTag}`}
@@ -470,6 +477,7 @@ export default function TransactionsPage() {
             <RecurringList currency={currency} />
           </div>
         }
+        summaryFirstOnMobile={showPeriodSummary}
         movements={
           <div className="flex flex-col gap-5">
             {/* Day-grouped movements card */}
