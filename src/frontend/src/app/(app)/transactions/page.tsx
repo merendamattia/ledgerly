@@ -7,6 +7,7 @@ import { MoneyAmount } from "@/components/money-amount";
 import { StatCard } from "@/components/stat-card";
 import { TransactionContentLayout } from "@/components/transaction-content-layout";
 import {
+  TRANSACTION_DATE_INPUT_CLASS,
   TRANSACTION_FILTERS_CLASS,
   TRANSACTION_FILTER_TAB_CLASS,
 } from "@/components/transaction-filter-layout";
@@ -323,7 +324,7 @@ export default function TransactionsPage() {
                   value={customFrom}
                   max={today}
                   aria-label="From date"
-                  className="h-8 w-full text-sm sm:w-[140px]"
+                  className={TRANSACTION_DATE_INPUT_CLASS}
                   onChange={(event) => {
                     const nextFrom = event.target.value > today ? today : event.target.value;
                     setCustomFrom(nextFrom);
@@ -340,7 +341,7 @@ export default function TransactionsPage() {
                   min={customFrom || undefined}
                   max={today}
                   aria-label="To date"
-                  className="h-8 w-full text-sm sm:w-[140px]"
+                  className={TRANSACTION_DATE_INPUT_CLASS}
                   onChange={(event) => {
                     const nextTo = event.target.value > today ? today : event.target.value;
                     setCustomTo(nextTo);
