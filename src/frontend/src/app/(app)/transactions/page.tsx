@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Calendar, Repeat } from "lucide-react";
 import { MoneyAmount } from "@/components/money-amount";
 import { StatCard } from "@/components/stat-card";
+import { TransactionContentLayout } from "@/components/transaction-content-layout";
 import { CategoryIcon } from "@/components/category-badge";
 import { TagChips } from "@/components/tag-input";
 import { DayGroupedList } from "@/components/day-grouped-list";
@@ -235,9 +236,9 @@ export default function TransactionsPage() {
   );
 
   return (
-    <div className="flex flex-col gap-5 animate-fu">
+    <div className="flex min-w-0 flex-col gap-5 animate-fu">
       {/* Filters: full-width top bar */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="grid grid-cols-4 gap-0.5 rounded-lg bg-muted p-0.5 sm:inline-flex">
           {FILTERS.map((f) => {
             const active = filter === f.value;
@@ -251,7 +252,7 @@ export default function TransactionsPage() {
                   setLimit(pageSize);
                 }}
                 className={cn(
-                  "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                  "rounded-md px-2 py-1.5 text-xs font-medium whitespace-nowrap transition-colors sm:px-3",
                   active
                     ? "bg-card text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground",
@@ -263,7 +264,7 @@ export default function TransactionsPage() {
           })}
         </div>
 
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+        <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start">
           {categoryKind ? (
             <Select
               value={categoryId}
@@ -309,15 +310,15 @@ export default function TransactionsPage() {
           </Select>
 
           {period === CUSTOM_TRANSACTION_PERIOD ? (
-            <div className="grid grid-cols-2 gap-2 rounded-lg border border-input bg-card p-2 sm:flex sm:items-end">
-              <label className="flex min-w-0 flex-col gap-1 text-xs font-medium text-muted-foreground">
+            <div className="flex w-full min-w-0 flex-col gap-2 rounded-lg border border-input bg-card p-2 sm:w-auto sm:flex-row sm:items-end">
+              <label className="flex w-full min-w-0 flex-col gap-1 text-xs font-medium text-muted-foreground sm:w-auto">
                 From
                 <Input
                   type="date"
                   value={customFrom}
                   max={today}
                   aria-label="From date"
-                  className="h-8 sm:w-[140px]"
+                  className="h-8 w-full text-sm sm:w-[140px]"
                   onChange={(event) => {
                     const nextFrom = event.target.value > today ? today : event.target.value;
                     setCustomFrom(nextFrom);
@@ -326,7 +327,7 @@ export default function TransactionsPage() {
                   }}
                 />
               </label>
-              <label className="flex min-w-0 flex-col gap-1 text-xs font-medium text-muted-foreground">
+              <label className="flex w-full min-w-0 flex-col gap-1 text-xs font-medium text-muted-foreground sm:w-auto">
                 To
                 <Input
                   type="date"
@@ -334,7 +335,7 @@ export default function TransactionsPage() {
                   min={customFrom || undefined}
                   max={today}
                   aria-label="To date"
-                  className="h-8 sm:w-[140px]"
+                  className="h-8 w-full text-sm sm:w-[140px]"
                   onChange={(event) => {
                     const nextTo = event.target.value > today ? today : event.target.value;
                     setCustomTo(nextTo);
@@ -347,7 +348,7 @@ export default function TransactionsPage() {
                 type="button"
                 variant="ghost"
                 size="xs"
-                className="col-span-2 sm:mb-0.5 sm:self-end"
+                className="w-full sm:mb-0.5 sm:w-auto sm:self-end"
                 onClick={() => {
                   setPeriod("all");
                   setCustomFrom("");
@@ -406,104 +407,8 @@ export default function TransactionsPage() {
         </div>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
-        <div className="flex flex-col gap-5 lg:col-span-9">
-          {/* Day-grouped movements card */}
-          <div className="overflow-hidden rounded-[var(--card-radius)] border bg-card px-5 pt-3 pb-1 shadow-card">
-        {filter === "INVESTMENT" ? (
-          investments.isLoading ? (
-            <div className="py-10 text-center text-sm text-muted-foreground">Loading…</div>
-          ) : investmentRows.length === 0 ? (
-            <div className="py-12 text-center text-sm text-muted-foreground">
-              No investment movements yet.
-            </div>
-          ) : (
-            <DayGroupedList
-              items={investmentRows}
-              getKey={(t) => t.id}
-              getDate={(t) => t.date}
-              onItemClick={setInvTx}
-              renderItem={(t) => {
-                const gross = t.quantity * t.price;
-                const signed = t.side === "BUY" ? -(gross + t.fee) : gross - t.fee;
-                return (
-                  <>
-                    <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent font-display text-[11px] font-semibold text-accent-foreground">
-                      {(t.ticker?.symbol ?? "?").slice(0, 2).toUpperCase()}
-                    </span>
-                    <div className="flex min-w-0 flex-1 flex-col">
-                      <span className="truncate font-medium">
-                        {INVESTMENT_SIDE_LABELS[t.side]} {t.ticker?.symbol ?? ""}
-                      </span>
-                      <span className="truncate text-xs text-muted-foreground">
-                        {t.ticker?.name ?? "Investment"}
-                      </span>
-                    </div>
-                    <span
-                      className={cn(
-                        "shrink-0 font-mono font-semibold tabular-nums",
-                        signed >= 0 ? "text-positive" : "text-negative",
-                      )}
-                    >
-                      {signed >= 0 ? "+" : ""}
-                      {formatMoney(signed, t.ticker?.currency ?? currency)}
-                    </span>
-                  </>
-                );
-              }}
-            />
-          )
-        ) : isLoading ? (
-          <div className="py-10 text-center text-sm text-muted-foreground">Loading…</div>
-        ) : rows.length === 0 ? (
-          <div className="py-12 text-center text-sm text-muted-foreground">
-            No transactions for this filter.
-          </div>
-        ) : (
-          <DayGroupedList
-            items={rows}
-            getKey={(t) => t.id}
-            getDate={(t) => t.date}
-            onItemClick={setDetailTx}
-            renderItem={(t) => (
-              <>
-                <CategoryIcon name={t.category?.name} emoji={t.category?.emoji} className="size-9 rounded-full text-lg" />
-                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span className="flex items-center gap-1.5 truncate font-medium capitalize">
-                    {t.category?.name || "Transaction"}
-                    {t.recurringExpenseId ? (
-                      <Repeat className="size-3.5 shrink-0 text-muted-foreground" aria-label="Recurring" />
-                    ) : null}
-                  </span>
-                  {t.note ? (
-                    <span className="truncate text-xs text-muted-foreground">{t.note}</span>
-                  ) : null}
-                  <TagChips note={t.note} onTagClick={(tag) => setQuery(`#${tag}`)} />
-                </div>
-                <MoneyAmount
-                  value={t.direction === "EXPENSE" ? -t.amount : t.amount}
-                  currency={currency}
-                  colored
-                  signed
-                  className="shrink-0 font-mono font-semibold"
-                />
-              </>
-            )}
-          />
-        )}
-      </div>
-
-          {hasMore ? (
-            <div className="flex justify-center">
-              <Button onClick={() => setLimit((l) => l + pageSize)}>
-                Load more
-              </Button>
-            </div>
-          ) : null}
-        </div>
-
-        {/* Recurring sidebar: upcoming forecast + full management, sticky on scroll. */}
-        <aside className="lg:col-span-3">
+      <TransactionContentLayout
+        summary={
           <div className="flex flex-col gap-5 lg:sticky lg:top-4">
             {completePeriod && filter !== "INVESTMENT" ? (
               <div className="flex flex-col gap-3">
@@ -564,8 +469,109 @@ export default function TransactionsPage() {
             <UpcomingMovement currency={currency} onTransactionClick={setDetailTx} />
             <RecurringList currency={currency} />
           </div>
-        </aside>
-      </div>
+        }
+        movements={
+          <div className="flex flex-col gap-5">
+            {/* Day-grouped movements card */}
+            <div className="overflow-hidden rounded-[var(--card-radius)] border bg-card px-5 pt-3 pb-1 shadow-card">
+              {filter === "INVESTMENT" ? (
+                investments.isLoading ? (
+                  <div className="py-10 text-center text-sm text-muted-foreground">Loading…</div>
+                ) : investmentRows.length === 0 ? (
+                  <div className="py-12 text-center text-sm text-muted-foreground">
+                    No investment movements yet.
+                  </div>
+                ) : (
+                  <DayGroupedList
+                    items={investmentRows}
+                    getKey={(t) => t.id}
+                    getDate={(t) => t.date}
+                    onItemClick={setInvTx}
+                    renderItem={(t) => {
+                      const gross = t.quantity * t.price;
+                      const signed = t.side === "BUY" ? -(gross + t.fee) : gross - t.fee;
+                      return (
+                        <>
+                          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent font-display text-[11px] font-semibold text-accent-foreground">
+                            {(t.ticker?.symbol ?? "?").slice(0, 2).toUpperCase()}
+                          </span>
+                          <div className="flex min-w-0 flex-1 flex-col">
+                            <span className="truncate font-medium">
+                              {INVESTMENT_SIDE_LABELS[t.side]} {t.ticker?.symbol ?? ""}
+                            </span>
+                            <span className="truncate text-xs text-muted-foreground">
+                              {t.ticker?.name ?? "Investment"}
+                            </span>
+                          </div>
+                          <span
+                            className={cn(
+                              "shrink-0 font-mono font-semibold tabular-nums",
+                              signed >= 0 ? "text-positive" : "text-negative",
+                            )}
+                          >
+                            {signed >= 0 ? "+" : ""}
+                            {formatMoney(signed, t.ticker?.currency ?? currency)}
+                          </span>
+                        </>
+                      );
+                    }}
+                  />
+                )
+              ) : isLoading ? (
+                <div className="py-10 text-center text-sm text-muted-foreground">Loading…</div>
+              ) : rows.length === 0 ? (
+                <div className="py-12 text-center text-sm text-muted-foreground">
+                  No transactions for this filter.
+                </div>
+              ) : (
+                <DayGroupedList
+                  items={rows}
+                  getKey={(t) => t.id}
+                  getDate={(t) => t.date}
+                  onItemClick={setDetailTx}
+                  renderItem={(t) => (
+                    <>
+                      <CategoryIcon
+                        name={t.category?.name}
+                        emoji={t.category?.emoji}
+                        className="size-9 rounded-full text-lg"
+                      />
+                      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                        <span className="flex items-center gap-1.5 truncate font-medium capitalize">
+                          {t.category?.name || "Transaction"}
+                          {t.recurringExpenseId ? (
+                            <Repeat
+                              className="size-3.5 shrink-0 text-muted-foreground"
+                              aria-label="Recurring"
+                            />
+                          ) : null}
+                        </span>
+                        {t.note ? (
+                          <span className="truncate text-xs text-muted-foreground">{t.note}</span>
+                        ) : null}
+                        <TagChips note={t.note} onTagClick={(tag) => setQuery(`#${tag}`)} />
+                      </div>
+                      <MoneyAmount
+                        value={t.direction === "EXPENSE" ? -t.amount : t.amount}
+                        currency={currency}
+                        colored
+                        signed
+                        className="shrink-0 font-mono font-semibold"
+                      />
+                    </>
+                  )}
+                />
+              )}
+            </div>
+
+            {hasMore ? (
+              <div className="flex justify-center">
+                <Button onClick={() => setLimit((l) => l + pageSize)}>Load more</Button>
+              </div>
+            ) : null}
+          </div>
+        }
+      />
 
       {liveDetailTx ? (
         <TransactionDetailDialog
