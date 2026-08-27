@@ -1,3 +1,19 @@
+# [1.2.0](https://github.com/merendamattia/ledgerly/compare/v1.1.1...v1.2.0) (2026-08-27)
+
+
+### Bug Fixes
+
+* **ci:** scope commit check to pull requests ([6166fed](https://github.com/merendamattia/ledgerly/commit/6166fed05c18c7b7f8928d794a4e7b02ed80af03))
+* **matrix:** use live period baselines ([b6deab3](https://github.com/merendamattia/ledgerly/commit/b6deab330e2ed73828f0e33027ee7d6dc52005cb))
+* **matrix:** use UTC period boundaries ([b9c837e](https://github.com/merendamattia/ledgerly/commit/b9c837e9b5f923a423a9f401a06825a4ad14aeec))
+* **transactions:** complete bounded period results ([8da530a](https://github.com/merendamattia/ledgerly/commit/8da530a34a99d3081294261d92a933086980d824))
+* **transactions:** prioritize mobile period summary ([#39](https://github.com/merendamattia/ledgerly/issues/39)) ([5c9f2f0](https://github.com/merendamattia/ledgerly/commit/5c9f2f0a8c829ee5a6c62fa5a8e7350515d11275))
+
+
+### Features
+
+* **transactions:** add custom date-range filters ([e1dbc62](https://github.com/merendamattia/ledgerly/commit/e1dbc625e23ac7cda9f7ba859404c685f0bd2118))
+
 ## [1.1.1](https://github.com/merendamattia/ledgerly/compare/v1.1.0...v1.1.1) (2026-08-10)
 
 
