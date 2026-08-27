@@ -9,6 +9,7 @@ on:
 jobs:
   conventional-commits:
     name: Check Conventional Commits
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
 
     steps:
