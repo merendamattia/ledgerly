@@ -132,7 +132,9 @@ Mobile-first, with no left sidebar.
   palette in `category-badge.tsx`; leading icon tiles reuse the same tints.
 - **Tables / ledger rows** — CSS-grid rows, hairline separators, mono right-aligned amounts
   (green/coral by sign), tinted category badge, mono date column.
-- **Charts** — Recharts via the shadcn `Chart` wrappers; series colors come from the CSS tokens
+- **Charts** — use the official EvilCharts ECharts components for pie, dotted/stacked area, bar and
+  Sankey views. Install or adapt chart components only from <https://evilcharts.com/docs>, retain
+  only the registry files imported by the app, and source series colors from the CSS tokens
   (`var(--chart-n)`, `var(--positive)`, `var(--negative)`). Money axes use compact formatting.
 - **Progress bars** — `bg-muted` track + colored fill with the `.animate-grow` entrance.
 

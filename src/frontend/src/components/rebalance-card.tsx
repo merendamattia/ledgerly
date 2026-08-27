@@ -3,14 +3,18 @@
 import { Fragment, useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Pencil, Trash2 } from "lucide-react";
-import { Bar, BarChart, Cell, LabelList, Pie, PieChart, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, Cell, LabelList, XAxis, YAxis } from "recharts";
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { formatMoney } from "@/lib/format";
+import {
+  EChartsPieChart,
+  type ChartConfig as EvilChartConfig,
+} from "@/components/evilcharts/charts/echarts-pie-chart";
+import { formatMoney, truncate } from "@/lib/format";
 import { matchTrades } from "@/lib/rebalance";
 import { usePrivateNumberFormatter } from "@/components/private-number";
 import { Card } from "@/components/ui/card";
@@ -212,8 +216,11 @@ export function RebalanceCard({
                         {r.name.slice(0, 2).toUpperCase()}
                       </span>
                       <span className="min-w-0">
-                        <span className="block max-w-[92px] truncate text-xs font-medium sm:max-w-[190px] sm:text-[13px]">
-                          {r.name}
+                        <span
+                          className="block max-w-[92px] truncate text-xs font-medium sm:max-w-[190px] sm:text-[13px]"
+                          title={r.name}
+                        >
+                          {truncate(r.name, 20)}
                         </span>
                         <span className="block max-w-[92px] truncate font-mono text-[10px] text-muted-foreground tabular-nums sm:max-w-[190px] sm:text-[10.5px]">
                           {r.detail}
@@ -358,45 +365,51 @@ function CurrentSplitDonut({ rows, currency }: { rows: Row[]; currency: string }
     .map((r, i) => ({ key: r.key, name: r.name, value: r.value, fill: TILE_COLORS[i % TILE_COLORS.length] }));
   if (data.length === 0) return null;
   const chartConfig = Object.fromEntries(
-    data.map((d) => [d.key, { label: d.name, color: d.fill }]),
-  ) satisfies ChartConfig;
+    data.map((d) => [d.key, { label: d.name, colors: { light: [d.fill] } }]),
+  ) satisfies EvilChartConfig;
   const total = data.reduce((s, d) => s + d.value, 0);
 
   // flex-1 + h-full let the donut absorb the card's spare height (the pillars
   // card usually sets the row height), so the table stays pinned at the bottom.
   return (
-    <div className="mb-3 flex flex-1 items-center justify-center gap-x-4 py-1 sm:gap-x-10">
-      <ChartContainer
-        config={chartConfig}
-        className="aspect-square h-[130px] shrink-0 sm:h-full sm:max-h-[300px] sm:min-h-[170px]"
-      >
-        <PieChart>
-          <ChartTooltip
-            content={
-              <ChartTooltipContent formatter={(v) => privateText(formatMoney(Number(v), currency))} />
-            }
+    <div className="mb-3 flex flex-1 flex-col items-center justify-center gap-4 py-1 sm:flex-row sm:gap-x-10">
+      <div className="relative size-[150px] shrink-0 sm:size-[180px]">
+        <EChartsPieChart
+          config={chartConfig}
+          data={data}
+          dataKey="value"
+          nameKey="key"
+          className="size-full bg-transparent"
+        >
+          <EChartsPieChart.Tooltip
+            roundness="xl"
+            valueFormatter={(value) => privateText(formatMoney(value, currency))}
           />
-          <Pie
-            data={data}
-            dataKey="value"
-            nameKey="name"
-            innerRadius="62%"
-            outerRadius="95%"
-            strokeWidth={2}
-          >
-            {data.map((entry) => (
-              <Cell key={entry.key} fill={entry.fill} />
-            ))}
-          </Pie>
-        </PieChart>
-      </ChartContainer>
-      <div className="grid min-w-0 shrink grid-cols-[auto_auto_auto_auto] content-center items-center gap-x-2 gap-y-2.5 text-[11px] sm:gap-x-3 sm:text-xs">
+          <EChartsPieChart.Pie
+            innerRadius="55%"
+            outerRadius="86%"
+            paddingAngle={1.5}
+            cornerRadius={6}
+          />
+        </EChartsPieChart>
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-[10px] text-muted-foreground">Current</span>
+          <MoneyAmount
+            value={total}
+            currency={currency}
+            className="block max-w-20 truncate text-center font-mono text-xs font-semibold sm:max-w-28 sm:text-sm"
+          />
+        </div>
+      </div>
+      <div className="grid w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto_auto] content-center items-center gap-x-2 gap-y-2.5 text-[11px] sm:w-auto sm:shrink sm:gap-x-3 sm:text-xs">
         {data.map((d) => {
           const row = rows.find((r) => r.key === d.key);
           return (
             <Fragment key={d.key}>
               <span className="size-2.5 rounded-[3px]" style={{ backgroundColor: d.fill }} />
-              <span className="max-w-[88px] truncate sm:max-w-[150px]">{d.name}</span>
+              <span className="truncate sm:max-w-[150px]" title={d.name}>
+                {truncate(d.name, 20)}
+              </span>
               <span className="text-right font-mono font-semibold tabular-nums">
                 {total > 0 ? ((d.value / total) * 100).toFixed(1) : "0.0"}%
               </span>

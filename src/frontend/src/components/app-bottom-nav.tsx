@@ -74,6 +74,7 @@ export function AppBottomNav() {
 
   return (
     <nav
+      data-slot="app-bottom-nav"
       aria-label="Primary"
       className="fixed inset-x-3 bottom-3 z-40 rounded-2xl border border-sidebar-border bg-sidebar/95 px-1 pb-[calc(env(safe-area-inset-bottom)+0.25rem)] text-sidebar-foreground shadow-lg backdrop-blur-xl lg:hidden"
     >

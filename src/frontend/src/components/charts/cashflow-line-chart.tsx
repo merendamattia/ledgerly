@@ -63,6 +63,7 @@ export function CashFlowLineChart({
           content={
             <ChartTooltipContent formatter={(v) => privateText(formatMoney(Number(v), currency))} />
           }
+          cursor={{ stroke: "var(--border)", strokeDasharray: "4 4" }}
         />
         <ChartLegend
           content={
@@ -75,7 +76,7 @@ export function CashFlowLineChart({
           stroke="var(--color-income)"
           strokeWidth={2.5}
           dot={false}
-          activeDot={{ r: 4 }}
+          activeDot={{ r: 4, fill: "var(--color-income)", stroke: "var(--card)", strokeWidth: 2 }}
         />
         <Line
           dataKey="expense"
@@ -83,7 +84,7 @@ export function CashFlowLineChart({
           stroke="var(--color-expense)"
           strokeWidth={2.5}
           dot={false}
-          activeDot={{ r: 4 }}
+          activeDot={{ r: 4, fill: "var(--color-expense)", stroke: "var(--card)", strokeWidth: 2 }}
         />
       </LineChart>
     </ChartContainer>

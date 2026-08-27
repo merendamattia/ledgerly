@@ -2,7 +2,8 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
-import { Calendar, Repeat } from "lucide-react";
+import { Repeat } from "lucide-react";
+import { MonthYearPicker } from "@/components/month-year-picker";
 import { MoneyAmount } from "@/components/money-amount";
 import { StatCard } from "@/components/stat-card";
 import { TransactionContentLayout } from "@/components/transaction-content-layout";
@@ -48,6 +49,10 @@ import {
   summarizeTransactionRows,
 } from "@/lib/transaction-period";
 import { cn } from "@/lib/utils";
+import {
+  SEGMENTED_CONTROL_ACTIVE_CLASS,
+  SEGMENTED_CONTROL_INACTIVE_CLASS,
+} from "@/components/segmented-control";
 
 const TransactionDetailDialog = dynamic(
   () => import("@/components/transaction-detail-dialog").then((mod) => mod.TransactionDetailDialog),
@@ -72,6 +77,11 @@ const FILTERS: { value: Filter; label: string }[] = [
   { value: "INCOME", label: "Income" },
   { value: "EXPENSE", label: "Expense" },
   { value: "INVESTMENT", label: "Investments" },
+];
+
+const TRANSACTION_PERIOD_OPTIONS = [
+  { value: "all", label: "All time" },
+  { value: CUSTOM_TRANSACTION_PERIOD, label: "Custom range" },
 ];
 
 /** Formats a local calendar day for date-only API filters. */
@@ -114,23 +124,9 @@ export default function TransactionsPage() {
   const settings = useSettings();
   const currency = settings.data?.baseCurrency ?? "EUR";
 
-  // Last 12 months plus "All time" and a custom range for the period control.
-  const periodOptions = useMemo(() => {
-    const opts = [
-      { value: "all", label: "All time" },
-      { value: CUSTOM_TRANSACTION_PERIOD, label: "Custom range" },
-    ];
-    const now = new Date();
-    for (let i = 0; i < 12; i++) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      opts.push({
-        value: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
-        label: formatMonthYear(d),
-      });
-    }
-    return opts;
-  }, []);
-  const periodItems = Object.fromEntries(periodOptions.map((o) => [o.value, o.label]));
+  const periodLabel =
+    TRANSACTION_PERIOD_OPTIONS.find((option) => option.value === period)?.label ??
+    formatMonthYear(`${period}-01T00:00:00`);
   const today = localISO(new Date());
 
   const range = useMemo(
@@ -259,9 +255,7 @@ export default function TransactionsPage() {
                 }}
                 className={cn(
                   TRANSACTION_FILTER_TAB_CLASS,
-                  active
-                    ? "bg-card text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground",
+                  active ? SEGMENTED_CONTROL_ACTIVE_CLASS : SEGMENTED_CONTROL_INACTIVE_CLASS,
                 )}
               >
                 {f.label}
@@ -293,27 +287,17 @@ export default function TransactionsPage() {
             </Select>
           ) : null}
 
-          <Select
+          <MonthYearPicker
             value={period}
-            items={periodItems}
-            onValueChange={(v) => {
-              setPeriod(v ?? "all");
+            label={periodLabel}
+            options={TRANSACTION_PERIOD_OPTIONS}
+            triggerClassName="sm:min-w-44"
+            onChange={(next) => {
+              setPeriod(next);
               setCategoryId("all");
               setLimit(pageSize);
             }}
-          >
-            <SelectTrigger className="w-full gap-2 bg-card sm:w-auto">
-              <Calendar className="size-4 text-muted-foreground" />
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {periodOptions.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          />
 
           {period === CUSTOM_TRANSACTION_PERIOD ? (
             <div className="flex w-full min-w-0 flex-col gap-2 rounded-lg border border-input bg-card p-2 sm:w-auto sm:flex-row sm:items-end">

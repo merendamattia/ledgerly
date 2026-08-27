@@ -66,7 +66,7 @@ export default function CashFlowPage() {
   const currency = settings.data?.baseCurrency ?? "EUR";
 
   const rp = useMemo(() => resolvePeriod(period), [period]);
-  const trailing = useMemo(() => trailingRange(rp.to, 6), [rp.to]);
+  const trailing = useMemo(() => trailingRange(rp.to, 12), [rp.to]);
   const ytd = useMemo(() => ytdRange(), []);
 
   const current = useExpenses({ from: rp.from, to: rp.to, limit: 5000 });
@@ -167,7 +167,7 @@ export default function CashFlowPage() {
           <CardHeader className="px-0">
             <CardTitle className="font-display font-semibold">Monthly trend</CardTitle>
           </CardHeader>
-          {trendSeries.length === 0 ? (
+          {trendSeries.length === 0 && !trend.isLoading ? (
             <p className="py-8 text-center text-sm text-muted-foreground">No data in range.</p>
           ) : (
             <div className="relative mt-4 min-h-[240px] flex-1 sm:min-h-[280px]">
@@ -176,6 +176,7 @@ export default function CashFlowPage() {
                   data={trendSeries}
                   currency={currency}
                   className="aspect-auto h-full w-full"
+                  isLoading={trend.isLoading}
                 />
               </div>
             </div>
@@ -233,6 +234,7 @@ export default function CashFlowPage() {
               sources={incomeCats.map((c) => ({ label: c.name, value: c.value }))}
               expenses={expenseCats.map((c) => ({ label: c.name, value: c.value }))}
               currency={currency}
+              isLoading={current.isLoading}
             />
           </div>
         </Card>

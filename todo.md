@@ -47,9 +47,27 @@ Branch: `refactor/ui-ux-financial` (from `origin/develop` at `6166fed`)
 - [x] Verify readable labels for all selects and non-color cues for financial state.
 - [x] Verify keyboard focus, dialog/sheet titles, form labels, validation, touch targets, and contrast.
 - [x] Verify 320 px and 390 px smartphones plus desktop, including long values and no accidental document-level horizontal scroll.
-- [x] Run frontend tests; existing responsive layout checks cover the shared behavior changed here (20 passed).
+- [x] Run frontend tests; existing responsive layout checks cover the shared behavior changed here (21 passed).
 - [x] Run `bun run lint` in `src/frontend`.
 - [x] Run `bun run build` in `src/frontend`.
 - [x] Run repository checks: all applicable pre-commit hooks passed; the baseline skill files blocked only the all-files EOF fixer under the read-only sandbox, so that hook was run on this change set; backend typecheck and 54 isolated tests passed.
 - [x] Inspect all 11 routes in-browser at 320 px, 390 px, and 1440 px; no document overflow or runtime errors.
 - [x] Confirm `git diff` contains no backend, hook, or API-client changes.
+
+## 5. Preview follow-up
+
+- [x] Keep the desktop primary navigation geometrically fixed when contextual controls change.
+- [x] Keep the Ledgerly identity and route label visible in narrow mobile headers.
+- [x] Move wide contextual controls such as the cash-flow period to a dedicated second row on mobile while keeping the add action available.
+- [x] Inventory every month/year selector and replace bounded hardcoded month lists with one reusable searchable picker.
+- [x] Migrate the requested charts to the official EvilCharts ECharts components: `EChartsPieChart` for allocation pies, stacked dotted `EChartsAreaChart` for Net Worth/investments, `EChartsBarChart` for Cashflow trend, and `EChartsSankeyChart` for the cash-flow pipeline.
+- [x] Wire each ECharts `isLoading` prop to the real query loading state and remove unused EvilCharts registry files/dependencies.
+- [x] Restyle the remaining charts and diagrams with the floating-ledger surface, grid, tooltip, stroke, and hierarchy rules where their APIs allow it.
+- [x] Restyle all application dialogs, sheets, confirmations, import previews, and action popups with one coherent overlay system.
+- [x] Rebuild the standalone Accounts registry with the new responsive card layout.
+- [x] Match the Activity type filter to the Wealth segmented switch, including active, hover, and white-border treatment.
+- [x] Keep chart tooltips opaque and truncate long Wealth allocation/position labels without losing the full accessible name.
+- [x] Match the rebalancing allocation donut to the approved Overview/Wealth donut style.
+- [x] Move transient save/update notifications to bottom-center without covering the mobile navigation.
+- [x] Re-run 320 px, 390 px, tablet, and desktop browser checks plus interaction tests.
+- [x] Re-run frontend tests, lint, build, UI detector, repository checks, and confirm no backend/API source changes.

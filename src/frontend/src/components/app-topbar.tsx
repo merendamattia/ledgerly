@@ -12,6 +12,12 @@ import {
   isNavItemActive,
 } from "@/components/app-navigation";
 import { useSearch } from "@/components/search-context";
+import {
+  SEGMENTED_CONTROL_ACTIVE_CLASS,
+  SEGMENTED_CONTROL_CLASS,
+  SEGMENTED_CONTROL_INACTIVE_CLASS,
+  SEGMENTED_CONTROL_ITEM_CLASS,
+} from "@/components/segmented-control";
 import { useCashflowPeriod } from "@/components/cashflow/period-context";
 import { PeriodPicker } from "@/components/cashflow/period-picker";
 import { periodOptions, resolvePeriod } from "@/components/cashflow/periods";
@@ -81,7 +87,7 @@ function CashflowPeriodControl() {
       label={resolvePeriod(period).label}
       options={periodOptions()}
       onChange={setPeriod}
-      triggerClassName="w-auto min-w-0 max-w-36 px-3 sm:max-w-44"
+      triggerClassName="max-w-full sm:max-w-56 lg:w-auto lg:max-w-44"
     />
   );
 }
@@ -118,13 +124,13 @@ export function AppTopbar() {
   );
 
   const wealthNav = (
-    <nav aria-label="Wealth views" className="flex min-w-0 rounded-lg bg-muted p-0.5">
+    <nav aria-label="Wealth views" className={cn(SEGMENTED_CONTROL_CLASS, "flex min-w-0")}>
       <Link
         href="/investments"
         aria-current={!showAccounts ? "page" : undefined}
         className={cn(
-          "flex-1 rounded-md px-3 py-2 text-center text-xs font-semibold whitespace-nowrap outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
-          !showAccounts ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+          SEGMENTED_CONTROL_ITEM_CLASS,
+          !showAccounts ? SEGMENTED_CONTROL_ACTIVE_CLASS : SEGMENTED_CONTROL_INACTIVE_CLASS,
         )}
       >
         Portfolio
@@ -133,8 +139,8 @@ export function AppTopbar() {
         href="/investments?view=accounts"
         aria-current={showAccounts ? "page" : undefined}
         className={cn(
-          "flex-1 rounded-md px-3 py-2 text-center text-xs font-semibold whitespace-nowrap outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
-          showAccounts ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+          SEGMENTED_CONTROL_ITEM_CLASS,
+          showAccounts ? SEGMENTED_CONTROL_ACTIVE_CLASS : SEGMENTED_CONTROL_INACTIVE_CLASS,
         )}
       >
         Accounts
@@ -150,14 +156,10 @@ export function AppTopbar() {
   return (
     <header className="sticky top-0 z-40 px-2 pt-2 sm:px-4 sm:pt-3 lg:px-6 lg:pt-4">
       <div className="mx-auto max-w-[100rem] rounded-2xl border border-white/80 bg-card/85 p-2 shadow-card backdrop-blur-xl supports-[backdrop-filter]:bg-card/78">
-        <div className="flex min-w-0 items-center gap-2">
-          <AppLogo
-            label={meta.title}
-            copyClassName={showPeriod ? "hidden sm:block" : undefined}
-            className="mr-auto lg:mr-1"
-          />
+        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+          <AppLogo label={meta.title} className="min-w-0 justify-self-start" />
 
-          <nav aria-label="Primary" className="hidden min-w-0 flex-1 items-center justify-center gap-1 lg:flex">
+          <nav aria-label="Primary" className="hidden min-w-0 items-center justify-center gap-1 lg:col-start-2 lg:flex">
             {PRIMARY_NAV_ITEMS.map((item) => {
               const active = isNavItemActive(pathname, item.href);
               return (
@@ -228,12 +230,13 @@ export function AppTopbar() {
             </DropdownMenu>
           </nav>
 
-          {showSearch ? <div className="hidden w-60 xl:block">{searchField}</div> : null}
-          {showPeriod ? <CashflowPeriodControl /> : null}
-          {showWealthNav ? <div className="hidden xl:block">{wealthNav}</div> : null}
+          <div className="flex min-w-0 items-center justify-self-end gap-2 lg:col-start-3">
+            {showSearch ? <div className="hidden w-60 xl:block">{searchField}</div> : null}
+            {showPeriod ? <div className="hidden lg:block"><CashflowPeriodControl /></div> : null}
+            {showWealthNav ? <div className="hidden xl:block">{wealthNav}</div> : null}
 
-          {addMode ? (
-            <>
+            {addMode ? (
+              <>
               <Button
                 aria-label={ADD_LABEL[addMode]}
                 onClick={() => setAddOpenFor(pathname)}
@@ -248,9 +251,12 @@ export function AppTopbar() {
                   onOpenChange={(open) => setAddOpenFor(open ? pathname : null)}
                 />
               ) : null}
-            </>
-          ) : null}
+              </>
+            ) : null}
+          </div>
         </div>
+
+        {showPeriod ? <div className="mt-2 lg:hidden"><CashflowPeriodControl /></div> : null}
 
         {showSearch || showWealthNav ? (
           <div className="mt-2 xl:hidden">{showSearch ? searchField : wealthNav}</div>

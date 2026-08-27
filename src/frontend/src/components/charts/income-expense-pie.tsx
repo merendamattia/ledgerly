@@ -1,20 +1,17 @@
 "use client";
 
-import { Cell, Pie, PieChart } from "recharts";
 import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
+  EChartsPieChart,
   type ChartConfig,
-} from "@/components/ui/chart";
+} from "@/components/evilcharts/charts/echarts-pie-chart";
 import { formatMoney } from "@/lib/format";
 import { MoneyAmount } from "@/components/money-amount";
 import { usePrivateNumberFormatter } from "@/components/private-number";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 const chartConfig = {
-  income: { label: "Income", color: "var(--positive)" },
-  expense: { label: "Expense", color: "var(--negative)" },
+  income: { label: "Income", colors: { light: ["var(--positive)"] } },
+  expense: { label: "Expense", colors: { light: ["var(--negative)"] } },
 } satisfies ChartConfig;
 
 /** Renders income and expense totals with net cashflow in the center. */
@@ -47,26 +44,24 @@ export function IncomeExpensePie({
   return (
     <div className="flex flex-col items-center gap-5">
       <div className="relative">
-        <ChartContainer config={chartConfig} className="aspect-square h-[176px] sm:h-[200px]">
-          <PieChart>
-            <ChartTooltip
-              content={
-                <ChartTooltipContent formatter={(v) => privateText(formatMoney(Number(v), currency))} />
-              }
-            />
-            <Pie
-              data={data}
-              dataKey="value"
-              nameKey="name"
-              innerRadius={isMobile ? 54 : 64}
-              strokeWidth={2}
-            >
-              {data.map((entry) => (
-                <Cell key={entry.key} fill={entry.fill} />
-              ))}
-            </Pie>
-          </PieChart>
-        </ChartContainer>
+        <EChartsPieChart
+          config={chartConfig}
+          data={data}
+          dataKey="value"
+          nameKey="key"
+          className="aspect-square h-[176px] bg-transparent p-0 sm:h-[200px] sm:p-0"
+        >
+          <EChartsPieChart.Tooltip
+            roundness="xl"
+            valueFormatter={(value) => privateText(formatMoney(value, currency))}
+          />
+          <EChartsPieChart.Pie
+            innerRadius={isMobile ? 48 : 56}
+            outerRadius={isMobile ? 76 : 86}
+            paddingAngle={1.5}
+            cornerRadius={6}
+          />
+        </EChartsPieChart>
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
           <span className="text-xs text-muted-foreground">Net</span>
           <MoneyAmount

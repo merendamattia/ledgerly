@@ -1,13 +1,10 @@
 "use client";
 
-import { Cell, Pie, PieChart } from "recharts";
 import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
+  EChartsPieChart,
   type ChartConfig,
-} from "@/components/ui/chart";
-import { formatMoney } from "@/lib/format";
+} from "@/components/evilcharts/charts/echarts-pie-chart";
+import { formatMoney, truncate } from "@/lib/format";
 import { MoneyAmount } from "@/components/money-amount";
 import { usePrivateNumberFormatter } from "@/components/private-number";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -39,10 +36,12 @@ export function AllocationChart({
   allocation,
   currency,
   labels,
+  isLoading = false,
 }: {
   allocation: Record<string, number>;
   currency: string;
   labels?: Record<string, string>;
+  isLoading?: boolean;
 }) {
   const { privateText } = usePrivateNumberFormatter();
   const isMobile = useIsMobile();
@@ -59,10 +58,10 @@ export function AllocationChart({
   const total = data.reduce((sum, d) => sum + d.value, 0);
 
   const chartConfig = Object.fromEntries(
-    data.map((d) => [d.key, { label: d.name, color: d.fill }]),
+    data.map((d) => [d.key, { label: d.name, colors: { light: [d.fill] } }]),
   ) satisfies ChartConfig;
 
-  if (data.length === 0) {
+  if (data.length === 0 && !isLoading) {
     return (
       <div className="flex h-[240px] items-center justify-center text-sm text-muted-foreground">
         No assets yet.
@@ -73,26 +72,25 @@ export function AllocationChart({
   return (
     <div className="flex flex-col items-center gap-5">
       <div className="relative">
-        <ChartContainer config={chartConfig} className="aspect-square h-[176px] sm:h-[200px]">
-          <PieChart>
-            <ChartTooltip
-              content={
-                <ChartTooltipContent formatter={(v) => privateText(formatMoney(Number(v), currency))} />
-              }
-            />
-            <Pie
-              data={data}
-              dataKey="value"
-              nameKey="name"
-              innerRadius={isMobile ? 54 : 64}
-              strokeWidth={2}
-            >
-              {data.map((entry) => (
-                <Cell key={entry.key} fill={entry.fill} />
-              ))}
-            </Pie>
-          </PieChart>
-        </ChartContainer>
+        <EChartsPieChart
+          config={chartConfig}
+          data={data}
+          dataKey="value"
+          nameKey="key"
+          isLoading={isLoading}
+          className="aspect-square h-[176px] bg-transparent p-0 sm:h-[200px] sm:p-0"
+        >
+          <EChartsPieChart.Tooltip
+            roundness="xl"
+            valueFormatter={(value) => privateText(formatMoney(value, currency))}
+          />
+          <EChartsPieChart.Pie
+            innerRadius={isMobile ? 48 : 56}
+            outerRadius={isMobile ? 76 : 86}
+            paddingAngle={1.5}
+            cornerRadius={6}
+          />
+        </EChartsPieChart>
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
           <span className="text-xs text-muted-foreground">Total</span>
           <MoneyAmount
@@ -107,7 +105,9 @@ export function AllocationChart({
         {data.map((d) => (
           <li key={d.key} className="flex items-center gap-2.5 text-sm">
             <span className="size-2.5 shrink-0 rounded-[3px]" style={{ backgroundColor: d.fill }} />
-            <span className="min-w-0 flex-1 truncate">{d.name}</span>
+            <span className="min-w-0 flex-1 truncate" title={d.name}>
+              {truncate(d.name, 20)}
+            </span>
             <span className="shrink-0 font-mono font-semibold tabular-nums">
               {total > 0 ? Math.round((d.value / total) * 100) : 0}%
             </span>
