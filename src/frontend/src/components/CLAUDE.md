@@ -16,9 +16,10 @@ Check this folder (and `ui/`) before writing new markup. Compose existing pieces
 - `cron-section.tsx` — cron jobs + run history + "Run now".
 - `category-badge.tsx` — `CategoryBadge` (per-category tinted pill) + `CategoryIcon` (matching
   tinted icon tile). Tints come from the design's categorical palette, keyed off the category name.
-- `app-bottom-nav.tsx` / `app-topbar.tsx` — the fixed ink bottom tab bar (4 tabs + a "More" sheet
-  for secondary routes) + sticky blurred topbar (per-route title/subtitle, cash-flow period picker,
-  Transactions search, lime **+ Add**). Mobile-first; no left sidebar.
+- `app-navigation.ts` / `app-logo.tsx` — shared route map and identity used by every shell variant.
+- `app-bottom-nav.tsx` / `app-topbar.tsx` — the adaptive shell: centered floating desktop nav;
+  compact phone topbar + fixed ink dock (4 tabs + a "More" sheet). Contextual period, search and
+  lime **+ Add** controls stay route-scoped. No left sidebar.
 - `charts/` — `net-worth-chart`, `allocation-chart`, `cashflow-chart` (shadcn Chart + Recharts).
 
 ## Design system ("modern ledger" — see root `DESIGN.md`)
@@ -27,7 +28,7 @@ Check this folder (and `ui/`) before writing new markup. Compose existing pieces
   body, `font-mono` (JetBrains Mono) for **every figure** — always pair with `tabular-nums`.
 - **Palette via tokens:** `bg-primary` (lime) for CTAs/active nav, `text-positive`/`text-negative`
   for income/expense, `bg-sidebar` for ink "spotlight" cards, `var(--chart-1..6)` categorical ramp.
-- **Cards:** `border shadow-card ring-0` on `bg-card`; titles `font-display font-semibold`.
+- **Cards:** 16px `border shadow-card ring-0` on opaque `bg-card`; titles `font-display font-semibold`.
 - **Motion:** `.animate-fu` (fade-up entrance), `.animate-grow` (bar/progress fills).
 
 ## Conventions (shadcn rules)

@@ -12,29 +12,29 @@ type CategoryStyle = {
 const RULES: [RegExp, CategoryStyle][] = [
   [/income|salary|stipend|payroll|divid|entrat|wage|bonus|refund|rimbors|credit|win|lotter|premio/i, { emoji: "💰", badgeBg: "#E7F3EC", badgeFg: "#1C7A4D" }],
   [/invest|etf|stock|equit|azion|crypto|btc|fund/i, { emoji: "📈", badgeBg: "#E7F3EC", badgeFg: "#1C7A4D" }],
-  [/groc|aliment|food|superm|spesa/i, { emoji: "🛒", badgeBg: "#EEF6DC", badgeFg: "#5B7D10" }],
+  [/groc|aliment|food|superm|spesa/i, { emoji: "🛒", badgeBg: "#EEF6DC", badgeFg: "#55750F" }],
   [/rent|affitto|mortgage|mutuo|hous|home|casa/i, { emoji: "🏠", badgeBg: "#E7EEF8", badgeFg: "#2C5797" }],
   [/util|energ|enel|electric|gas|water|bollet/i, { emoji: "💡", badgeBg: "#E7EEF8", badgeFg: "#2C5797" }],
   [/transp|trasport|fuel|car|auto|train|treno|metro|bus/i, { emoji: "🚗", badgeBg: "#E7EEF8", badgeFg: "#2C5797" }],
   [/subscr|abbonam|netflix|spotify|stream/i, { emoji: "🎬", badgeBg: "#F1EAFB", badgeFg: "#6A4CC0" }],
   [/restaur|ristor|dining/i, { emoji: "🍽️", badgeBg: "#F1EAFB", badgeFg: "#6A4CC0" }],
   [/leisure|svago|bar|caff|entertain|fun|relax/i, { emoji: "🍹", badgeBg: "#F1EAFB", badgeFg: "#6A4CC0" }],
-  [/health|salut|medic|pharm|farma/i, { emoji: "🏥", badgeBg: "#FDF1DD", badgeFg: "#B07415" }],
+  [/health|salut|medic|pharm|farma/i, { emoji: "🏥", badgeBg: "#FDF1DD", badgeFg: "#8A6516" }],
   [/cloth|abbigl/i, { emoji: "👕", badgeBg: "#FBE9E3", badgeFg: "#B0461F" }],
   [/shop|amazon/i, { emoji: "🛍️", badgeBg: "#FBE9E3", badgeFg: "#B0461F" }],
   [/flight|volo|aere/i, { emoji: "✈️", badgeBg: "#E7EEF8", badgeFg: "#2C5797" }],
   [/travel|viagg|hotel|holiday|vacan|ferie/i, { emoji: "🌴", badgeBg: "#E7EEF8", badgeFg: "#2C5797" }],
-  [/sport|gym|palestr|fitness/i, { emoji: "🏋️", badgeBg: "#FDF1DD", badgeFg: "#B07415" }],
+  [/sport|gym|palestr|fitness/i, { emoji: "🏋️", badgeBg: "#FDF1DD", badgeFg: "#8A6516" }],
   [/tech|tecnolog|hardware|software|gadget/i, { emoji: "💻", badgeBg: "#E7EEF8", badgeFg: "#2C5797" }],
   [/phone|telefon|mobile|sim/i, { emoji: "📱", badgeBg: "#E7EEF8", badgeFg: "#2C5797" }],
-  [/educat|school|scuol|stud|cours|cors|book|libr/i, { emoji: "🎓", badgeBg: "#FDF1DD", badgeFg: "#B07415" }],
+  [/educat|school|scuol|stud|cours|cors|book|libr/i, { emoji: "🎓", badgeBg: "#FDF1DD", badgeFg: "#8A6516" }],
   [/gift|regal|dona/i, { emoji: "🎁", badgeBg: "#FBE9E3", badgeFg: "#B0461F" }],
   [/hairdress|parruc|barber|beauty|estet/i, { emoji: "💇", badgeBg: "#FBE9E3", badgeFg: "#B0461F" }],
-  [/service|servizi/i, { emoji: "🧰", badgeBg: "#F0EEE4", badgeFg: "#807F70" }],
-  [/bank|cash|conto/i, { emoji: "💵", badgeBg: "#EEF6DC", badgeFg: "#5B7D10" }],
+  [/service|servizi/i, { emoji: "🧰", badgeBg: "#F0EEE4", badgeFg: "#69695D" }],
+  [/bank|cash|conto/i, { emoji: "💵", badgeBg: "#EEF6DC", badgeFg: "#55750F" }],
 ];
 
-const FALLBACK: CategoryStyle = { emoji: "🏷️", badgeBg: "#F0EEE4", badgeFg: "#807F70" };
+const FALLBACK: CategoryStyle = { emoji: "🏷️", badgeBg: "#F0EEE4", badgeFg: "#69695D" };
 
 /** Resolves the configured color and emoji style for a category name. */
 function styleFor(name?: string | null): CategoryStyle {

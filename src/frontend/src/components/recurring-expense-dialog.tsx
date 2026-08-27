@@ -20,6 +20,7 @@ import { CategoryPicker } from "@/components/add-transaction-dialog";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { RecurringFields, validateRecurring } from "@/components/recurring-fields";
 import { useCategories } from "@/hooks/use-categories";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   useCreateRecurringExpense,
   useDeleteRecurringExpense,
@@ -76,6 +77,7 @@ export function RecurringExpenseDialog({
   rule?: RecurringExpense;
   trigger?: ReactElement;
 }) {
+  const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -90,8 +92,8 @@ export function RecurringExpenseDialog({
         }
       />
       <SheetContent
-        side="right"
-        className="flex w-full flex-col gap-0 p-0 data-[side=right]:w-[88%] sm:max-w-xl"
+        side={isMobile ? "bottom" : "right"}
+        className="flex w-full flex-col gap-0 p-0 data-[side=bottom]:h-[92dvh] data-[side=right]:w-[88%] sm:max-w-xl"
       >
         <SheetHeader className="border-b p-6">
           <SheetTitle className="font-display text-xl font-semibold tracking-tight">
@@ -162,7 +164,7 @@ function RecurringForm({ rule, onDone }: { rule?: RecurringExpense; onDone: () =
 
   return (
     <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
-      <div className="flex flex-1 flex-col gap-5 overflow-y-auto px-6 py-5">
+      <FieldGroup className="flex-1 overflow-y-auto px-6 py-5">
         <Field>
           <FieldLabel>Type</FieldLabel>
           <Segment
@@ -232,7 +234,7 @@ function RecurringForm({ rule, onDone }: { rule?: RecurringExpense; onDone: () =
             <TagInput note={note} onNoteChange={setNote} />
           </Field>
         </FieldGroup>
-      </div>
+      </FieldGroup>
 
       <div className="sticky bottom-0 flex items-center gap-2 border-t bg-card/95 px-6 py-4 backdrop-blur-sm">
         {rule ? (

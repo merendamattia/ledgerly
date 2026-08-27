@@ -135,7 +135,7 @@ function KpiDeltaLine({ delta }: { delta: KpiDelta }) {
       className={cn(
         "mt-1 block text-xs font-semibold",
         delta.tone === "positive" && "text-positive",
-        delta.tone === "negative" && "text-negative",
+        delta.tone === "negative" && "text-negative-ink",
         delta.tone === "muted" && "text-muted-foreground",
       )}
     >
@@ -438,7 +438,7 @@ export default function OverviewPage() {
         <p
           className={cn(
             "mt-2.5 font-mono text-2xl font-semibold tabular-nums",
-            debts > 0 && "text-negative",
+            debts > 0 && "text-negative-ink",
           )}
         >
           {debts > 0 ? "−" : ""}
@@ -580,7 +580,7 @@ export default function OverviewPage() {
                       </p>
                     </div>
                     <span className="shrink-0 text-right font-mono font-semibold tabular-nums">
-                      <span className={signed >= 0 ? "text-positive" : "text-negative"}>
+                      <span className={signed >= 0 ? "text-positive" : "text-negative-ink"}>
                         {signed >= 0 ? "+" : ""}
                         <MoneyAmount value={signed} currency={txCurrency} />
                       </span>

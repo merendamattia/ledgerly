@@ -27,10 +27,10 @@ export interface SelectedTicker {
 
 const TYPE_TINT: Record<string, string> = {
   EQUITY: "bg-accent text-accent-foreground",
-  ETF: "bg-[#EEF6DC] text-[#5b7d10]",
-  CRYPTO: "bg-[#FDF1DD] text-[#b07415]",
+  ETF: "bg-accent text-accent-foreground",
+  CRYPTO: "bg-[#FDF1DD] text-[#8a6516]",
   BOND: "bg-[#E7EEF7] text-[#3a5d8f]",
-  COMMODITY: "bg-[#F3E9DC] text-[#8a6516]",
+  COMMODITY: "bg-[#F3E9DC] text-[#836012]",
 };
 
 const ISIN_RE = /^[A-Z]{2}[A-Z0-9]{9}[0-9]$/;
@@ -148,7 +148,7 @@ export function TickerSearch({
               <button
                 type="button"
                 onClick={() => setManualOpen(true)}
-                className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#5b7d10] hover:underline"
+                className="inline-flex items-center gap-1.5 text-sm font-semibold text-accent-foreground hover:underline"
               >
                 <Plus className="size-4" />
                 Add manually (bond / commodity)

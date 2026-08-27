@@ -28,6 +28,7 @@ import {
 import { EmojiPickerField } from "@/components/emoji-picker-field";
 import { CategoryIcon, emojiFor } from "@/components/category-badge";
 import { DIRECTION_LABELS } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { useSettings, useUpdateSettings } from "@/hooks/use-settings";
 import {
   useCategories,
@@ -75,11 +76,12 @@ function BaseCurrencyCard() {
                 type="button"
                 onClick={() => updateCurrency(currency.value)}
                 disabled={update.isPending}
-                className={`rounded-md px-3 py-1.5 text-left text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+                className={cn(
+                  "rounded-md px-3 py-1.5 text-left text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60",
                   active
                     ? "bg-card text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+                    : "text-muted-foreground hover:text-foreground",
+                )}
               >
                 <span className="block font-mono text-[11px] font-semibold tabular-nums">
                   {currency.value}
@@ -194,7 +196,7 @@ function CategoryList({ items }: { items: Category[] }) {
     return <p className="text-sm text-muted-foreground">No categories yet.</p>;
   }
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
       {items.map((c) => (
         <CategoryRow key={c.id} category={c} />
       ))}
@@ -237,35 +239,37 @@ function CategoriesCard() {
         <CardDescription>Manage your income and expense categories.</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
-        <form onSubmit={submit} className="flex flex-wrap items-end gap-3">
-          <Field className="w-auto">
-            <FieldLabel>Emoji</FieldLabel>
-            <EmojiPickerField value={emoji || emojiFor(name)} onChange={setEmoji} />
-          </Field>
-          <Field className="w-56">
-            <FieldLabel htmlFor="cat-name">Name</FieldLabel>
-            <Input id="cat-name" value={name} onChange={(e) => setName(e.target.value)} required />
-          </Field>
-          <Field className="w-40">
-            <FieldLabel htmlFor="cat-kind">Kind</FieldLabel>
-            <Select
-              value={kind}
-              items={DIRECTION_LABELS}
-              onValueChange={(v) => setKind((v ?? "EXPENSE") as typeof kind)}
-            >
-              <SelectTrigger id="cat-kind">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="EXPENSE">Expense</SelectItem>
-                <SelectItem value="INCOME">Income</SelectItem>
-              </SelectContent>
-            </Select>
-          </Field>
-          <Button type="submit" disabled={create.isPending}>
-            <Plus data-icon="inline-start" />
-            Add
-          </Button>
+        <form onSubmit={submit}>
+          <FieldGroup className="grid items-end gap-3 sm:grid-cols-[auto_minmax(12rem,1fr)_10rem_auto]">
+            <Field className="w-fit">
+              <FieldLabel>Emoji</FieldLabel>
+              <EmojiPickerField value={emoji || emojiFor(name)} onChange={setEmoji} />
+            </Field>
+            <Field className="min-w-0">
+              <FieldLabel htmlFor="cat-name">Name</FieldLabel>
+              <Input id="cat-name" value={name} onChange={(e) => setName(e.target.value)} required />
+            </Field>
+            <Field className="min-w-0">
+              <FieldLabel htmlFor="cat-kind">Kind</FieldLabel>
+              <Select
+                value={kind}
+                items={DIRECTION_LABELS}
+                onValueChange={(v) => setKind((v ?? "EXPENSE") as typeof kind)}
+              >
+                <SelectTrigger id="cat-kind">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="EXPENSE">Expense</SelectItem>
+                  <SelectItem value="INCOME">Income</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+            <Button type="submit" disabled={create.isPending} className="w-full sm:w-auto">
+              <Plus data-icon="inline-start" />
+              Add
+            </Button>
+          </FieldGroup>
         </form>
 
         <div className="flex flex-col gap-2.5">

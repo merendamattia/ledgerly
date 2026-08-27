@@ -97,7 +97,7 @@ export function PositionTransactionsDialog({
                 <span
                   className={cn(
                     "text-[11px] tabular-nums",
-                    holding.gainPct >= 0 ? "text-positive" : "text-negative",
+                    holding.gainPct >= 0 ? "text-positive" : "text-negative-ink",
                   )}
                 >
                   {formatPercent(holding.gainPct)}
@@ -351,7 +351,7 @@ function MovementRow({
       <span
         className={cn(
           "inline-flex w-fit items-center rounded-full px-2 py-0.5 text-[11px] font-semibold",
-          isBuy ? "bg-positive/10 text-positive" : "bg-negative/10 text-negative",
+          isBuy ? "bg-positive/10 text-positive" : "bg-negative/10 text-negative-ink",
         )}
       >
         {INVESTMENT_SIDE_LABELS[tx.side] ?? tx.side}
@@ -375,7 +375,7 @@ function MovementRow({
       <span
         className={cn(
           "text-right font-mono text-sm font-semibold tabular-nums",
-          isBuy ? "text-negative" : "text-positive",
+          isBuy ? "text-negative-ink" : "text-positive",
         )}
       >
         {isBuy ? "−" : "+"}

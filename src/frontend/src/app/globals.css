@@ -28,9 +28,11 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-destructive-ink: var(--destructive-ink);
   --color-positive: var(--positive);
   --color-positive-foreground: var(--positive-foreground);
   --color-negative: var(--negative);
+  --color-negative-ink: var(--negative-ink);
   --color-negative-foreground: var(--negative-foreground);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
@@ -69,18 +71,20 @@
   --secondary: #eceadf;
   --secondary-foreground: #3a3b30;
   --muted: #f0eee4;
-  --muted-foreground: #807f70;
+  --muted-foreground: #69695d;
   --accent: #eef6dc;
-  --accent-foreground: #5b7d10;
+  --accent-foreground: #55750f;
   --destructive: #db5a3c;
+  --destructive-ink: #b94731;
   --positive: #1c7a4d;
   --positive-foreground: #ffffff;
   --negative: #db5a3c;
+  --negative-ink: #b94731;
   --negative-foreground: #ffffff;
   --accent-gold: #eba23c;
   --accent-gold-foreground: #15160f;
-  --border: #e8e5d9;
-  --input: #e8e5d9;
+  --border: #dfdccf;
+  --input: #d8d5c8;
   --ring: #1c7a4d;
   --chart-1: #1c7a4d;
   --chart-2: #b9e84a;
@@ -89,10 +93,10 @@
   --chart-5: #eba23c;
   --chart-6: #db5a3c;
   --radius: 0.75rem;
-  /* One card identity (DESIGN.md ~18px) and one control height so buttons,
+  /* One card identity (DESIGN.md 16px) and one control height so buttons,
      inputs and selects share a baseline. */
-  --card-radius: 1.05rem;
-  --control-h: 2.25rem;
+  --card-radius: 1rem;
+  --control-h: 2.5rem;
   --sidebar: #15160f;
   --sidebar-foreground: #a7a99a;
   --sidebar-primary: #c7f046;
@@ -117,18 +121,20 @@
   --secondary: #eceadf;
   --secondary-foreground: #3a3b30;
   --muted: #f0eee4;
-  --muted-foreground: #807f70;
+  --muted-foreground: #69695d;
   --accent: #eef6dc;
-  --accent-foreground: #5b7d10;
+  --accent-foreground: #55750f;
   --destructive: #db5a3c;
+  --destructive-ink: #b94731;
   --positive: #1c7a4d;
   --positive-foreground: #ffffff;
   --negative: #db5a3c;
+  --negative-ink: #b94731;
   --negative-foreground: #ffffff;
   --accent-gold: #eba23c;
   --accent-gold-foreground: #15160f;
-  --border: #e8e5d9;
-  --input: #e8e5d9;
+  --border: #dfdccf;
+  --input: #d8d5c8;
   --ring: #1c7a4d;
   --chart-1: #1c7a4d;
   --chart-2: #b9e84a;
@@ -152,10 +158,13 @@
   }
   body {
     @apply bg-background text-foreground;
-    /* Subtle paper wash: lime top-right, green bottom-left. */
+    min-height: 100svh;
+    overflow-x: clip;
+    /* The reference's ambient light, translated to Ledgerly's existing palette. */
     background-image:
-      radial-gradient(circle at 80% 0%, rgba(199, 240, 70, 0.1), transparent 42%),
-      radial-gradient(circle at 0% 100%, rgba(28, 122, 77, 0.06), transparent 38%);
+      radial-gradient(circle at 86% -12%, rgba(199, 240, 70, 0.2), transparent 34rem),
+      radial-gradient(circle at -8% 68%, rgba(28, 122, 77, 0.1), transparent 32rem),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.28), transparent 28rem);
     background-attachment: fixed;
     font-variant-numeric: tabular-nums lining-nums;
   }
@@ -166,6 +175,11 @@
   h2,
   h3 {
     @apply font-display tracking-tight;
+    text-wrap: balance;
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
   }
 }
 
@@ -174,23 +188,10 @@
   color: #15160f;
 }
 
-::-webkit-scrollbar {
-  width: 11px;
-  height: 11px;
-}
-::-webkit-scrollbar-thumb {
-  background: #dad7c9;
-  border-radius: 8px;
-  border: 3px solid var(--background);
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
 @keyframes fu {
   from {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
@@ -207,21 +208,32 @@
 }
 
 .animate-fu {
-  animation: fu 0.5s ease both;
+  animation: fu 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 .animate-grow {
   transform-origin: left;
-  animation: grow 0.8s ease both;
+  animation: grow 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-/* Soft elevated shadow used on every white card in the design. */
+/* Compact elevation: enough to separate floating surfaces without ghost cards. */
 @utility shadow-card {
   box-shadow:
-    0 1px 2px rgba(20, 20, 15, 0.04),
-    0 12px 32px -20px rgba(20, 20, 15, 0.18);
+    0 1px 2px rgba(20, 20, 15, 0.06),
+    0 6px 8px -8px rgba(20, 20, 15, 0.24);
 }
 
 /* Respect the iOS home-indicator inset for the fixed mobile bottom nav. */
 @utility pb-safe {
   padding-bottom: env(safe-area-inset-bottom);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

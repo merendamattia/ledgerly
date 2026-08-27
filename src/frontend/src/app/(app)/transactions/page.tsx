@@ -514,7 +514,7 @@ export default function TransactionsPage() {
                           <span
                             className={cn(
                               "shrink-0 font-mono font-semibold tabular-nums",
-                              signed >= 0 ? "text-positive" : "text-negative",
+                              signed >= 0 ? "text-positive" : "text-negative-ink",
                             )}
                           >
                             {signed >= 0 ? "+" : ""}

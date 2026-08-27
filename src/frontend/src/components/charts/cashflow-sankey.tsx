@@ -81,7 +81,7 @@ export function CashFlowSankey({
       token("--chart-4", "#7b5bd6"),
       token("--chart-6", "#db5a3c"),
     ];
-    const muted = token("--muted-foreground", "#807f70");
+    const muted = token("--muted-foreground", "#69695d");
 
     const topN = isMobile ? 4 : TOP_N;
     const inflow = collapse(sources, topN);

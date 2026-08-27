@@ -87,7 +87,7 @@ export default function DatabasePage() {
 
       <Card>
         <CardContent className="flex flex-col gap-0 p-0 md:flex-row">
-          <nav className="flex max-h-[70vh] shrink-0 flex-col gap-0.5 overflow-y-auto border-b p-2 md:w-56 md:border-r md:border-b-0">
+          <nav className="flex shrink-0 gap-1 overflow-x-auto border-b p-2 md:max-h-[70vh] md:w-56 md:flex-col md:overflow-x-visible md:overflow-y-auto md:border-r md:border-b-0">
             {tableList.map((t) => (
               <Button
                 key={t}
@@ -96,7 +96,7 @@ export default function DatabasePage() {
                 aria-current={t === active ? "true" : undefined}
                 onClick={() => pickTable(t)}
                 className={cn(
-                  "justify-start font-mono text-xs",
+                  "shrink-0 justify-start font-mono text-xs md:w-full",
                   t === active && "bg-accent text-accent-foreground",
                 )}
               >

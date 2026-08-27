@@ -243,7 +243,7 @@ export function RebalanceCard({
                         ? "text-muted-foreground"
                         : r.deltaPct >= 0
                           ? "text-positive"
-                          : "text-negative",
+                          : "text-negative-ink",
                     )}
                   >
                     {r.deltaPct != null
@@ -256,7 +256,7 @@ export function RebalanceCard({
                         className={cn(
                           "rounded-md px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-wider sm:px-2 sm:text-[10.5px]",
                           r.action === "SELL"
-                            ? "bg-negative/10 text-negative"
+                            ? "bg-negative/10 text-negative-ink"
                             : "bg-positive/10 text-positive",
                         )}
                       >
@@ -456,7 +456,7 @@ function RebalanceDetailDialog({
           ? "text-muted-foreground"
           : row.deltaPct >= 0
             ? "text-positive"
-            : "text-negative",
+            : "text-negative-ink",
     },
     {
       label: "To trade",
@@ -465,7 +465,7 @@ function RebalanceDetailDialog({
       ) : (
         <MoneyAmount value={Math.abs(trade)} currency={currency} />
       ),
-      tone: onTarget ? "text-muted-foreground" : trade > 0 ? "text-positive" : "text-negative",
+      tone: onTarget ? "text-muted-foreground" : trade > 0 ? "text-positive" : "text-negative-ink",
     },
   ];
 
@@ -486,7 +486,7 @@ function RebalanceDetailDialog({
               ? "bg-muted text-muted-foreground"
               : trade > 0
                 ? "bg-positive/10 text-positive"
-                : "bg-negative/10 text-negative",
+                : "bg-negative/10 text-negative-ink",
           )}
         >
           {onTarget ? (
@@ -599,7 +599,7 @@ function RebalancePlanDialog({
             >
               <span className="flex min-w-0 flex-col gap-0.5">
                 <span className="flex items-center gap-1.5">
-                  <span className="rounded bg-negative/10 px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-wider text-negative">
+                  <span className="rounded bg-negative/10 px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-wider text-negative-ink">
                     SELL
                   </span>
                   <span className="min-w-0 truncate font-medium">{t.from}</span>
@@ -828,7 +828,7 @@ function RebalanceGroupDialog({
                     })
                   }
                   trigger={
-                    <Button type="button" variant="ghost" className="text-negative">
+                    <Button type="button" variant="ghost" className="text-negative-ink">
                       <Trash2 data-icon="inline-start" />
                       Remove
                     </Button>

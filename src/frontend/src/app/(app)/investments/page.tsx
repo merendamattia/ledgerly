@@ -399,7 +399,7 @@ function PositionRow({
           <span
             className={cn(
               "block font-mono text-[11px] tabular-nums",
-              h.gainPct >= 0 ? "text-positive" : "text-negative",
+              h.gainPct >= 0 ? "text-positive" : "text-negative-ink",
             )}
           >
             {formatPercent(h.gainPct)}
@@ -435,7 +435,7 @@ function PositionRow({
             <span
               className={cn(
                 "shrink-0 font-mono tabular-nums",
-                h.gainPct >= 0 ? "text-positive" : "text-negative",
+                h.gainPct >= 0 ? "text-positive" : "text-negative-ink",
               )}
             >
               {formatPercent(h.gainPct)}

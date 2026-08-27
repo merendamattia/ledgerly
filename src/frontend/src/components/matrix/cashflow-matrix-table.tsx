@@ -165,9 +165,9 @@ export function CashflowMatrixTable({
         <table className="w-full border-separate border-spacing-0 text-sm tabular-nums">
           {head}
           <tbody>
-            {bandRow("Expenses", "bg-negative/12 text-negative")}
+            {bandRow("Expenses", "bg-negative/12 text-negative-ink")}
             {expense.map(categoryRow)}
-            {totalRow("Total expenses", expenseTotal, "text-negative")}
+            {totalRow("Total expenses", expenseTotal, "text-negative-ink")}
 
             {bandRow("Income", "bg-positive/12 text-positive")}
             {income.map(categoryRow)}
@@ -218,7 +218,7 @@ export function CashflowMatrixTable({
                     className={cn(
                       MONTH,
                       "font-mono font-semibold not-italic",
-                      v == null ? "text-muted-foreground" : v < 0 ? "text-negative" : "text-positive",
+                      v == null ? "text-muted-foreground" : v < 0 ? "text-negative-ink" : "text-positive",
                     )}
                   >
                     {v == null ? "—" : formatPercent(v)}

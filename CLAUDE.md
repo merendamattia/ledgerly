@@ -9,9 +9,10 @@ Ledgerly is a self-hosted personal **net worth + expense tracker**. It gives a c
 view of assets, investments and cash flow, and **minimizes external provider calls** by
 persisting all price/FX history in Postgres and caching hot reads in Redis.
 
-## UI sections (the "modern ledger" design — see `DESIGN.md`)
-The app shell is mobile-first: a sticky topbar over a fixed **ink bottom tab bar** (no left sidebar)
-plus a 12-column content grid. Four primary tabs, with secondary routes under a "More" sheet:
+## UI sections (the "floating ledger" design — see `DESIGN.md`)
+The app shell is mobile-first and has no left sidebar: a floating desktop topbar becomes a compact
+route bar plus fixed **ink bottom dock** below `lg`. Four primary tabs, with secondary routes under
+"More":
 1. **Overview** (`/`) — net worth, KPIs, allocation, cash-flow + recent movements.
 2. **Assets & Investments** (`/investments`) — portfolio (currently a styled scaffold; full build later).
 3. **Expenses & Cash Flow** (`/cashflow`) — income/expense analytics.
