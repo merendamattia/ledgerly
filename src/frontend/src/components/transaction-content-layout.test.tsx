@@ -30,11 +30,11 @@ test("emits the bounded-period summary before movements in DOM order", () => {
   expect(children.map((child) => child.type)).toEqual(["section", "div", "aside"]);
   expect(summary.type).toBe("section");
   expect(sidebar.type).toBe("aside");
-  expect(summary.props.className).toContain("lg:col-start-10");
-  expect(summary.props.className).toContain("lg:sticky lg:top-4");
+  expect(summary.props.className).toContain("lg:col-span-12");
+  expect(summary.props.className).toContain("lg:col-start-1");
   expect(movements.props.className).toContain("lg:col-start-1");
   expect(movements.props.className).toContain("lg:col-span-9");
-  expect(movements.props.className).toContain("lg:row-span-2");
+  expect(movements.props.className).toContain("lg:row-start-2");
   expect(sidebar.props.className).toContain("lg:row-start-2");
   expect(sidebar.props.className).toContain("lg:sticky lg:top-4");
 });

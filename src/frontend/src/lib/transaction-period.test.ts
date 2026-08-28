@@ -4,6 +4,7 @@ import {
   loadCompletePages,
   resolveTransactionRange,
   shouldLoadCompleteTransactionResults,
+  summarizeTransactionCategories,
   summarizeTransactionRows,
 } from "./transaction-period";
 
@@ -73,4 +74,19 @@ test("calculates income, expenses, and net for the effective filtered rows", () 
       { direction: "EXPENSE", amount: 75.5 },
     ]),
   ).toEqual({ income: 1_250, expenses: 375.5, net: 874.5 });
+});
+
+test("groups filtered income and expenses by category", () => {
+  expect(
+    summarizeTransactionCategories([
+      { direction: "EXPENSE", amount: 40, category: { id: "food", name: "Food" } },
+      { direction: "EXPENSE", amount: 15, category: { id: "food", name: "Food" } },
+      { direction: "INCOME", amount: 1_000, category: { id: "salary", name: "Salary" } },
+      { direction: "INCOME", amount: 25, category: null },
+    ]),
+  ).toEqual({
+    income: { salary: 1_000, uncategorized: 25 },
+    expenses: { food: 55 },
+    labels: { food: "Food", salary: "Salary", uncategorized: "Uncategorized" },
+  });
 });

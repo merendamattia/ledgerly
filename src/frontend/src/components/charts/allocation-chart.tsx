@@ -8,6 +8,7 @@ import { formatMoney, truncate } from "@/lib/format";
 import { MoneyAmount } from "@/components/money-amount";
 import { usePrivateNumberFormatter } from "@/components/private-number";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 
 const PALETTE = [
   "var(--chart-1)",
@@ -37,11 +38,17 @@ export function AllocationChart({
   currency,
   labels,
   isLoading = false,
+  emptyText = "No assets yet.",
+  colors = PALETTE,
+  layout = "vertical",
 }: {
   allocation: Record<string, number>;
   currency: string;
   labels?: Record<string, string>;
   isLoading?: boolean;
+  emptyText?: string;
+  colors?: readonly string[];
+  layout?: "vertical" | "responsive";
 }) {
   const { privateText } = usePrivateNumberFormatter();
   const isMobile = useIsMobile();
@@ -52,7 +59,7 @@ export function AllocationChart({
       key,
       name: labels?.[key] ?? LABELS[key] ?? key,
       value,
-      fill: PALETTE[i % PALETTE.length],
+      fill: colors[i % colors.length],
     }));
 
   const total = data.reduce((sum, d) => sum + d.value, 0);
@@ -64,14 +71,20 @@ export function AllocationChart({
   if (data.length === 0 && !isLoading) {
     return (
       <div className="flex h-[240px] items-center justify-center text-sm text-muted-foreground">
-        No assets yet.
+        {emptyText}
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col items-center gap-5">
-      <div className="relative">
+    <div
+      className={cn(
+        "flex flex-col items-center gap-5",
+        layout === "responsive" &&
+          "lg:grid lg:grid-cols-[minmax(12rem,0.8fr)_minmax(0,1.2fr)] lg:gap-10",
+      )}
+    >
+      <div className="relative lg:justify-self-center">
         <EChartsPieChart
           config={chartConfig}
           data={data}

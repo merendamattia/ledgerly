@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import { Repeat } from "lucide-react";
 import { MonthYearPicker } from "@/components/month-year-picker";
+import { ActivityPeriodInsights } from "@/components/activity-period-insights";
 import { MoneyAmount } from "@/components/money-amount";
 import { StatCard } from "@/components/stat-card";
 import { TransactionContentLayout } from "@/components/transaction-content-layout";
@@ -400,52 +401,13 @@ export default function TransactionsPage() {
       <TransactionContentLayout
         summary={
           showPeriodSummary ? (
-            <div className="flex flex-col gap-3">
-              <StatCard
-                label="Total income"
-                value={
-                  periodSummary.data ? (
-                    <MoneyAmount value={periodSummary.data.income} currency={currency} colored />
-                  ) : periodSummary.isLoading ? (
-                    "Loading…"
-                  ) : (
-                    "—"
-                  )
-                }
-                accent="positive"
-              />
-              <StatCard
-                label="Total expenses"
-                value={
-                  periodSummary.data ? (
-                    <MoneyAmount value={periodSummary.data.expenses} currency={currency} />
-                  ) : periodSummary.isLoading ? (
-                    "Loading…"
-                  ) : (
-                    "—"
-                  )
-                }
-                accent="negative"
-              />
-              <StatCard
-                label="Net balance"
-                value={
-                  periodSummary.data ? (
-                    <MoneyAmount
-                      value={periodSummary.data.net}
-                      currency={currency}
-                      colored
-                      signed
-                    />
-                  ) : periodSummary.isLoading ? (
-                    "Loading…"
-                  ) : (
-                    "—"
-                  )
-                }
-                accent={periodSummary.data && periodSummary.data.net < 0 ? "negative" : "positive"}
-              />
-            </div>
+            <ActivityPeriodInsights
+              summary={periodSummary.data}
+              rows={rows}
+              currency={currency}
+              periodLabel={periodLabel}
+              isLoading={periodSummary.isLoading || isLoading}
+            />
           ) : null
         }
         sidebar={

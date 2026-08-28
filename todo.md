@@ -78,3 +78,15 @@ Branch: `refactor/ui-ux-financial` (from `origin/develop` at `6166fed`)
 - [x] Move the Monthly trend legend farther below the X-axis labels.
 - [x] Verify the result in-browser on desktop and smartphone.
 - [x] Re-run frontend checks and commit the follow-up.
+
+## 7. Activity period insights
+
+- [x] Combine income, expenses, and net balance into one side-by-side summary card.
+- [x] Add one date-filtered EvilCharts category donut with an Expense/Income switch and a red expense palette.
+- [x] Keep the insight section conditional on a bounded date period and responsive down to 320 px.
+- [x] Add focused aggregation/layout tests, run frontend checks, inspect desktop/mobile screenshots, commit, push, and open the `develop` → `main` release PR.
+
+## 8. Line-chart tooltip contrast
+
+- [x] Use dark green for the selected month/year tooltip label on line charts.
+- [x] Verify the click/hover state and include it in the release checks.

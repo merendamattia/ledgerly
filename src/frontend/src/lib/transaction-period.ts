@@ -11,6 +11,16 @@ export interface TransactionSummaryRows {
   amount: number;
 }
 
+export interface TransactionCategoryRow extends TransactionSummaryRows {
+  category?: { id: string; name: string } | null;
+}
+
+export interface TransactionCategorySummary {
+  income: Record<string, number>;
+  expenses: Record<string, number>;
+  labels: Record<string, string>;
+}
+
 export interface TransactionSummary {
   income: number;
   expenses: number;
@@ -47,6 +57,20 @@ export function summarizeTransactionRows(rows: readonly TransactionSummaryRows[]
     else expenses += row.amount;
   }
   return { income, expenses, net: income - expenses };
+}
+
+/** Groups filtered transactions into the category totals consumed by the period donut switch. */
+export function summarizeTransactionCategories(
+  rows: readonly TransactionCategoryRow[],
+): TransactionCategorySummary {
+  const summary: TransactionCategorySummary = { income: {}, expenses: {}, labels: {} };
+  for (const row of rows) {
+    const key = row.category?.id ?? "uncategorized";
+    summary.labels[key] = row.category?.name || "Uncategorized";
+    const target = row.direction === "INCOME" ? summary.income : summary.expenses;
+    target[key] = (target[key] ?? 0) + row.amount;
+  }
+  return summary;
 }
 
 function clampToToday(value: string | undefined, today: string): string | undefined {
