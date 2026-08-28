@@ -785,6 +785,7 @@ type OptionBuildContext = {
   isHorizontal: boolean;
   isStacked: boolean;
   isPercent: boolean;
+  hasExplicitStacks: boolean;
   selectedDataKey: string | null;
   hasSelection: boolean;
   showGrid: boolean;
@@ -838,7 +839,7 @@ function buildChartLayout({
       left: 8,
       right: 8,
       top: legendTop ? 42 : 16,
-      bottom: 8 + brushGap + (legendBottom ? 34 : 0),
+      bottom: 8 + brushGap + (legendBottom ? 44 : 0),
     },
     brushBottom: legendBottom ? 34 : 6,
   };
@@ -1052,7 +1053,16 @@ function buildBrushOption(
   miniSeries: BarSeriesOption[];
   dataZoom: DataZoomComponentOption[];
 } {
-  const { data, bars, isStacked, selectedDataKey, hasSelection, brushHeight, categories } = ctx;
+  const {
+    data,
+    bars,
+    isStacked,
+    hasExplicitStacks,
+    selectedDataKey,
+    hasSelection,
+    brushHeight,
+    categories,
+  } = ctx;
   const { tokens } = ctx.resolved;
 
   const miniGrid: GridComponentOption = {
@@ -1088,7 +1098,7 @@ function buildBrushOption(
       xAxisIndex: 1,
       yAxisIndex: 1,
       data: data.map((row) => Number(row[key]) || 0),
-      stack: isStacked ? "__mini-total" : undefined,
+      stack: isStacked ? (hasExplicitStacks ? bar.stackId : "__mini-total") : undefined,
       silent: true,
       barCategoryGap: "20%",
       emphasis: { disabled: true },
@@ -1287,7 +1297,7 @@ function buildBarSeries(ctx: OptionBuildContext): BarSeriesOption[] {
       name: typeof config[key]?.label === "string" ? config[key]?.label : key,
       type: "bar",
       data: dataPoints,
-      stack: bar.stackId ?? (isStacked ? "total" : undefined),
+      stack: isStacked ? (ctx.hasExplicitStacks ? bar.stackId : "total") : undefined,
       barGap,
       barCategoryGap,
       cursor: bar.isClickable ? "pointer" : "default",
@@ -1346,7 +1356,7 @@ function buildBarSeries(ctx: OptionBuildContext): BarSeriesOption[] {
   // Before the first layout that measurement is null and the gap is simply skipped;
   // the push re-applies once it exists, in the same frame (see the sync effect).
   const gapUnits =
-    (isStacked || isPercent) && series.length > 1 && ctx.valuePxPerUnit
+    (isStacked || isPercent) && !ctx.hasExplicitStacks && series.length > 1 && ctx.valuePxPerUnit
       ? STACK_SEGMENT_GAP / ctx.valuePxPerUnit
       : 0;
   if (!gapUnits) return series;
@@ -1526,6 +1536,7 @@ export function EChartsBarChart<TData extends Record<string, unknown>>({
   const isHorizontal = layout === "horizontal";
   const isPercent = stackType === "percent";
   const isStacked = stackType === "stacked" || isPercent;
+  const hasExplicitStacks = !isPercent && bars.some((bar) => bar.stackId);
 
   // Category axis is x when vertical, y when horizontal; value axis the other.
   const categorySlot = isHorizontal ? yAxisSlot : xAxisSlot;
@@ -1587,7 +1598,7 @@ export function EChartsBarChart<TData extends Record<string, unknown>>({
     seriesKeys,
     hasStripped: hasStrippedBars,
     hasBlocks: bars.some((bar) => bar.variant === "blocks"),
-    hasStackGap: (stackType === "stacked" || stackType === "percent") && bars.length > 1,
+    hasStackGap: isStacked && !hasExplicitStacks && bars.length > 1,
     expandableKey: bars.find((bar) => bar.variant === "expandable")?.dataKey ?? null,
     barCategoryGap,
     isHorizontal,
@@ -1664,6 +1675,7 @@ export function EChartsBarChart<TData extends Record<string, unknown>>({
       isHorizontal,
       isStacked,
       isPercent,
+      hasExplicitStacks,
       selectedDataKey,
       hasSelection,
       showGrid,
@@ -1716,6 +1728,7 @@ export function EChartsBarChart<TData extends Record<string, unknown>>({
     isHorizontal,
     isStacked,
     isPercent,
+    hasExplicitStacks,
     selectedDataKey,
     hasSelection,
     showGrid,
@@ -2156,7 +2169,7 @@ export function EChartsBarChart<TData extends Record<string, unknown>>({
     ...(legendSlot.verticalAlign === "top"
       ? { top: 12 }
       : legendSlot.verticalAlign === "bottom"
-        ? { bottom: brushEnabled ? brushHeight + 16 : 12 }
+        ? { bottom: brushEnabled ? brushHeight + 16 : 2 }
         : { top: "50%", transform: "translateY(-50%)" }),
   };
 

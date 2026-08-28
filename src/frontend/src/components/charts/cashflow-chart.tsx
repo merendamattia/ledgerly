@@ -45,6 +45,7 @@ export function CashFlowChart({
       data={points}
       xDataKey="month"
       className={className}
+      stackType="stacked"
       barRadius={4}
       barCategoryGap={isMobile ? 10 : 18}
       isLoading={isLoading}

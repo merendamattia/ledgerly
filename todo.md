@@ -71,3 +71,10 @@ Branch: `refactor/ui-ux-financial` (from `origin/develop` at `6166fed`)
 - [x] Move transient save/update notifications to bottom-center without covering the mobile navigation.
 - [x] Re-run 320 px, 390 px, tablet, and desktop browser checks plus interaction tests.
 - [x] Re-run frontend tests, lint, build, UI detector, repository checks, and confirm no backend/API source changes.
+
+## 6. Monthly trend histogram follow-up
+
+- [x] Activate EvilCharts `stackType="stacked"` for the Expense and Investments group while keeping Income separate.
+- [x] Move the Monthly trend legend farther below the X-axis labels.
+- [x] Verify the result in-browser on desktop and smartphone.
+- [x] Re-run frontend checks and commit the follow-up.
