@@ -36,6 +36,12 @@ import {
 } from "@/hooks/use-debts";
 import { shortDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import {
+  SEGMENTED_CONTROL_ACTIVE_CLASS,
+  SEGMENTED_CONTROL_CLASS,
+  SEGMENTED_CONTROL_INACTIVE_CLASS,
+  SEGMENTED_CONTROL_ITEM_CLASS,
+} from "@/components/segmented-control";
 
 type CashCategory = "LIQUIDITY" | "CREDIT" | "OTHER_ASSET";
 type SnapshotSection = CashCategory | "DEBT";
@@ -80,7 +86,7 @@ function SnapshotSectionMenu({
     <div
       role="group"
       aria-label="Snapshot section"
-      className="grid w-full grid-cols-2 gap-1 rounded-xl bg-muted p-1 sm:flex sm:w-fit"
+      className={cn(SEGMENTED_CONTROL_CLASS, "w-full sm:w-fit")}
     >
       {SNAPSHOT_SECTIONS.map((item) => {
         const active = value === item.value;
@@ -91,10 +97,8 @@ function SnapshotSectionMenu({
             aria-pressed={active}
             onClick={() => onChange(item.value)}
             className={cn(
-              "rounded-lg px-2.5 py-2 text-[13px] font-semibold transition-colors sm:py-1.5 sm:text-xs",
-              active
-                ? "bg-card text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
+              SEGMENTED_CONTROL_ITEM_CLASS,
+              active ? SEGMENTED_CONTROL_ACTIVE_CLASS : SEGMENTED_CONTROL_INACTIVE_CLASS,
             )}
           >
             {item.label}

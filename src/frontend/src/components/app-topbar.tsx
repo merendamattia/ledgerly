@@ -1,17 +1,38 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { Plus, Search } from "lucide-react";
+import { ChevronDown, LogOut, Plus, Search } from "lucide-react";
+import { AppLogo } from "@/components/app-logo";
+import {
+  PRIMARY_NAV_ITEMS,
+  SECONDARY_NAV_ITEMS,
+  isNavItemActive,
+} from "@/components/app-navigation";
 import { useSearch } from "@/components/search-context";
+import {
+  SEGMENTED_CONTROL_ACTIVE_CLASS,
+  SEGMENTED_CONTROL_CLASS,
+  SEGMENTED_CONTROL_INACTIVE_CLASS,
+  SEGMENTED_CONTROL_ITEM_CLASS,
+} from "@/components/segmented-control";
 import { useCashflowPeriod } from "@/components/cashflow/period-context";
 import { PeriodPicker } from "@/components/cashflow/period-picker";
 import { periodOptions, resolvePeriod } from "@/components/cashflow/periods";
 import type { AddMode } from "@/components/add-transaction-dialog";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { signOut, useSession } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 
 const AddTransactionDialog = dynamic(
@@ -19,54 +40,31 @@ const AddTransactionDialog = dynamic(
   { ssr: false },
 );
 
-/** Renders the Ledgerly app icon used in the sticky topbar. */
-function Logo() {
-  return (
-    <span className="flex size-10 shrink-0 items-center justify-center">
-      <Image
-        src="/icons/icon-192.png"
-        alt=""
-        width={192}
-        height={192}
-        priority
-        unoptimized
-        className="size-10 rounded-lg object-cover"
-      />
-    </span>
-  );
-}
-
 type PageMeta = { title: string; subtitle: string };
 
 const PAGE_META: Record<string, PageMeta> = {
-  "/": { title: "Overview", subtitle: "An at-a-glance view of your wealth" },
-  "/investments": {
-    title: "Wealth",
-    subtitle: "Portfolio, accounts and balance history",
-  },
-  "/cashflow": { title: "Expenses & Cash Flow", subtitle: "Income, spending and monthly flows" },
-  "/transactions": { title: "Transactions", subtitle: "All your recent movements" },
-  "/matrix": { title: "Matrices", subtitle: "Assets and cash flow across monthly snapshots" },
+  "/": { title: "Overview", subtitle: "Your financial position at a glance" },
+  "/investments": { title: "Wealth", subtitle: "Portfolio, accounts and balance history" },
+  "/cashflow": { title: "Cash flow", subtitle: "Income, spending and monthly flows" },
+  "/transactions": { title: "Activity", subtitle: "All your recent movements" },
+  "/accounts": { title: "Accounts", subtitle: "Tracked balances and registries" },
+  "/matrix": { title: "Matrices", subtitle: "Monthly assets, returns and cash flow" },
+  "/imports": { title: "Imports", subtitle: "Bring balances and movements into Ledgerly" },
+  "/settings": { title: "Settings", subtitle: "Currency and transaction categories" },
+  "/database": { title: "Database", subtitle: "Read-only data browser" },
+  "/dev": { title: "Developer tools", subtitle: "Jobs and background activity" },
 };
 
-/**
- * Returns topbar copy for app sections that do not render their own page header.
- *
- * Admin pages such as settings, database, and accounts render their own
- * `PageHeader`, so this intentionally returns `null` for those routes.
- */
-function metaFor(pathname: string): PageMeta | null {
+/** Returns the metadata for the current route. */
+function metaFor(pathname: string): PageMeta {
   if (pathname === "/") return PAGE_META["/"];
-  const match = Object.keys(PAGE_META).find((p) => p !== "/" && pathname.startsWith(p));
-  return match ? PAGE_META[match] : null;
+  const route = Object.keys(PAGE_META).find(
+    (candidate) => candidate !== "/" && pathname.startsWith(candidate),
+  );
+  return route ? PAGE_META[route] : { title: "Ledgerly", subtitle: "Personal finance console" };
 }
 
-/**
- * Resolves the contextual creation mode for the current route.
- *
- * The "+ Add" button only appears on sections that can create a movement, and
- * the mode scopes the dialog to the actions that make sense for that section.
- */
+/** Resolves the contextual creation mode for the current route. */
 function addModeFor(pathname: string): AddMode | null {
   if (pathname.startsWith("/transactions")) return "full";
   if (pathname.startsWith("/cashflow")) return "cashflow";
@@ -80,9 +78,7 @@ const ADD_LABEL: Record<AddMode, string> = {
   investment: "Add investment",
 };
 
-/**
- * Renders the cashflow period selector backed by `CashflowPeriodProvider`.
- */
+/** Renders the cash-flow period selector backed by the shared provider. */
 function CashflowPeriodControl() {
   const { period, setPeriod } = useCashflowPeriod();
   return (
@@ -91,15 +87,17 @@ function CashflowPeriodControl() {
       label={resolvePeriod(period).label}
       options={periodOptions()}
       onChange={setPeriod}
-      triggerClassName="w-auto min-w-0 max-w-[170px] px-3.5 py-2 sm:min-w-0"
+      triggerClassName="max-w-full sm:max-w-56 lg:w-auto lg:max-w-44"
     />
   );
 }
 
-/** Renders the sticky app topbar with section metadata and contextual actions. */
+/** Renders the sticky adaptive app header and desktop navigation. */
 export function AppTopbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const searchParams = useSearchParams();
+  const { data: session } = useSession();
   const { query, setQuery } = useSearch();
   const [addOpenFor, setAddOpenFor] = useState<string | null>(null);
   const meta = metaFor(pathname);
@@ -108,90 +106,162 @@ export function AppTopbar() {
   const showWealthNav = pathname.startsWith("/investments");
   const showAccounts = searchParams.get("view") === "accounts";
   const addMode = addModeFor(pathname);
-  const addOpen = addOpenFor === pathname;
+  const moreActive = SECONDARY_NAV_ITEMS.some((item) =>
+    isNavItemActive(pathname, item.href),
+  );
 
   const searchField = (
-    <div className="relative">
+    <label className="relative block min-w-0">
+      <span className="sr-only">Search transactions</span>
       <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
       <input
         value={query}
-        onChange={(e) => setQuery(e.target.value)}
+        onChange={(event) => setQuery(event.target.value)}
         placeholder="Search transactions…"
-        className="h-9 w-full rounded-lg border bg-card pr-3 pl-9 text-base outline-none placeholder:text-muted-foreground focus:border-ring md:text-sm"
+        className="h-10 w-full rounded-lg border border-input bg-card pr-3 pl-9 text-base outline-none placeholder:text-muted-foreground hover:border-foreground/20 focus:border-ring focus:ring-3 focus:ring-ring/50 md:text-sm"
       />
-    </div>
+    </label>
   );
 
+  const wealthNav = (
+    <nav aria-label="Wealth views" className={cn(SEGMENTED_CONTROL_CLASS, "flex min-w-0")}>
+      <Link
+        href="/investments"
+        aria-current={!showAccounts ? "page" : undefined}
+        className={cn(
+          SEGMENTED_CONTROL_ITEM_CLASS,
+          !showAccounts ? SEGMENTED_CONTROL_ACTIVE_CLASS : SEGMENTED_CONTROL_INACTIVE_CLASS,
+        )}
+      >
+        Portfolio
+      </Link>
+      <Link
+        href="/investments?view=accounts"
+        aria-current={showAccounts ? "page" : undefined}
+        className={cn(
+          SEGMENTED_CONTROL_ITEM_CLASS,
+          showAccounts ? SEGMENTED_CONTROL_ACTIVE_CLASS : SEGMENTED_CONTROL_INACTIVE_CLASS,
+        )}
+      >
+        Accounts
+      </Link>
+    </nav>
+  );
+
+  async function handleSignOut() {
+    await signOut();
+    router.replace("/login");
+  }
+
   return (
-    <header className="sticky top-0 z-10 border-b bg-background/80 px-4 py-3 backdrop-blur-md md:px-8 md:py-4">
-      <div className="flex items-center justify-between gap-3">
-        <Link href="/" className="flex min-w-0 items-center gap-2.5">
-          <Logo />
-          <div className={cn("min-w-0", showWealthNav && "hidden sm:block")}>
-            <span className="block font-display text-lg font-bold tracking-tight md:text-xl">
-              Ledgerly
-            </span>
-            {meta ? (
-              <span className="block truncate text-xs text-muted-foreground">{meta.title}</span>
-            ) : null}
-          </div>
-        </Link>
+    <header className="sticky top-0 z-40 px-2 pt-2 sm:px-4 sm:pt-3 lg:px-6 lg:pt-4">
+      <div className="mx-auto max-w-[100rem] rounded-2xl border border-white/80 bg-card/85 p-2 shadow-card backdrop-blur-xl supports-[backdrop-filter]:bg-card/78">
+        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+          <AppLogo label={meta.title} className="min-w-0 justify-self-start" />
 
-        <div className="flex min-w-0 items-center gap-2">
-          {showSearch ? <div className="hidden w-56 sm:block">{searchField}</div> : null}
+          <nav aria-label="Primary" className="hidden min-w-0 items-center justify-center gap-1 lg:col-start-2 lg:flex">
+            {PRIMARY_NAV_ITEMS.map((item) => {
+              const active = isNavItemActive(pathname, item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "rounded-lg px-3 py-2 text-sm font-semibold outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50",
+                    active
+                      ? "bg-foreground text-background"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  )}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
 
-          {showPeriod ? <CashflowPeriodControl /> : null}
-
-          {showWealthNav ? (
-            <nav aria-label="Wealth" className="flex h-9 min-w-0 items-center rounded-lg bg-muted p-0.5">
-              <Link
-                href="/investments"
-                aria-current={!showAccounts ? "page" : undefined}
-                className={cn(
-                  "rounded-md px-2 py-1.5 text-xs font-medium whitespace-nowrap transition-colors",
-                  !showAccounts
-                    ? "bg-card text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <button
+                    type="button"
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-semibold outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50",
+                      moreActive
+                        ? "bg-foreground text-background"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                    )}
+                  />
+                }
               >
-                Portfolio
-              </Link>
-              <Link
-                href="/investments?view=accounts"
-                aria-current={showAccounts ? "page" : undefined}
-                className={cn(
-                  "rounded-md px-2 py-1.5 text-xs font-medium whitespace-nowrap transition-colors",
-                  showAccounts
-                    ? "bg-card text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                Accounts
-              </Link>
-            </nav>
-          ) : null}
+                More
+                <ChevronDown />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="center" sideOffset={10} className="w-56 p-1.5">
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>Workspace</DropdownMenuLabel>
+                  {SECONDARY_NAV_ITEMS.map((item) => (
+                    <DropdownMenuItem
+                      key={item.href}
+                      render={<Link href={item.href} />}
+                      className="gap-2.5 px-2.5 py-2"
+                    >
+                      <item.icon />
+                      {item.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup>
+                  {session?.user.email ? (
+                    <DropdownMenuLabel className="truncate normal-case">
+                      {session.user.email}
+                    </DropdownMenuLabel>
+                  ) : null}
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onClick={handleSignOut}
+                    className="gap-2.5 px-2.5 py-2"
+                  >
+                    <LogOut />
+                    Sign out
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </nav>
 
-          {addMode ? (
-            <>
-              <Button className="gap-1.5" onClick={() => setAddOpenFor(pathname)}>
+          <div className="flex min-w-0 items-center justify-self-end gap-2 lg:col-start-3">
+            {showSearch ? <div className="hidden w-60 xl:block">{searchField}</div> : null}
+            {showPeriod ? <div className="hidden lg:block"><CashflowPeriodControl /></div> : null}
+            {showWealthNav ? <div className="hidden xl:block">{wealthNav}</div> : null}
+
+            {addMode ? (
+              <>
+              <Button
+                aria-label={ADD_LABEL[addMode]}
+                onClick={() => setAddOpenFor(pathname)}
+              >
                 <Plus data-icon="inline-start" />
-                <span className="hidden sm:inline">{ADD_LABEL[addMode]}</span>
-                <span className="sr-only sm:hidden">{ADD_LABEL[addMode]}</span>
+                <span className="hidden xl:inline">{ADD_LABEL[addMode]}</span>
               </Button>
-              {addOpen ? (
+              {addOpenFor === pathname ? (
                 <AddTransactionDialog
                   mode={addMode}
                   open
                   onOpenChange={(open) => setAddOpenFor(open ? pathname : null)}
                 />
               ) : null}
-            </>
-          ) : null}
+              </>
+            ) : null}
+          </div>
         </div>
-      </div>
 
-      {/* On phones the search drops to a full-width row instead of vanishing. */}
-      {showSearch ? <div className="mt-3 sm:hidden">{searchField}</div> : null}
+        {showPeriod ? <div className="mt-2 lg:hidden"><CashflowPeriodControl /></div> : null}
+
+        {showSearch || showWealthNav ? (
+          <div className="mt-2 xl:hidden">{showSearch ? searchField : wealthNav}</div>
+        ) : null}
+      </div>
     </header>
   );
 }

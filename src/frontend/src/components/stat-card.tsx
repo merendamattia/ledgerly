@@ -7,12 +7,12 @@ type Accent = "primary" | "positive" | "negative";
 const accentTile: Record<Accent, string> = {
   primary: "bg-primary/10 text-primary",
   positive: "bg-positive/10 text-positive",
-  negative: "bg-negative/10 text-negative",
+  negative: "bg-negative/10 text-negative-ink",
 };
 
 const deltaTone = {
   positive: "bg-positive/10 text-positive",
-  negative: "bg-negative/10 text-negative",
+  negative: "bg-negative/10 text-negative-ink",
   muted: "bg-muted text-muted-foreground",
 } as const;
 

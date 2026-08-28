@@ -78,13 +78,13 @@ function textTone(value: number | null, previous: number | null) {
   if (value == null || previous == null || previous === 0) return "";
   const change = value / previous - 1;
   if (Math.abs(change) < 0.0001) return "";
-  return change > 0 ? "text-positive" : "text-negative";
+  return change > 0 ? "text-positive" : "text-negative-ink";
 }
 
 function ReturnCell({ value }: { value: number | null }) {
   if (value == null) return <span className="text-muted-foreground">—</span>;
   return (
-    <span className={cn("font-mono font-semibold", value < 0 ? "text-negative" : "text-positive")}>
+    <span className={cn("font-mono font-semibold", value < 0 ? "text-negative-ink" : "text-positive")}>
       {formatPercent(value)}
     </span>
   );

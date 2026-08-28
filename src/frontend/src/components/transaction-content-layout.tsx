@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-/** Keeps the period summary first on narrow screens while placing it in the desktop sidebar. */
+/** Keeps period insights above the movement/sidebar grid at every viewport. */
 export function TransactionContentLayout({
   summary,
   sidebar,
@@ -17,13 +17,13 @@ export function TransactionContentLayout({
       {hasSummary ? (
         <section
           aria-label="Period summary"
-          className="min-w-0 lg:sticky lg:top-4 lg:self-start lg:col-span-3 lg:col-start-10 lg:row-start-1"
+          className="min-w-0 lg:col-span-12 lg:col-start-1 lg:row-start-1"
         >
           {summary}
         </section>
       ) : null}
       <div
-        className={`min-w-0 lg:col-span-9 lg:col-start-1 lg:row-start-1 ${hasSummary ? "lg:row-span-2" : ""}`}
+        className={`min-w-0 lg:col-span-9 lg:col-start-1 ${hasSummary ? "lg:row-start-2" : "lg:row-start-1"}`}
       >
         {movements}
       </div>

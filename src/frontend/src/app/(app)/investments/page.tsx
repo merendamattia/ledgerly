@@ -18,7 +18,7 @@ import { PillarsCard } from "@/components/pillars-card";
 import { useDashboard, type DashboardData } from "@/hooks/use-dashboard";
 import { useInvestmentHistory } from "@/hooks/use-investments";
 import { usePrivacyMode } from "@/components/privacy-mode";
-import { formatNumber, formatPercent } from "@/lib/format";
+import { formatNumber, formatPercent, truncate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const PositionTransactionsDialog = dynamic(
@@ -214,8 +214,13 @@ export default function InvestmentsPage() {
           </div>
         </div>
         <div className="mt-4">
-          {series.length >= 2 ? (
-            <NetWorthChart data={series} currency={currency} valueLabel="Portfolio value" />
+          {series.length >= 2 || history.isLoading ? (
+            <NetWorthChart
+              data={series}
+              currency={currency}
+              valueLabel="Portfolio value"
+              isLoading={history.isLoading}
+            />
           ) : (
             <div className="flex h-[280px] items-center justify-center text-sm text-muted-foreground">
               Not enough history yet — snapshots build the portfolio curve over time.
@@ -232,6 +237,7 @@ export default function InvestmentsPage() {
             allocation={investmentAllocation}
             labels={allocationLabels}
             currency={currency}
+            isLoading={isLoading}
           />
         </div>
       </Card>
@@ -368,7 +374,7 @@ function PositionRow({
         <span className="flex min-w-0 items-center gap-3">
           {tile}
           <span className="min-w-0">
-            <span className="block truncate font-medium">{h.name}</span>
+            <span className="block truncate font-medium" title={h.name}>{truncate(h.name, 20)}</span>
             <span className="block truncate text-xs text-muted-foreground">{h.symbol}</span>
           </span>
         </span>
@@ -399,7 +405,7 @@ function PositionRow({
           <span
             className={cn(
               "block font-mono text-[11px] tabular-nums",
-              h.gainPct >= 0 ? "text-positive" : "text-negative",
+              h.gainPct >= 0 ? "text-positive" : "text-negative-ink",
             )}
           >
             {formatPercent(h.gainPct)}
@@ -421,11 +427,11 @@ function PositionRow({
         {tile}
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           <div className="flex items-baseline justify-between gap-2">
-            <span className="truncate text-sm font-medium">{h.name}</span>
+            <span className="truncate text-sm font-medium" title={h.name}>{truncate(h.name, 20)}</span>
             <MoneyAmount
               value={h.value}
               currency={currency}
-              className="font-mono text-sm font-semibold"
+              className="shrink-0 font-mono text-sm font-semibold"
             />
           </div>
           <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
@@ -435,7 +441,7 @@ function PositionRow({
             <span
               className={cn(
                 "shrink-0 font-mono tabular-nums",
-                h.gainPct >= 0 ? "text-positive" : "text-negative",
+                h.gainPct >= 0 ? "text-positive" : "text-negative-ink",
               )}
             >
               {formatPercent(h.gainPct)}

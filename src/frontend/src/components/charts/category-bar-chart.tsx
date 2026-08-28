@@ -84,7 +84,13 @@ export function CategoryBarChart({
           }
           cursor={{ fill: "var(--muted)", opacity: 0.5 }}
         />
-        <Bar dataKey="value" radius={4} fill="var(--color-value)" />
+        <Bar
+          dataKey="value"
+          radius={7}
+          barSize={isMobile ? 12 : 14}
+          fill="var(--color-value)"
+          background={{ fill: "var(--muted)", radius: 7 }}
+        />
       </BarChart>
     </ChartContainer>
   );

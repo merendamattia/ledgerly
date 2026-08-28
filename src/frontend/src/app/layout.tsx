@@ -59,7 +59,12 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
         <Providers>{children}</Providers>
-        <Toaster richColors position="top-center" />
+        <Toaster
+          richColors
+          position="bottom-center"
+          offset={{ bottom: 24 }}
+          mobileOffset={{ bottom: "calc(5.75rem + env(safe-area-inset-bottom))", left: 8, right: 8 }}
+        />
       </body>
     </html>
   );

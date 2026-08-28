@@ -5,7 +5,8 @@
 
 import { formatMonthYear } from "@/lib/format";
 
-export type Period = "this-month" | "last-month" | "this-year" | "last-year" | "12m";
+export type PresetPeriod = "this-month" | "last-month" | "this-year" | "last-year" | "12m";
+export type Period = PresetPeriod | `${number}-${string}`;
 
 export interface ResolvedPeriod {
   from: string;
@@ -32,6 +33,21 @@ const iso = (d: Date): string => {
 export function resolvePeriod(period: Period, now: Date = new Date()): ResolvedPeriod {
   const y = now.getFullYear();
   const m = now.getMonth();
+  const selectedMonth = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(period);
+  if (selectedMonth) {
+    const from = new Date(Number(selectedMonth[1]), Number(selectedMonth[2]) - 1, 1);
+    const prevFrom = new Date(from.getFullYear(), from.getMonth() - 1, 1);
+    return {
+      from: iso(from),
+      to: iso(new Date(from.getFullYear(), from.getMonth() + 1, 0)),
+      prevFrom: iso(prevFrom),
+      prevTo: iso(new Date(from.getFullYear(), from.getMonth(), 0)),
+      label: formatMonthYear(from),
+      prevLabel: formatMonthYear(prevFrom),
+      kind: "month",
+    };
+  }
+
   switch (period) {
     case "this-month": {
       const from = new Date(y, m, 1);
@@ -94,11 +110,13 @@ export function resolvePeriod(period: Period, now: Date = new Date()): ResolvedP
       };
     }
   }
+
+  return resolvePeriod("this-month", now);
 }
 
 /** Picker options in display order, with labels resolved against `now`. */
 export function periodOptions(now: Date = new Date()): { value: Period; label: string }[] {
-  const order: Period[] = ["this-month", "last-month", "this-year", "last-year", "12m"];
+  const order: PresetPeriod[] = ["this-month", "last-month", "this-year", "last-year", "12m"];
   return order.map((value) => ({ value, label: resolvePeriod(value, now).label }));
 }
 

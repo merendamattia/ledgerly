@@ -157,7 +157,7 @@ export default function ImportsPage() {
       header: "Amount",
       align: "right",
       cell: (s) => (
-        <span className="text-negative">
+        <span className="text-negative-ink">
           −<MoneyAmount value={s.amount} currency={s.debt?.currency ?? "EUR"} />
         </span>
       ),

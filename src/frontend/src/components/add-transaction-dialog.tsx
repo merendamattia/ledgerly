@@ -14,7 +14,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { TagInput } from "@/components/tag-input";
 import { RecurringFields, validateRecurring } from "@/components/recurring-fields";
 import { CategoryIcon } from "@/components/category-badge";
@@ -25,6 +25,7 @@ import { useCreateRecurringExpense } from "@/hooks/use-recurring";
 import type { RecurEndMode, RecurInterval } from "@/lib/recurring";
 import { useCreateInvestmentTx } from "@/hooks/use-investments";
 import { useAccounts, useCreateAccount, type Account } from "@/hooks/use-accounts";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { todayISO, formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -48,7 +49,7 @@ function FormShell({
 }) {
   return (
     <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
-      <div className="flex flex-1 flex-col gap-5 overflow-y-auto px-6 py-5">{children}</div>
+      <FieldGroup className="flex-1 overflow-y-auto px-6 py-5">{children}</FieldGroup>
       <div className="sticky bottom-0 border-t bg-card/95 px-6 py-4 backdrop-blur-sm">
         <Button type="submit" size="lg" className="w-full" disabled={submitting || !canSubmit}>
           {submitLabel}
@@ -249,7 +250,7 @@ function AccountPicker({
         <button
           type="button"
           onClick={() => setShowNew(true)}
-          className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-border bg-secondary/40 p-2.5 text-sm font-semibold text-[#5b7d10] transition-colors hover:bg-secondary"
+          className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-border bg-secondary/40 p-2.5 text-sm font-semibold text-accent-foreground transition-colors hover:bg-secondary"
         >
           <Plus className="size-4" />
           New account
@@ -288,6 +289,7 @@ export function AddTransactionDialog({
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
 }) {
+  const isMobile = useIsMobile();
   const [openState, setOpenState] = useState(false);
   const open = openProp ?? openState;
   const [kind, setKind] = useState<Kind>("EXPENSE");
@@ -387,8 +389,8 @@ export function AddTransactionDialog({
         />
       ) : null}
       <SheetContent
-        side="right"
-        className="flex w-full flex-col gap-0 p-0 data-[side=right]:w-[88%] sm:max-w-xl"
+        side={isMobile ? "bottom" : "right"}
+        className="flex w-full flex-col gap-0 p-0 data-[side=bottom]:h-[92dvh] data-[side=right]:w-[88%] sm:max-w-xl"
       >
         <SheetHeader className="border-b p-6">
           <SheetTitle className="font-display text-xl font-semibold tracking-tight">
@@ -507,12 +509,13 @@ export function AddMovementSheet({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const isMobile = useIsMobile();
   const create = useCreateInvestmentTx();
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
-        side="right"
-        className="flex w-full flex-col gap-0 p-0 data-[side=right]:w-[88%] sm:max-w-xl"
+        side={isMobile ? "bottom" : "right"}
+        className="flex w-full flex-col gap-0 p-0 data-[side=bottom]:h-[92dvh] data-[side=right]:w-[88%] sm:max-w-xl"
       >
         <SheetHeader className="border-b p-6">
           <SheetTitle className="font-display text-xl font-semibold tracking-tight">

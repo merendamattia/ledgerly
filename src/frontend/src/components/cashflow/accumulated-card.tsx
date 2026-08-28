@@ -33,7 +33,7 @@ export function AccumulatedCard({
           className={
             positive
               ? "inline-flex w-fit items-center rounded-full bg-accent px-2.5 py-1 text-xs font-semibold text-accent-foreground"
-              : "inline-flex w-fit items-center rounded-full bg-negative/10 px-2.5 py-1 text-xs font-semibold text-negative"
+              : "inline-flex w-fit items-center rounded-full bg-negative/10 px-2.5 py-1 text-xs font-semibold text-negative-ink"
           }
         >
           {positive ? "+" : ""}

@@ -46,7 +46,7 @@ function Sparkline({ values }: { values: (number | null)[] }) {
       aria-hidden="true"
       viewBox="0 0 88 30"
       preserveAspectRatio="none"
-      className={cn("ml-auto block h-[22px] w-[88px] overflow-visible", up ? "text-positive" : "text-negative")}
+      className={cn("ml-auto block h-[22px] w-[88px] overflow-visible", up ? "text-positive" : "text-negative-ink")}
     >
       <polyline
         points={points}
@@ -62,10 +62,21 @@ function Sparkline({ values }: { values: (number | null)[] }) {
 */
 
 /** A signed delta figure, dimmed when undefined. */
-function Delta({ value }: { value: number | null }) {
+function Delta({ value, onDark = false }: { value: number | null; onDark?: boolean }) {
   if (value == null) return <span className="text-muted-foreground">—</span>;
   return (
-    <span className={cn("font-mono", value < 0 ? "text-negative" : "text-positive")}>
+    <span
+      className={cn(
+        "font-mono",
+        value < 0
+          ? onDark
+            ? "text-negative"
+            : "text-negative-ink"
+          : onDark
+            ? "text-primary"
+            : "text-positive",
+      )}
+    >
       {formatPercent(value)}
     </span>
   );
@@ -222,10 +233,28 @@ export function MatrixTable({ data, isLoading }: { data?: AssetMatrix; isLoading
                   <PrivateNumber text={formatMoney(summary.netWorthCurrent, baseCurrency)} />
                 </td>
                 <td className={cn(DELTA, "border-t-2 border-sidebar bg-sidebar")}>
-                  <Delta value={currentPeriodDelta(summary.netWorthCurrent, summary.netWorth, months, "month", asOf)} />
+                  <Delta
+                    value={currentPeriodDelta(
+                      summary.netWorthCurrent,
+                      summary.netWorth,
+                      months,
+                      "month",
+                      asOf,
+                    )}
+                    onDark
+                  />
                 </td>
                 <td className={cn(YTD_COL, "border-t-2 border-sidebar bg-sidebar")}>
-                  <Delta value={currentPeriodDelta(summary.netWorthCurrent, summary.netWorth, months, "year", asOf)} />
+                  <Delta
+                    value={currentPeriodDelta(
+                      summary.netWorthCurrent,
+                      summary.netWorth,
+                      months,
+                      "year",
+                      asOf,
+                    )}
+                    onDark
+                  />
                 </td>
                 {summary.netWorth.map((v, i) => (
                   <td
@@ -258,7 +287,7 @@ export function MatrixTable({ data, isLoading }: { data?: AssetMatrix; isLoading
                       className={cn(
                         MONTH,
                         "font-mono font-semibold not-italic",
-                        v == null ? "text-muted-foreground" : v < 0 ? "text-negative" : "text-positive",
+                        v == null ? "text-muted-foreground" : v < 0 ? "text-negative-ink" : "text-positive",
                       )}
                     >
                       {v == null ? "—" : formatPercent(v)}

@@ -73,7 +73,7 @@ function RunRow({ run }: { run: CronRun }) {
           {run.error ? (
             <>
               <dt className="text-muted-foreground">Error</dt>
-              <dd className="font-mono text-destructive">{run.error}</dd>
+              <dd className="font-mono text-destructive-ink">{run.error}</dd>
             </>
           ) : null}
           {run.log ? (

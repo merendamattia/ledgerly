@@ -135,7 +135,7 @@ function KpiDeltaLine({ delta }: { delta: KpiDelta }) {
       className={cn(
         "mt-1 block text-xs font-semibold",
         delta.tone === "positive" && "text-positive",
-        delta.tone === "negative" && "text-negative",
+        delta.tone === "negative" && "text-negative-ink",
         delta.tone === "muted" && "text-muted-foreground",
       )}
     >
@@ -152,7 +152,7 @@ function KpiDeltaLine({ delta }: { delta: KpiDelta }) {
 
 /** Renders the overview dashboard for net worth, cashflow, and recent activity. */
 export default function OverviewPage() {
-  const { data, isLoading } = useDashboard();
+  const { data, isLoading } = useDashboard(12);
   const investmentTx = useInvestmentTransactions({ limit: 5 });
   const accounts = useAccounts();
   const cashSnapshots = useCashSnapshots();
@@ -386,12 +386,14 @@ export default function OverviewPage() {
                 data={historyWindow}
                 currency={currency}
                 className="aspect-auto h-full w-full"
+                isLoading={nwHistory.isLoading}
               />
             ) : (
               <NetWorthChart
                 data={sliced}
                 currency={currency}
                 className="aspect-auto h-full w-full"
+                isLoading={nwHistory.isLoading}
               />
             )}
           </div>
@@ -402,7 +404,7 @@ export default function OverviewPage() {
       <Card className={cn("col-span-12 gap-0 p-5 animate-fu lg:col-span-4")}>
         <p className="font-display text-base font-semibold">Allocation</p>
         <div className="mt-2">
-          <AllocationChart allocation={allocation} currency={currency} />
+          <AllocationChart allocation={allocation} currency={currency} isLoading={isLoading} />
         </div>
       </Card>
 
@@ -438,7 +440,7 @@ export default function OverviewPage() {
         <p
           className={cn(
             "mt-2.5 font-mono text-2xl font-semibold tabular-nums",
-            debts > 0 && "text-negative",
+            debts > 0 && "text-negative-ink",
           )}
         >
           {debts > 0 ? "−" : ""}
@@ -471,6 +473,7 @@ export default function OverviewPage() {
               data={series}
               currency={currency}
               className="aspect-auto h-full w-full"
+              isLoading={isLoading}
             />
           </div>
         </div>
@@ -580,7 +583,7 @@ export default function OverviewPage() {
                       </p>
                     </div>
                     <span className="shrink-0 text-right font-mono font-semibold tabular-nums">
-                      <span className={signed >= 0 ? "text-positive" : "text-negative"}>
+                      <span className={signed >= 0 ? "text-positive" : "text-negative-ink"}>
                         {signed >= 0 ? "+" : ""}
                         <MoneyAmount value={signed} currency={txCurrency} />
                       </span>

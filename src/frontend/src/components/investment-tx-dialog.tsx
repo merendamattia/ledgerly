@@ -87,7 +87,7 @@ export function InvestmentTxDialog({
                 })
               }
               trigger={
-                <Button variant="ghost" className="text-negative">
+                <Button variant="ghost" className="text-negative-ink">
                   <Trash2 data-icon="inline-start" />
                   Delete movement
                 </Button>

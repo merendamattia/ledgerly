@@ -101,7 +101,7 @@ export function CashflowMatrixView() {
           <div
             className={cn(
               "mt-2.5 font-mono text-2xl font-semibold tracking-tight",
-              savings12 != null && savings12 < 0 ? "text-negative" : "text-positive",
+              savings12 != null && savings12 < 0 ? "text-negative-ink" : "text-positive",
             )}
           >
             {savings12 == null ? "—" : formatPercent(savings12)}

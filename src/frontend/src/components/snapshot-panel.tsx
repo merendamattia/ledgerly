@@ -118,7 +118,7 @@ export function SnapshotPanel({
             <p
               className={cn(
                 "font-mono text-xl font-semibold tabular-nums",
-                negative && "text-negative",
+                negative && "text-negative-ink",
               )}
             >
               {negative ? "−" : ""}

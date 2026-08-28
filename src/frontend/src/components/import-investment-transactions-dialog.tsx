@@ -649,6 +649,13 @@ export function ImportInvestmentTransactionsDialog({
                                 <TableCell className="align-top">
                                   <Select
                                     value={selectValue}
+                                    items={Object.fromEntries([
+                                      ...sourceColumns.map((column, index) => [String(index), column]),
+                                      ...(field.defaultable
+                                        ? [[COLUMN_DEFAULT_TOKEN, "Use default value"]]
+                                        : []),
+                                      ...(field.optional ? [[COLUMN_IGNORE_TOKEN, "Ignore"]] : []),
+                                    ])}
                                     onValueChange={(value) => {
                                       setColumnAssignments((prev) => {
                                         const next = [...prev];

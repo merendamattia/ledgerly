@@ -16,7 +16,7 @@ function MetricRow({ row, currency }: { row: ComparisonRow; currency: string }) 
   const delta = row.prev !== 0 ? ((row.curr - row.prev) / Math.abs(row.prev)) * 100 : 0;
   const up = delta >= 0;
   const good = row.goodWhenUp ? up : !up;
-  const tone = good ? "text-positive" : "text-negative";
+  const tone = good ? "text-positive" : "text-negative-ink";
   const fill = good ? "bg-positive" : "bg-negative";
   // Diverging bar: grows from the center, right for an increase, left for a drop.
   const magnitude = Math.min(46, Math.abs(delta) * 1.2);

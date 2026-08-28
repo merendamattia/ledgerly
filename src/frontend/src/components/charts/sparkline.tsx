@@ -53,6 +53,15 @@ export function Sparkline({
         strokeLinejoin="round"
         vectorEffect="non-scaling-stroke"
       />
+      <circle
+        cx={points.at(-1)?.[0]}
+        cy={points.at(-1)?.[1]}
+        r={2.5}
+        fill={stroke}
+        stroke="var(--card)"
+        strokeWidth={1.5}
+        vectorEffect="non-scaling-stroke"
+      />
     </svg>
   );
 }

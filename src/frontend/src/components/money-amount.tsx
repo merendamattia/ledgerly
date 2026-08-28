@@ -20,7 +20,7 @@ export function MoneyAmount({
 }) {
   const tone = colored
     ? value < 0
-      ? "text-negative"
+      ? "text-negative-ink"
       : value > 0
         ? "text-positive"
         : ""

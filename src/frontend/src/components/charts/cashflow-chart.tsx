@@ -1,14 +1,9 @@
 "use client";
 
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import {
-  ChartContainer,
-  ChartLegend,
-  ChartLegendContent,
-  ChartTooltip,
-  ChartTooltipContent,
+  EChartsBarChart,
   type ChartConfig,
-} from "@/components/ui/chart";
+} from "@/components/evilcharts/charts/echarts-bar-chart";
 import { compactMoney, formatMoney, monthLabel } from "@/lib/format";
 import {
   PRIVATE_COMPACT_PLACEHOLDER,
@@ -17,9 +12,9 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 
 const chartConfig = {
-  income: { label: "Income", color: "var(--positive)" },
-  expense: { label: "Expense", color: "var(--negative)" },
-  investment: { label: "Investments", color: "var(--accent-gold)" },
+  income: { label: "Income", colors: { light: ["var(--positive)"] } },
+  expense: { label: "Expense", colors: { light: ["var(--negative)"] } },
+  investment: { label: "Investments", colors: { light: ["var(--accent-gold)"] } },
 } satisfies ChartConfig;
 
 /** Renders monthly income vs. a stacked expense+investment bar (red under orange). */
@@ -27,15 +22,16 @@ export function CashFlowChart({
   data,
   currency,
   className = "h-[240px] w-full sm:h-[260px]",
+  isLoading = false,
 }: {
   data: { month: string; income: number; expense: number; investment?: number }[];
   currency: string;
   className?: string;
+  isLoading?: boolean;
 }) {
   const { privateText } = usePrivateNumberFormatter();
   const isMobile = useIsMobile();
-  // 6 bars get cramped on phones — show only the most recent 4.
-  const visible = isMobile ? data.slice(-4) : data;
+  const visible = isMobile ? data.slice(-6) : data;
   const points = visible.map((d) => ({
     month: monthLabel(`${d.month}-01`),
     income: d.income,
@@ -44,41 +40,36 @@ export function CashFlowChart({
   }));
 
   return (
-    <ChartContainer config={chartConfig} className={className}>
-      <BarChart data={points} margin={{ left: 0, right: isMobile ? 4 : 8 }}>
-        <CartesianGrid vertical={false} />
-        <XAxis
-          dataKey="month"
-          tickLine={false}
-          axisLine={false}
-          tickMargin={8}
-          minTickGap={isMobile ? 10 : 16}
-          tick={{ fontSize: isMobile ? 10 : 11 }}
-        />
-        <YAxis
-          tickLine={false}
-          axisLine={false}
-          width={isMobile ? 38 : 46}
-          tickCount={4}
-          tick={{ fontSize: isMobile ? 10 : 11 }}
-          tickFormatter={(v) =>
-            privateText(compactMoney(Number(v), currency), PRIVATE_COMPACT_PLACEHOLDER)
-          }
-        />
-        <ChartTooltip
-          content={
-            <ChartTooltipContent formatter={(v) => privateText(formatMoney(Number(v), currency))} />
-          }
-        />
-        <ChartLegend
-          content={
-            <ChartLegendContent className="flex-wrap gap-x-3 gap-y-1 text-[10.5px] sm:text-xs" />
-          }
-        />
-        <Bar dataKey="income" stackId="in" fill="var(--color-income)" radius={4} />
-        <Bar dataKey="expense" stackId="out" fill="var(--color-expense)" radius={[0, 0, 4, 4]} />
-        <Bar dataKey="investment" stackId="out" fill="var(--color-investment)" radius={[4, 4, 0, 0]} />
-      </BarChart>
-    </ChartContainer>
+    <EChartsBarChart
+      config={chartConfig}
+      data={points}
+      xDataKey="month"
+      className={className}
+      stackType="stacked"
+      barRadius={4}
+      barCategoryGap={isMobile ? 10 : 18}
+      isLoading={isLoading}
+    >
+      <EChartsBarChart.Grid />
+      <EChartsBarChart.XAxis dataKey="month" hideDots />
+      <EChartsBarChart.YAxis
+        hideDots
+        tickFormatter={(v) =>
+          privateText(compactMoney(Number(v), currency), PRIVATE_COMPACT_PLACEHOLDER)
+        }
+      />
+      <EChartsBarChart.Tooltip
+        roundness="xl"
+        valueFormatter={(value) => privateText(formatMoney(value, currency))}
+      />
+      <EChartsBarChart.Legend
+        align="center"
+        verticalAlign="bottom"
+        variant="rounded-square"
+      />
+      <EChartsBarChart.Bar dataKey="income" />
+      <EChartsBarChart.Bar dataKey="expense" stackId="outflow" />
+      <EChartsBarChart.Bar dataKey="investment" stackId="outflow" />
+    </EChartsBarChart>
   );
 }
