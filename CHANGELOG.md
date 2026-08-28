@@ -1,3 +1,24 @@
+# [2.0.0](https://github.com/merendamattia/ledgerly/compare/v1.2.0...v2.0.0) (2026-08-28)
+
+
+* feat(frontend)!: ship adaptive UI 2.0 ([f2a54dd](https://github.com/merendamattia/ledgerly/commit/f2a54dd5b9246f7aa063da86ba8f189117f9bb62))
+
+
+### Bug Fixes
+
+* **charts:** stack cash flow outflows ([3e15af9](https://github.com/merendamattia/ledgerly/commit/3e15af908b843699975f449e343faee210548053))
+
+
+### Features
+
+* **activity:** add period insights ([32fbc1f](https://github.com/merendamattia/ledgerly/commit/32fbc1f73c1b093c3557fc8c2ba2b037bae601bb))
+* **frontend:** add adaptive finance UI ([f92000b](https://github.com/merendamattia/ledgerly/commit/f92000b07474945dd5fe415d6f866a45e005fc14))
+
+
+### BREAKING CHANGES
+
+* Replaces the Ledgerly navigation, account registry, period controls, overlay styling, and chart stack, and releases every workspace as 2.0.0. No API migration is required.
+
 # [1.2.0](https://github.com/merendamattia/ledgerly/compare/v1.1.1...v1.2.0) (2026-08-27)
 
 
