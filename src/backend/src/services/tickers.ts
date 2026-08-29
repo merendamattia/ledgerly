@@ -25,16 +25,21 @@ function toUtcDate(date: Date): Date {
  * full price-history backfill in the background (recorded as a "backfill" cron
  * run so the result is visible in the dashboard).
  */
-export async function addAsset(symbol: string, type: TickerType, isin?: string): Promise<Ticker> {
+export async function addAsset(
+  userId: string,
+  symbol: string,
+  type: TickerType,
+  isin?: string,
+): Promise<Ticker> {
   const provider = getPriceProvider(type);
   const meta = await provider.fetchMeta(symbol);
 
   // Idempotent: if already tracked, return it (its prices are already backfilled).
   // This lets the "search → select" flow safely (re)resolve a ticker id.
-  const existing = await tickerRepository.findBySymbol(meta.symbol);
+  const existing = await tickerRepository.findBySymbol(userId, meta.symbol);
   if (existing) return existing;
 
-  const ticker = await tickerRepository.create({
+  const ticker = await tickerRepository.create(userId, {
     symbol: meta.symbol,
     isin: isin ?? null,
     name: meta.name,
@@ -49,7 +54,7 @@ export async function addAsset(symbol: string, type: TickerType, isin?: string):
     "backfill",
     async () => {
       const inserted = await backfillTicker(ticker);
-      const base = await settingsRepository.baseCurrency();
+      const base = await settingsRepository.baseCurrency(userId);
       if (ticker.currency !== base) {
         await backfillFx(ticker.currency, base);
       }
@@ -65,7 +70,7 @@ export async function addAsset(symbol: string, type: TickerType, isin?: string):
  * Add a manually-valued asset (bond/commodity Yahoo can't price). Creates the
  * ticker with the "manual" provider and seeds today's price; no backfill runs.
  */
-export async function addManualAsset(input: {
+export async function addManualAsset(userId: string, input: {
   symbol: string;
   name: string;
   type: TickerType;
@@ -73,10 +78,10 @@ export async function addManualAsset(input: {
   isin?: string;
   price: number;
 }): Promise<Ticker> {
-  const existing = await tickerRepository.findBySymbol(input.symbol);
+  const existing = await tickerRepository.findBySymbol(userId, input.symbol);
   if (existing) throw new ConflictError("An asset with this symbol is already tracked");
 
-  const ticker = await tickerRepository.create({
+  const ticker = await tickerRepository.create(userId, {
     symbol: input.symbol,
     isin: input.isin ?? null,
     name: input.name,
@@ -89,7 +94,7 @@ export async function addManualAsset(input: {
   await invalidatePrice(ticker.id);
 
   // Ensure FX history exists so the holding can be valued in the base currency.
-  const base = await settingsRepository.baseCurrency();
+  const base = await settingsRepository.baseCurrency(userId);
   if (ticker.currency !== base) {
     void runTrackedJob("backfill", () => backfillFx(ticker.currency, base), "MANUAL");
   }
@@ -102,8 +107,8 @@ export async function addManualAsset(input: {
  * PriceHistory row for the given day, defaulting to today). Provider-backed assets
  * are priced by the nightly cron and reject manual price edits.
  */
-export async function setManualPrice(id: string, price: number, date?: Date): Promise<void> {
-  const ticker = await tickerRepository.findById(id);
+export async function setManualPrice(userId: string, id: string, price: number, date?: Date): Promise<void> {
+  const ticker = await tickerRepository.findById(userId, id);
   if (!ticker) throw new NotFoundError("Asset not found");
   if (ticker.provider !== MANUAL_PROVIDER) {
     throw new ConflictError("Only manually-tracked assets accept a manual price");
@@ -128,13 +133,13 @@ export async function setManualPrice(id: string, price: number, date?: Date): Pr
  * commodity), for assets with no movements, or when a price already exists on/before the
  * earliest movement.
  */
-export async function ensurePurchasePriceAnchor(tickerId: string): Promise<void> {
-  const ticker = await tickerRepository.findById(tickerId);
+export async function ensurePurchasePriceAnchor(userId: string, tickerId: string): Promise<void> {
+  const ticker = await tickerRepository.findById(userId, tickerId);
   if (!ticker) return;
   const needsAnchor = ticker.provider === MANUAL_PROVIDER || ticker.type === "BOND";
   if (!needsAnchor) return;
 
-  const txs = await investmentTransactionRepository.listByTicker(tickerId); // date asc
+  const txs = await investmentTransactionRepository.listByTicker(userId, tickerId); // date asc
   const earliest = txs[0];
   if (!earliest) return;
 
@@ -147,18 +152,22 @@ export async function ensurePurchasePriceAnchor(tickerId: string): Promise<void>
 }
 
 /** Rename a tracked asset (display nickname only; symbol/ISIN/prices untouched). */
-export async function renameAsset(id: string, name: string): Promise<Ticker> {
-  const ticker = await tickerRepository.findById(id);
+export async function renameAsset(userId: string, id: string, name: string): Promise<Ticker> {
+  const ticker = await tickerRepository.findById(userId, id);
   if (!ticker) throw new NotFoundError("Asset not found");
-  return tickerRepository.rename(id, name);
+  const renamed = await tickerRepository.rename(userId, id, name);
+  if (!renamed) throw new NotFoundError("Asset not found");
+  return renamed;
 }
 
 /** Remove a tracked asset. Fails if any holding or movement still references it. */
-export async function removeAsset(id: string): Promise<void> {
-  const count = await holdingRepository.countByTicker(id);
+export async function removeAsset(userId: string, id: string): Promise<void> {
+  const ticker = await tickerRepository.findById(userId, id);
+  if (!ticker) throw new NotFoundError("Asset not found");
+  const count = await holdingRepository.countByTicker(userId, id);
   if (count > 0) {
     throw new ConflictError("Cannot delete an asset that still has holdings");
   }
-  await assertNoInvestmentTransactions(id);
-  await tickerRepository.delete(id);
+  await assertNoInvestmentTransactions(userId, id);
+  await tickerRepository.delete(userId, id);
 }

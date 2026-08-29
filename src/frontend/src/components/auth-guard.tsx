@@ -15,10 +15,12 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!isPending && !session) {
       router.replace("/login");
+    } else if (!isPending && session?.user.mustChangePassword) {
+      router.replace("/change-password");
     }
   }, [isPending, session, router]);
 
-  if (isPending || !session) {
+  if (isPending || !session || session.user.mustChangePassword) {
     return (
       <div className="flex flex-1 items-center justify-center">
         <Spinner className="size-6" />

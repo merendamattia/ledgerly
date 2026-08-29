@@ -131,16 +131,16 @@ export function aggregateDashboardTransactions(
  * Composes the overview dashboard payload from net worth, snapshots, cash flow,
  * category breakdowns, and recent transactions.
  */
-export async function getDashboardData(months = 6) {
+export async function getDashboardData(userId: string, months = 6) {
   const now = new Date();
   const monthRange = dashboardMonthRange(now);
   const rangeStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (months - 1), 1));
 
   const [netWorth, snapshots, recent, rangeTx] = await Promise.all([
-    computeNetWorth(),
-    snapshotRepository.history(180),
-    transactionRepository.list({ to: monthRange.todayInclusive, limit: 8 }),
-    transactionRepository.list({ from: rangeStart, to: monthRange.todayInclusive }),
+    computeNetWorth(userId),
+    snapshotRepository.history(userId, 180),
+    transactionRepository.list(userId, { to: monthRange.todayInclusive, limit: 8 }),
+    transactionRepository.list(userId, { from: rangeStart, to: monthRange.todayInclusive }),
   ]);
 
   const aggregates = aggregateDashboardTransactions(rangeTx, months, now);

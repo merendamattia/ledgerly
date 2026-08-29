@@ -334,3 +334,21 @@ export const upsertPillarSchema = z.object({
 export const updateSettingsSchema = z.object({
   baseCurrency: z.string().trim().length(3).toUpperCase(),
 });
+
+// --- Account administration and security -----------------------------------
+export const createUserSchema = z.object({
+  email: z.string().trim().email(),
+  name: z.string().trim().min(1).max(120).optional(),
+  password: z.string().min(8).max(128),
+});
+
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1),
+    newPassword: z.string().min(8).max(128),
+    confirmation: z.string().min(1),
+  })
+  .refine((input) => input.newPassword === input.confirmation, {
+    path: ["confirmation"],
+    message: "Passwords do not match",
+  });

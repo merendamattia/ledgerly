@@ -56,7 +56,7 @@ export default function LoginPage() {
           </div>
           <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm font-medium text-muted-foreground">
             <span>Self-hosted</span>
-            <span>Single-owner</span>
+            <span>Admin-managed</span>
             <span>Private by design</span>
           </div>
         </div>

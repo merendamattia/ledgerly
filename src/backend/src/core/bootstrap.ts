@@ -2,22 +2,49 @@ import { auth } from "./auth.ts";
 import { prisma } from "./db.ts";
 import { config } from "./config.ts";
 import { logger } from "./logger.ts";
+import { provisionUser } from "../services/userProvisioning.ts";
 
 /**
- * Create the single admin user from ADMIN_EMAIL / ADMIN_PASSWORD if no user
- * exists yet. Idempotent: does nothing once a user is present.
+ * Ensure the configured bootstrap account is the initial admin and has a
+ * provisioned settings snapshot. Existing legacy installations keep their
+ * account and all personal data; fresh installations create the account via
+ * Better Auth's server-side admin API.
  */
 export async function ensureAdminUser(): Promise<void> {
-  const userCount = await prisma.user.count();
-  if (userCount > 0) return;
+  const configured = await prisma.user.findUnique({ where: { email: config.ADMIN_EMAIL } });
+  if (configured) {
+    await prisma.user.update({
+      where: { id: configured.id },
+      data: { role: "admin", mustChangePassword: false },
+    });
+    await provisionUser(configured.id);
+    return;
+  }
 
-  await auth.api.signUpEmail({
+  const existingAdmin = await prisma.user.findFirst({
+    where: { role: "admin" },
+    orderBy: { createdAt: "asc" },
+  });
+  if (existingAdmin) {
+    await provisionUser(existingAdmin.id);
+    return;
+  }
+
+  if (await prisma.user.count() > 0) return;
+
+  const { user } = await auth.api.createUser({
     body: {
       email: config.ADMIN_EMAIL,
       password: config.ADMIN_PASSWORD,
       name: "Admin",
+      role: "admin",
     },
   });
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { mustChangePassword: false },
+  });
+  await provisionUser(user.id);
 
   logger.info("Admin user created", { email: config.ADMIN_EMAIL });
 }

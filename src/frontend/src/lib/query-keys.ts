@@ -23,6 +23,7 @@ export const queryKeys = {
   assetReturnMatrix: ["dashboard", "asset-return-matrix"] as const,
   cashflowMatrix: ["dashboard", "cashflow-matrix"] as const,
   settings: ["settings"] as const,
+  users: ["users"] as const,
   accounts: ["accounts"] as const,
   categories: (kind?: string) => (kind ? (["categories", kind] as const) : (["categories"] as const)),
   expensesRoot: ["expenses"] as const,

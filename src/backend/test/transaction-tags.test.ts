@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { prisma } from "../src/core/db.ts";
 import { transactionRepository } from "../src/repositories/transaction.ts";
+import { ensureTestUser, TEST_USER_ID } from "./fixtures.ts";
 import {
   invalidateTransactionTagCache,
   listTransactionTags,
@@ -12,12 +13,13 @@ const notes = [`#Rome first ${suffix}`, `#Lisbon second ${suffix}`];
 let categoryId: string;
 
 beforeAll(async () => {
+  await ensureTestUser();
   await invalidateTransactionTagCache();
   const category = await prisma.category.create({
-    data: { name: categoryName, kind: "EXPENSE" },
+    data: { userId: TEST_USER_ID, name: categoryName, kind: "EXPENSE" },
   });
   categoryId = category.id;
-  await transactionRepository.create({
+  await transactionRepository.create(TEST_USER_ID, {
     date: new Date("2024-07-01T00:00:00.000Z"),
     amount: 10,
     direction: "EXPENSE",
@@ -38,9 +40,9 @@ test("listTransactionTags uses Redis cache and repository writes invalidate it",
     to: new Date("2024-07-31T23:59:59.999Z"),
   };
 
-  expect(await listTransactionTags(filters)).toContain("Rome");
+  expect(await listTransactionTags(TEST_USER_ID, filters)).toContain("Rome");
 
-  await transactionRepository.create({
+  await transactionRepository.create(TEST_USER_ID, {
     date: new Date("2024-07-02T00:00:00.000Z"),
     amount: 12,
     direction: "EXPENSE",
@@ -48,7 +50,7 @@ test("listTransactionTags uses Redis cache and repository writes invalidate it",
     category: { connect: { id: categoryId } },
   });
 
-  expect(await listTransactionTags(filters)).toEqual(
+  expect(await listTransactionTags(TEST_USER_ID, filters)).toEqual(
     expect.arrayContaining(["Rome", "Lisbon"]),
   );
 });

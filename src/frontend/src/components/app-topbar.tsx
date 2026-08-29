@@ -8,8 +8,8 @@ import { ChevronDown, LogOut, Plus, Search } from "lucide-react";
 import { AppLogo } from "@/components/app-logo";
 import {
   PRIMARY_NAV_ITEMS,
-  SECONDARY_NAV_ITEMS,
   isNavItemActive,
+  visibleSecondaryNavItems,
 } from "@/components/app-navigation";
 import { useSearch } from "@/components/search-context";
 import {
@@ -106,7 +106,8 @@ export function AppTopbar() {
   const showWealthNav = pathname.startsWith("/investments");
   const showAccounts = searchParams.get("view") === "accounts";
   const addMode = addModeFor(pathname);
-  const moreActive = SECONDARY_NAV_ITEMS.some((item) =>
+  const secondaryNavItems = visibleSecondaryNavItems(session?.user.role);
+  const moreActive = secondaryNavItems.some((item) =>
     isNavItemActive(pathname, item.href),
   );
 
@@ -199,7 +200,7 @@ export function AppTopbar() {
               <DropdownMenuContent align="center" sideOffset={10} className="w-56 p-1.5">
                 <DropdownMenuGroup>
                   <DropdownMenuLabel>Workspace</DropdownMenuLabel>
-                  {SECONDARY_NAV_ITEMS.map((item) => (
+                  {secondaryNavItems.map((item) => (
                     <DropdownMenuItem
                       key={item.href}
                       render={<Link href={item.href} />}

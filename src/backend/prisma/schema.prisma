@@ -14,29 +14,47 @@ datasource db {
 // Auth (Better Auth, Prisma adapter)
 // ----------------------------------------------------------------------------
 model User {
-  id            String    @id
-  name          String
-  email         String    @unique
-  emailVerified Boolean   @default(false)
-  image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  sessions      Session[]
-  accounts      Account[]
+  id                     String                  @id
+  name                   String
+  email                  String                  @unique
+  emailVerified          Boolean                 @default(false)
+  image                  String?
+  role                   String                  @default("user")
+  banned                 Boolean                 @default(false)
+  banReason              String?
+  banExpires             DateTime?
+  mustChangePassword     Boolean                 @default(false)
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  sessions               Session[]
+  accounts               Account[]
+  settings               Settings[]
+  cashAccounts           CashAccount[]
+  debts                  Debt[]
+  tickers                Ticker[]
+  holdings               Holding[]
+  investmentTransactions InvestmentTransaction[]
+  categories             Category[]
+  transactions           Transaction[]
+  recurringExpenses      RecurringExpense[]
+  netWorthSnapshots      NetWorthSnapshot[]
+  rebalanceGroups        RebalanceGroup[]
+  pillars                Pillar[]
 
   @@map("user")
 }
 
 model Session {
-  id        String   @id
-  expiresAt DateTime
-  token     String   @unique
-  ipAddress String?
-  userAgent String?
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String   @id
+  expiresAt      DateTime
+  token          String   @unique
+  ipAddress      String?
+  userAgent      String?
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  impersonatedBy String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@map("session")
 }
@@ -132,9 +150,11 @@ enum RecurEndMode {
   ON_DATE
 }
 
-/// Singleton settings (a single row, id = "singleton").
+/// User-owned settings. A row is provisioned for every authenticated user.
 model Settings {
-  id           String   @id @default("singleton")
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   baseCurrency String   @default("EUR")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -142,19 +162,21 @@ model Settings {
 
 /// Liquid account (bank, cash, ...).
 model CashAccount {
-  id           String        @id @default(cuid())
-  name         String
-  type         String        @default("BANK")
-  category     CashCategory  @default(LIQUIDITY)
-  currency     String        @default("EUR")
-  balance      Decimal       @default(0) @db.Decimal(20, 2)
-  note         String?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  holdings     Holding[]
-  snapshots    CashSnapshot[]
+  id                     String                  @id @default(cuid())
+  userId                 String
+  user                   User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name                   String
+  type                   String                  @default("BANK")
+  category               CashCategory            @default(LIQUIDITY)
+  currency               String                  @default("EUR")
+  balance                Decimal                 @default(0) @db.Decimal(20, 2)
+  note                   String?
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  holdings               Holding[]
+  snapshots              CashSnapshot[]
   investmentTransactions InvestmentTransaction[]
-  pillarMembers PillarMember[]
+  pillarMembers          PillarMember[]
 
   @@map("cash_account")
 }
@@ -177,14 +199,16 @@ model CashSnapshot {
 
 /// A liability (loan, mortgage, credit card balance, ...). Subtracted from net worth.
 model Debt {
-  id        String   @id @default(cuid())
+  id        String         @id @default(cuid())
+  userId    String
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   name      String
-  type      String   @default("LOAN")
-  currency  String   @default("EUR")
-  amount    Decimal  @db.Decimal(20, 2)
+  type      String         @default("LOAN")
+  currency  String         @default("EUR")
+  amount    Decimal        @db.Decimal(20, 2)
   note      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
   snapshots DebtSnapshot[]
 
   @@map("debt")
@@ -208,21 +232,24 @@ model DebtSnapshot {
 
 /// Financial instrument metadata. One row per asset.
 model Ticker {
-  id          String         @id @default(cuid())
-  symbol      String         @unique
-  isin        String?
-  name        String
-  description String?
-  type        TickerType
-  currency    String         @default("USD")
-  provider    String
-  createdAt   DateTime       @default(now())
-  prices      PriceHistory[]
-  holdings    Holding[]
+  id                     String                  @id @default(cuid())
+  userId                 String
+  user                   User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  symbol                 String
+  isin                   String?
+  name                   String
+  description            String?
+  type                   TickerType
+  currency               String                  @default("USD")
+  provider               String
+  createdAt              DateTime                @default(now())
+  prices                 PriceHistory[]
+  holdings               Holding[]
   investmentTransactions InvestmentTransaction[]
-  rebalanceMember RebalanceMember?
-  pillarMembers   PillarMember[]
+  rebalanceMembers       RebalanceMember[]
+  pillarMembers          PillarMember[]
 
+  @@unique([userId, symbol])
   @@map("ticker")
 }
 
@@ -242,6 +269,8 @@ model PriceHistory {
 /// An investment position.
 model Holding {
   id            String       @id @default(cuid())
+  userId        String
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   tickerId      String
   ticker        Ticker       @relation(fields: [tickerId], references: [id], onDelete: Restrict)
   cashAccountId String?
@@ -259,6 +288,8 @@ model Holding {
 /// derived from the full set of these transactions per ticker.
 model InvestmentTransaction {
   id            String         @id @default(cuid())
+  userId        String
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   tickerId      String
   ticker        Ticker         @relation(fields: [tickerId], references: [id], onDelete: Restrict)
   cashAccountId String?
@@ -293,6 +324,8 @@ model FxRate {
 /// User-managed expense/income categories.
 model Category {
   id                String             @id @default(cuid())
+  userId            String
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   name              String
   kind              CategoryKind
   emoji             String?
@@ -300,13 +333,15 @@ model Category {
   transactions      Transaction[]
   recurringExpenses RecurringExpense[]
 
-  @@unique([kind, name])
+  @@unique([userId, kind, name])
   @@map("category")
 }
 
 /// An expense/income movement (in base currency).
 model Transaction {
   id                 String            @id @default(cuid())
+  userId             String
+  user               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   categoryId         String?
   category           Category?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   date               DateTime          @db.Date
@@ -328,6 +363,8 @@ model Transaction {
 /// occurrence and advances `nextRunDate`, stopping at the chosen end condition.
 model RecurringExpense {
   id               String        @id @default(cuid())
+  userId           String
+  user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   categoryId       String?
   category         Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   amount           Decimal       @db.Decimal(20, 2)
@@ -352,11 +389,14 @@ model RecurringExpense {
 /// Daily net worth snapshot.
 model NetWorthSnapshot {
   id         String   @id @default(cuid())
-  date       DateTime @unique @db.Date
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date       DateTime @db.Date
   totalValue Decimal  @db.Decimal(20, 2)
   breakdown  Json
   createdAt  DateTime @default(now())
 
+  @@unique([userId, date])
   @@map("net_worth_snapshot")
 }
 
@@ -364,6 +404,8 @@ model NetWorthSnapshot {
 /// allocation. A buy/sell action triggers when |current% − target%| ≥ thresholdPct.
 model RebalanceGroup {
   id           String            @id @default(cuid())
+  userId       String
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   name         String
   targetPct    Decimal           @db.Decimal(5, 2)
   thresholdPct Decimal           @default(5) @db.Decimal(5, 2)
@@ -379,9 +421,11 @@ model RebalanceMember {
   id       String         @id @default(cuid())
   groupId  String
   group    RebalanceGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  tickerId String         @unique
+  tickerId String
   ticker   Ticker         @relation(fields: [tickerId], references: [id], onDelete: Cascade)
 
+  @@unique([tickerId])
+  @@unique([groupId, tickerId])
   @@index([groupId])
   @@map("rebalance_member")
 }
@@ -390,12 +434,15 @@ model RebalanceMember {
 /// and/or tracked assets. `position` is the pillar number (1–4).
 model Pillar {
   id        String         @id @default(cuid())
-  position  Int            @unique
+  userId    String
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  position  Int
   name      String
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
   members   PillarMember[]
 
+  @@unique([userId, position])
   @@map("pillar")
 }
 

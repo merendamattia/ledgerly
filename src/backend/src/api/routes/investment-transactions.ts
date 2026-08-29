@@ -19,21 +19,21 @@ export const investmentTransactionsRoutes = new Hono<AppEnv>()
   .use("*", requireAuth)
   .get("/", zValidator("query", investmentTxFiltersSchema), async (c) => {
     const filters = c.req.valid("query");
-    const txs = await investmentTransactionRepository.list(filters);
+    const txs = await investmentTransactionRepository.list(c.get("user").id, filters);
     return c.json(txs.map(serializeInvestmentTransaction));
   })
   .post("/", zValidator("json", createInvestmentTxSchema), async (c) => {
     const input = c.req.valid("json");
-    const tx = await recordInvestmentTransaction(input);
+    const tx = await recordInvestmentTransaction(c.get("user").id, input);
     return c.json(serializeInvestmentTransaction(tx), 201);
   })
   .put("/:id", zValidator("json", updateInvestmentTxSchema), async (c) => {
     const id = c.req.param("id");
-    const tx = await updateInvestmentTransaction(id, c.req.valid("json"));
+    const tx = await updateInvestmentTransaction(c.get("user").id, id, c.req.valid("json"));
     return c.json(serializeInvestmentTransaction(tx));
   })
   .delete("/:id", async (c) => {
     const id = c.req.param("id");
-    await deleteInvestmentTransaction(id);
+    await deleteInvestmentTransaction(c.get("user").id, id);
     return c.json({ ok: true });
   });

@@ -1,6 +1,7 @@
 import { test, expect, beforeAll, afterAll } from "bun:test";
 import { prisma } from "../src/core/db.ts";
 import { priceRepository } from "../src/repositories/price.ts";
+import { ensureTestUser, TEST_USER_ID } from "./fixtures.ts";
 
 // Integration test (requires Postgres). Verifies the backfill insert is
 // idempotent thanks to the unique (tickerId, date) constraint.
@@ -8,8 +9,9 @@ const symbol = `TEST.IDEM.${Date.now()}`;
 let tickerId: string;
 
 beforeAll(async () => {
+  await ensureTestUser();
   const ticker = await prisma.ticker.create({
-    data: { symbol, name: "Idempotency Test", type: "ETF", currency: "EUR", provider: "yahoo" },
+    data: { userId: TEST_USER_ID, symbol, name: "Idempotency Test", type: "ETF", currency: "EUR", provider: "yahoo" },
   });
   tickerId = ticker.id;
 });

@@ -9,7 +9,7 @@ import type { AppEnv } from "../types.ts";
 export const pillarsRoutes = new Hono<AppEnv>()
   .use("*", requireAuth)
   .get("/", async (c) => {
-    const pillars = await pillarRepository.list();
+    const pillars = await pillarRepository.list(c.get("user").id);
     return c.json(pillars);
   })
   .put("/:position", zValidator("json", upsertPillarSchema), async (c) => {
@@ -17,6 +17,6 @@ export const pillarsRoutes = new Hono<AppEnv>()
     if (!Number.isInteger(position) || position < 1 || position > 4) {
       throw new BadRequestError("position must be 1-4");
     }
-    const pillar = await pillarRepository.upsert(position, c.req.valid("json"));
+    const pillar = await pillarRepository.upsert(c.get("user").id, position, c.req.valid("json"));
     return c.json(pillar);
   });

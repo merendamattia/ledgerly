@@ -77,6 +77,14 @@ export const priceRepository = {
     });
   },
 
+  seriesByTickerIds(tickerIds: string[]) {
+    return prisma.priceHistory.findMany({
+      where: { tickerId: { in: tickerIds } },
+      orderBy: { date: "asc" },
+      select: { tickerId: true, date: true, close: true },
+    });
+  },
+
   /** Latest close on or before a given date (for historical valuations). */
   onOrBefore(tickerId: string, date: Date) {
     return prisma.priceHistory.findFirst({

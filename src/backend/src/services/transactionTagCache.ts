@@ -14,9 +14,10 @@ function dayKey(date?: Date): string {
   return date ? date.toISOString().slice(0, 10) : "";
 }
 
-function cacheKey(filters: TransactionTagFilters): string {
+function cacheKey(userId: string, filters: TransactionTagFilters): string {
   return [
     "tx-tags",
+    userId,
     dayKey(filters.from),
     dayKey(filters.to),
     filters.direction ?? "",
@@ -24,12 +25,12 @@ function cacheKey(filters: TransactionTagFilters): string {
   ].join(":");
 }
 
-export function getCachedTransactionTags(filters: TransactionTagFilters) {
-  return cacheGet<string[]>(cacheKey(filters));
+export function getCachedTransactionTags(userId: string, filters: TransactionTagFilters) {
+  return cacheGet<string[]>(cacheKey(userId, filters));
 }
 
-export function cacheTransactionTags(filters: TransactionTagFilters, tags: string[]) {
-  return cacheSet(cacheKey(filters), tags, TAG_CACHE_TTL_SECONDS);
+export function cacheTransactionTags(userId: string, filters: TransactionTagFilters, tags: string[]) {
+  return cacheSet(cacheKey(userId, filters), tags, TAG_CACHE_TTL_SECONDS);
 }
 
 export function invalidateTransactionTagCache() {

@@ -4,6 +4,7 @@ import { backfillTicker } from "../market/backfill.ts";
 import { backfillFx } from "../market/fx.ts";
 import { createDailySnapshot, createDailyBalanceSnapshots } from "../snapshot.ts";
 import { generateDue } from "../recurring.ts";
+import { userRepository } from "../../repositories/user.ts";
 
 /**
  * Nightly price job: for every tracked ticker, fetch the missing daily closes.
@@ -61,12 +62,17 @@ export function buildFxPairs(base: string, tickerCurrencies: string[]): [string,
  * (EUR/USD plus each holding currency vs base). Returns the number of pairs processed.
  */
 export async function runFxRates(): Promise<number> {
-  const base = await settingsRepository.baseCurrency();
-  const tickers = await tickerRepository.listAll();
-  const pairs = buildFxPairs(
-    base,
-    tickers.map((t) => t.currency),
+  const [users, tickers] = await Promise.all([userRepository.listIds(), tickerRepository.listAll()]);
+  const bases = await Promise.all(users.map((user) => settingsRepository.baseCurrency(user.id)));
+  const pairMap = new Map(
+    buildFxPairs("EUR", []).map((pair) => [pair.join(":"), pair] as const),
   );
+  for (const base of bases) {
+    for (const pair of buildFxPairs(base, tickers.map((ticker) => ticker.currency))) {
+      pairMap.set(pair.join(":"), pair);
+    }
+  }
+  const pairs = [...pairMap.values()];
 
   for (const [b, q] of pairs) {
     await backfillFx(b, q, { incremental: true });
@@ -80,9 +86,14 @@ export async function runFxRates(): Promise<number> {
  * of snapshot groups written (balances + net worth).
  */
 export async function runSnapshots(): Promise<number> {
-  await createDailyBalanceSnapshots();
-  await createDailySnapshot();
-  return 1;
+  const users = await userRepository.listIds();
+  await Promise.all(
+    users.map(async ({ id }) => {
+      await createDailyBalanceSnapshots(id);
+      await createDailySnapshot(id);
+    }),
+  );
+  return users.length;
 }
 
 /**
@@ -90,7 +101,9 @@ export async function runSnapshots(): Promise<number> {
  * enabled recurring rule. Returns the number of movements created.
  */
 export async function runRecurring(): Promise<number> {
-  return generateDue(new Date());
+  const users = await userRepository.listIds();
+  const counts = await Promise.all(users.map(({ id }) => generateDue(id, new Date())));
+  return counts.reduce((total, count) => total + count, 0);
 }
 
 // Jobs that can be triggered by key via POST /api/cron/:key/run.

@@ -83,7 +83,14 @@ bun run dev
 
 - Frontend: http://localhost:3000
 - Backend: http://localhost:3001
-- Sign in with `ADMIN_EMAIL` / `ADMIN_PASSWORD` (the admin user is created on first start).
+- Sign in with `ADMIN_EMAIL` / `ADMIN_PASSWORD` (the initial admin is created on first start).
+
+### Accounts
+
+Public registration is disabled. An administrator creates member accounts from Settings with an
+email address and temporary password. New members must choose a permanent password before they
+can use the application. Each account has independent financial data, categories and settings;
+new accounts receive a copy of the administrator's current settings when they are created.
 
 ### Useful scripts (run from the repo root)
 
@@ -93,7 +100,7 @@ bun run dev
 | `bun run dev:backend`   | Run the backend only                    |
 | `bun run dev:frontend`  | Run the frontend only                   |
 | `bun run db:migrate`    | Create/apply a Prisma migration (dev)   |
-| `bun run db:seed`       | Seed settings, categories and cron jobs |
+| `bun run db:seed`       | Seed system cron job definitions         |
 
 Database changes must always go through **Prisma migrations** (never `db push`).
 
@@ -126,8 +133,8 @@ Set the environment variables (see [`.env.production.example`](./.env.production
 
 The **nightly price job runs in-process** in the backend (croner, 02:20 `Europe/Rome` by default;
 per-job schedules come from the seeded `CronJob` rows, while `CRON_TIMEZONE` sets the timezone).
-**No Coolify scheduled task is required.** The
-HTTP endpoint stays available for a manual trigger:
+**No Coolify scheduled task is required.** The HTTP endpoint stays available for the cron secret
+or an administrator's manual trigger:
 
 ```bash
 curl -X POST "$BACKEND_URL/api/cron/nightly-prices/run" -H "x-cron-secret: $CRON_SECRET"

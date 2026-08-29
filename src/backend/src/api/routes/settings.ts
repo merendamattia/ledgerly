@@ -7,8 +7,8 @@ import type { AppEnv } from "../types.ts";
 
 export const settingsRoutes = new Hono<AppEnv>()
   .use("*", requireAuth)
-  .get("/", async (c) => c.json(await settingsRepository.get()))
+  .get("/", async (c) => c.json(await settingsRepository.get(c.get("user").id)))
   .put("/", zValidator("json", updateSettingsSchema), async (c) => {
     const data = c.req.valid("json");
-    return c.json(await settingsRepository.update(data));
+    return c.json(await settingsRepository.update(c.get("user").id, data));
   });

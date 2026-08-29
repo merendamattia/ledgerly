@@ -1,5 +1,8 @@
-import { prisma } from "../core/db.ts";
 import { settingsRepository } from "../repositories/settings.ts";
+import { cashSnapshotRepository } from "../repositories/cashSnapshot.ts";
+import { cashAccountRepository } from "../repositories/cashAccount.ts";
+import { debtSnapshotRepository } from "../repositories/debtSnapshot.ts";
+import { debtRepository } from "../repositories/debt.ts";
 import { getFxRate } from "./market/fx.ts";
 import { computeInvestmentHistory } from "./investmentHistory.ts";
 
@@ -25,20 +28,14 @@ function isoDay(d: Date): string {
  * today. Investments come from price history; cash and debts are step functions
  * driven by their dated snapshots (a value applies from its snapshot day onward).
  */
-export async function computeNetWorthHistory(): Promise<NetWorthPoint[]> {
+export async function computeNetWorthHistory(userId: string): Promise<NetWorthPoint[]> {
   const [baseCurrency, inv, cashSnaps, debtSnaps, accounts, debtsRows] = await Promise.all([
-    settingsRepository.baseCurrency(),
-    computeInvestmentHistory(),
-    prisma.cashSnapshot.findMany({
-      include: { cashAccount: true },
-      orderBy: { date: "asc" },
-    }),
-    prisma.debtSnapshot.findMany({
-      include: { debt: true },
-      orderBy: { date: "asc" },
-    }),
-    prisma.cashAccount.findMany(),
-    prisma.debt.findMany(),
+    settingsRepository.baseCurrency(userId),
+    computeInvestmentHistory(userId),
+    cashSnapshotRepository.history(userId),
+    debtSnapshotRepository.history(userId),
+    cashAccountRepository.list(userId),
+    debtRepository.list(userId),
   ]);
   const invByDate = new Map(inv.map((p) => [p.date, p.value]));
   const accountsById = new Map(accounts.map((a) => [a.id, a]));

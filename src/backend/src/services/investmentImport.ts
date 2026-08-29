@@ -1,7 +1,10 @@
 import type { InvestmentSide, Prisma } from "@prisma/client";
 import { investmentTransactionRepository } from "../repositories/investmentTransaction.ts";
+import { cashAccountRepository } from "../repositories/cashAccount.ts";
+import { tickerRepository } from "../repositories/ticker.ts";
 import { importDayRange, isoDay } from "../utils/import-dedupe.ts";
 import { recomputeHolding } from "./investments.ts";
+import { NotFoundError } from "../core/errors.ts";
 
 export interface InvestmentImportRow {
   tickerId: string;
@@ -42,14 +45,24 @@ export const investmentImportService = {
    * existing movement or an earlier row in the same batch, then recompute the
    * affected holdings once per distinct ticker.
    */
-  async commit(rows: InvestmentImportRow[]): Promise<InvestmentImportResult> {
+  async commit(userId: string, rows: InvestmentImportRow[]): Promise<InvestmentImportResult> {
     const range = importDayRange(rows.map((row) => row.date));
     if (!range) return { imported: 0, skipped: 0 };
 
     // Seed the dedup set from existing movements in the imported date/ticker span.
     const seen = new Set<string>();
     const tickerIds = [...new Set(rows.map((row) => row.tickerId))];
-    for (const t of await investmentTransactionRepository.naturalKeys({ ...range, tickerIds })) {
+    const ownedTickers = await tickerRepository.list(userId);
+    const ownedTickerIds = new Set(ownedTickers.map((ticker) => ticker.id));
+    const ownedAccounts = await cashAccountRepository.list(userId);
+    const ownedAccountIds = new Set(ownedAccounts.map((account) => account.id));
+    if (tickerIds.some((tickerId) => !ownedTickerIds.has(tickerId))) {
+      throw new NotFoundError("One or more assets were not found");
+    }
+    if (rows.some((row) => !ownedAccountIds.has(row.cashAccountId))) {
+      throw new NotFoundError("One or more cash accounts were not found");
+    }
+    for (const t of await investmentTransactionRepository.naturalKeys(userId, { ...range, tickerIds })) {
       seen.add(
         naturalKey({
           tickerId: t.tickerId,
@@ -62,7 +75,7 @@ export const investmentImportService = {
     }
 
     // Build the insert payload, skipping duplicates and tracking touched tickers.
-    const data: Prisma.InvestmentTransactionCreateManyInput[] = [];
+    const data: Omit<Prisma.InvestmentTransactionCreateManyInput, "userId">[] = [];
     const touched = new Set<string>();
     let skipped = 0;
     for (const row of rows) {
@@ -92,8 +105,8 @@ export const investmentImportService = {
     }
 
     if (data.length > 0) {
-      await investmentTransactionRepository.createMany(data);
-      await Promise.all([...touched].map((tickerId) => recomputeHolding(tickerId)));
+      await investmentTransactionRepository.createMany(userId, data);
+      await Promise.all([...touched].map((tickerId) => recomputeHolding(userId, tickerId)));
     }
 
     return { imported: data.length, skipped };

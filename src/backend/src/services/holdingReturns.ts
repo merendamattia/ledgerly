@@ -20,8 +20,8 @@ export interface HoldingReturn {
  * return % uses the ticker's own currency, so it's FX-neutral as long as that
  * currency is constant — the same assumption the benchmark comparison makes.
  */
-export async function computeHoldingReturns(from?: Date): Promise<HoldingReturn[]> {
-  const holdings = await holdingRepository.list();
+export async function computeHoldingReturns(userId: string, from?: Date): Promise<HoldingReturn[]> {
+  const holdings = await holdingRepository.list(userId);
   const latestByTicker = await latestPrices(holdings.map((h) => h.tickerId));
   const out: HoldingReturn[] = [];
   for (const h of holdings) {
@@ -31,7 +31,7 @@ export async function computeHoldingReturns(from?: Date): Promise<HoldingReturn[
     // Max (no `from`) starts at the oldest transaction for this asset.
     let windowStart = from;
     if (!windowStart) {
-      const txs = await investmentTransactionRepository.listByTicker(h.tickerId);
+      const txs = await investmentTransactionRepository.listByTicker(userId, h.tickerId);
       windowStart = txs[0]?.date;
     }
 

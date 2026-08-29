@@ -24,6 +24,6 @@ export const snapshotImportRoutes = new Hono<AppEnv>()
     return c.json({ headers, rows });
   })
   .post("/commit", zValidator("json", snapshotImportCommitSchema), async (c) => {
-    const result = await snapshotImportService.commit(c.req.valid("json"));
+    const result = await snapshotImportService.commit(c.get("user").id, c.req.valid("json"));
     return c.json(result, 201);
   });

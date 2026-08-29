@@ -1,12 +1,12 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { createAuthMiddleware, APIError } from "better-auth/api";
+import { admin } from "better-auth/plugins";
 import { prisma } from "./db.ts";
 import { config } from "./config.ts";
 
-// Better Auth instance (email/password, Prisma adapter).
-// This is a single-user app: sign-up is allowed only while no user exists,
-// which lets the startup bootstrap create the admin and blocks everyone else.
+// Better Auth instance (email/password, Prisma adapter). Public registration is
+// disabled; the bootstrap path and the admin-only users route use Better Auth's
+// server-side account-management APIs instead.
 export const auth = betterAuth({
   appName: "Ledgerly",
   secret: config.BETTER_AUTH_SECRET,
@@ -14,22 +14,21 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, { provider: "postgresql" }),
   emailAndPassword: {
     enabled: true,
+    disableSignUp: true,
   },
+  user: {
+    additionalFields: {
+      mustChangePassword: {
+        type: "boolean",
+        defaultValue: false,
+        input: false,
+      },
+    },
+  },
+  plugins: [admin()],
   trustedOrigins: [config.FRONTEND_URL],
   advanced: {
     useSecureCookies: process.env.NODE_ENV === "production",
-  },
-  hooks: {
-    before: createAuthMiddleware(async (ctx) => {
-      if (ctx.path === "/sign-up/email") {
-        const userCount = await prisma.user.count();
-        if (userCount > 0) {
-          throw new APIError("FORBIDDEN", {
-            message: "Sign up is disabled: this instance already has a user.",
-          });
-        }
-      }
-    }),
   },
 });
 
