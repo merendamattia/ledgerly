@@ -63,3 +63,8 @@ export function invalidateLedgerQueries(queryClient: QueryClient, keys: readonly
     void queryClient.invalidateQueries({ queryKey });
   }
 }
+
+/** Removes personal query and mutation state before an account identity changes. */
+export function clearLedgerQueryCache(queryClient: QueryClient) {
+  queryClient.clear();
+}
