@@ -1,4 +1,6 @@
+import type { Ticker } from "@prisma/client";
 import { tickerRepository } from "../../repositories/ticker.ts";
+import { providerPriceKey } from "../../repositories/providerPrice.ts";
 import { settingsRepository } from "../../repositories/settings.ts";
 import { cashAccountRepository } from "../../repositories/cashAccount.ts";
 import { debtRepository } from "../../repositories/debt.ts";
@@ -13,9 +15,7 @@ import { userRepository } from "../../repositories/user.ts";
  * Returns the number of tickers processed.
  */
 export async function runNightlyPrices(): Promise<number> {
-  // Manually-valued assets (provider "manual") have no external source — their
-  // prices are entered by the user, so skip them here.
-  const tickers = (await tickerRepository.listAll()).filter((t) => t.provider !== "manual");
+  const tickers = uniqueProviderTickers(await tickerRepository.listAll());
   for (const ticker of tickers) {
     await backfillTicker(ticker, { incremental: true });
   }
@@ -24,11 +24,23 @@ export async function runNightlyPrices(): Promise<number> {
 
 /** Full repair backfill: refetches and overwrites stored closes for every provider ticker. */
 export async function runFullPriceBackfill(): Promise<number> {
-  const tickers = (await tickerRepository.listAll()).filter((t) => t.provider !== "manual");
+  const tickers = uniqueProviderTickers(await tickerRepository.listAll());
   for (const ticker of tickers) {
     await backfillTicker(ticker, { overwrite: true });
   }
   return tickers.length;
+}
+
+/** Keep one backfill source per provider/symbol across all user-owned tickers. */
+export function uniqueProviderTickers(tickers: Ticker[]): Ticker[] {
+  const seen = new Set<string>();
+  return tickers.filter((ticker) => {
+    if (ticker.provider === "manual") return false;
+    const key = providerPriceKey(ticker);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 /**

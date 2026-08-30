@@ -4,7 +4,7 @@ import { priceRepository } from "../src/repositories/price.ts";
 import { ensureTestUser, TEST_USER_ID } from "./fixtures.ts";
 
 // Integration test (requires Postgres). Verifies the backfill insert is
-// idempotent thanks to the unique (tickerId, date) constraint.
+// idempotent thanks to the unique provider/symbol/date constraint.
 const symbol = `TEST.IDEM.${Date.now()}`;
 let tickerId: string;
 
@@ -19,6 +19,7 @@ beforeAll(async () => {
 afterAll(async () => {
   if (!tickerId) return;
   await prisma.ticker.delete({ where: { id: tickerId } });
+  await prisma.providerPriceHistory.deleteMany({ where: { provider: "yahoo", symbol } });
 });
 
 test("bulkInsert inserts new bars and skips duplicates", async () => {

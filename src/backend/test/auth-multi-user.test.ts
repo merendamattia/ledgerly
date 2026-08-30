@@ -84,6 +84,25 @@ test("temporary-password users are blocked until they change credentials", async
   memberCookie = await signIn(memberEmail, "temporary-123");
   const otherSessionCookie = await signIn(memberEmail, "temporary-123");
 
+  const directPasswordChange = await request(
+    "/api/auth/change-password",
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        origin: "http://localhost:3000",
+      },
+      body: JSON.stringify({
+        currentPassword: "temporary-123",
+        newPassword: "member-password-123",
+        revokeOtherSessions: true,
+      }),
+    },
+    memberCookie,
+  );
+  expect(directPasswordChange.status).toBe(404);
+  expect((await prisma.user.findUniqueOrThrow({ where: { id: memberId } })).mustChangePassword).toBe(true);
+
   const blocked = await request("/api/settings", {}, memberCookie);
   expect(blocked.status).toBe(403);
   expect(await blocked.json()).toEqual({

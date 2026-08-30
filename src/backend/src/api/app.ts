@@ -47,7 +47,11 @@ app.use(
 // provisioning, and role policy around account creation.
 app.on(["GET", "POST"], "/auth/*", (c) => {
   const pathname = new URL(c.req.url).pathname;
-  if (pathname === "/api/auth/admin" || pathname.startsWith("/api/auth/admin/")) {
+  if (
+    pathname === "/api/auth/change-password" ||
+    pathname === "/api/auth/admin" ||
+    pathname.startsWith("/api/auth/admin/")
+  ) {
     return c.json({ error: "Not Found" }, 404);
   }
   return auth.handler(c.req.raw);

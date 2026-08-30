@@ -230,7 +230,9 @@ model DebtSnapshot {
   @@map("debt_snapshot")
 }
 
-/// Financial instrument metadata. One row per asset.
+/// User-owned financial instrument metadata. Provider-backed price history is
+/// shared by provider and symbol; manual prices and user-specific anchors stay
+/// in the ticker-local PriceHistory table below.
 model Ticker {
   id                     String                  @id @default(cuid())
   userId                 String
@@ -253,7 +255,8 @@ model Ticker {
   @@map("ticker")
 }
 
-/// All daily closing prices per ticker (filled by backfill + nightly cron).
+/// User-owned prices and provider-specific overrides (manual assets and
+/// purchase anchors). Provider-backed bars live in ProviderPriceHistory.
 model PriceHistory {
   id       String   @id @default(cuid())
   tickerId String
@@ -264,6 +267,20 @@ model PriceHistory {
   @@unique([tickerId, date])
   @@index([tickerId])
   @@map("price_history")
+}
+
+/// Shared daily closing prices for provider-backed symbols. This table has no
+/// user relation so one provider fetch can serve every user's matching ticker.
+model ProviderPriceHistory {
+  id       String   @id @default(cuid())
+  provider String
+  symbol   String
+  date     DateTime @db.Date
+  close    Decimal  @db.Decimal(20, 8)
+
+  @@unique([provider, symbol, date])
+  @@index([provider, symbol])
+  @@map("provider_price_history")
 }
 
 /// An investment position.
