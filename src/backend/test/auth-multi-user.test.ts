@@ -63,6 +63,23 @@ test("admin provisioning creates a forced-change user with copied settings", asy
   expect((await prisma.settings.findUniqueOrThrow({ where: { userId: memberId } })).baseCurrency).toBe("USD");
 });
 
+test("direct Better Auth admin endpoints are not exposed", async () => {
+  const email = `direct-admin-${suffix}@example.com`;
+  const response = await request("/api/auth/admin/create-user", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      email,
+      name: "Direct Admin",
+      password: "direct-admin-password-123",
+      role: "admin",
+    }),
+  });
+
+  expect(response.status).toBe(404);
+  expect(await prisma.user.findUnique({ where: { email } })).toBeNull();
+});
+
 test("temporary-password users are blocked until they change credentials", async () => {
   memberCookie = await signIn(memberEmail, "temporary-123");
   const otherSessionCookie = await signIn(memberEmail, "temporary-123");

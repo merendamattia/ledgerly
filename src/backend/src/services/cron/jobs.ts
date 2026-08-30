@@ -1,5 +1,7 @@
 import { tickerRepository } from "../../repositories/ticker.ts";
 import { settingsRepository } from "../../repositories/settings.ts";
+import { cashAccountRepository } from "../../repositories/cashAccount.ts";
+import { debtRepository } from "../../repositories/debt.ts";
 import { backfillTicker } from "../market/backfill.ts";
 import { backfillFx } from "../market/fx.ts";
 import { createDailySnapshot, createDailyBalanceSnapshots } from "../snapshot.ts";
@@ -31,10 +33,10 @@ export async function runFullPriceBackfill(): Promise<number> {
 
 /**
  * Build the set of FX pairs to refresh nightly: always EUR/USD (both directions,
- * the reference "fix rate") plus every ticker currency converted to the base
+ * the reference "fix rate") plus every valuation currency converted to the base
  * currency. Deduped, with same-currency pairs dropped.
  */
-export function buildFxPairs(base: string, tickerCurrencies: string[]): [string, string][] {
+export function buildFxPairs(base: string, currencies: string[]): [string, string][] {
   const seen = new Set<string>();
   const pairs: [string, string][] = [];
   const add = (b: string, q: string) => {
@@ -49,26 +51,52 @@ export function buildFxPairs(base: string, tickerCurrencies: string[]): [string,
   add("EUR", "USD");
   add("USD", "EUR");
 
-  // Every holding currency valued against the base currency.
-  for (const currency of tickerCurrencies) {
+  // Every valuation currency converted to the base currency.
+  for (const currency of currencies) {
     add(currency, base);
   }
 
   return pairs;
 }
 
+/** Combines the currencies that a single user's valuation can require. */
+export function collectFxCurrencies(
+  tickerCurrencies: string[],
+  cashAccountCurrencies: string[],
+  debtCurrencies: string[],
+): string[] {
+  return [...new Set([...tickerCurrencies, ...cashAccountCurrencies, ...debtCurrencies])];
+}
+
 /**
  * Nightly FX job: refresh the historical FX rates for every tracked pair
- * (EUR/USD plus each holding currency vs base). Returns the number of pairs processed.
+ * (EUR/USD plus each user's valuation currency vs base). Returns the number of pairs processed.
  */
 export async function runFxRates(): Promise<number> {
-  const [users, tickers] = await Promise.all([userRepository.listIds(), tickerRepository.listAll()]);
-  const bases = await Promise.all(users.map((user) => settingsRepository.baseCurrency(user.id)));
   const pairMap = new Map(
     buildFxPairs("EUR", []).map((pair) => [pair.join(":"), pair] as const),
   );
-  for (const base of bases) {
-    for (const pair of buildFxPairs(base, tickers.map((ticker) => ticker.currency))) {
+  const users = await userRepository.listIds();
+  const userPairs = await Promise.all(
+    users.map(async ({ id }) => {
+      const [base, tickers, accounts, debts] = await Promise.all([
+        settingsRepository.baseCurrency(id),
+        tickerRepository.list(id),
+        cashAccountRepository.list(id),
+        debtRepository.list(id),
+      ]);
+      return buildFxPairs(
+        base,
+        collectFxCurrencies(
+          tickers.map((ticker) => ticker.currency),
+          accounts.map((account) => account.currency),
+          debts.map((debt) => debt.currency),
+        ),
+      );
+    }),
+  );
+  for (const pairs of userPairs) {
+    for (const pair of pairs) {
       pairMap.set(pair.join(":"), pair);
     }
   }
