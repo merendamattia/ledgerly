@@ -18,14 +18,18 @@ CREATE INDEX "provider_price_history_provider_symbol_idx"
 -- Move legacy provider bars out of the user-owned ticker table. A legacy
 -- installation has one owner, while any duplicate provider rows represent the
 -- same external source and can safely be represented by one shared close.
+-- Bond rows are excluded because their yahoo-bond price is a user-specific
+-- purchase anchor, not shared market history.
 INSERT INTO "provider_price_history" ("id", "provider", "symbol", "date", "close")
 SELECT p."id", t."provider", t."symbol", p."date", p."close"
 FROM "price_history" p
 JOIN "ticker" t ON t."id" = p."tickerId"
 WHERE t."provider" <> 'manual'
+  AND t."type" <> 'BOND'
 ON CONFLICT ("provider", "symbol", "date") DO NOTHING;
 
 DELETE FROM "price_history" p
 USING "ticker" t
 WHERE t."id" = p."tickerId"
-  AND t."provider" <> 'manual';
+  AND t."provider" <> 'manual'
+  AND t."type" <> 'BOND';
