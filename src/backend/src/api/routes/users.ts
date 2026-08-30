@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { auth } from "../../core/auth.ts";
 import { ConflictError, BadRequestError } from "../../core/errors.ts";
-import { provisionUser } from "../../services/userProvisioning.ts";
+import { isUserProvisioned, provisionUser } from "../../services/userProvisioning.ts";
 import { userRepository } from "../../repositories/user.ts";
 import { changePasswordSchema, createUserSchema } from "../../schemas/index.ts";
 import { requireAdmin, requireAuth } from "../middlewares/auth.ts";
@@ -17,8 +17,18 @@ export const usersRoutes = new Hono<AppEnv>()
     zValidator("json", createUserSchema),
     async (c) => {
       const input = c.req.valid("json");
-      if (await userRepository.findByEmail(input.email)) {
-        throw new ConflictError("A user with this email already exists");
+      const existing = await userRepository.findByEmail(input.email);
+      if (existing) {
+        if (!existing.mustChangePassword || await isUserProvisioned(existing.id)) {
+          throw new ConflictError("A user with this email already exists");
+        }
+
+        try {
+          await provisionUser(existing.id, c.get("user").id);
+          return c.json(await userRepository.findById(existing.id), 200);
+        } catch {
+          throw new BadRequestError("Unable to provision user");
+        }
       }
 
       try {

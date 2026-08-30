@@ -13,11 +13,7 @@ import { provisionUser } from "../services/userProvisioning.ts";
 export async function ensureAdminUser(): Promise<void> {
   const configured = await prisma.user.findUnique({ where: { email: config.ADMIN_EMAIL } });
   if (configured) {
-    await prisma.user.update({
-      where: { id: configured.id },
-      data: { role: "admin", mustChangePassword: false },
-    });
-    await provisionUser(configured.id);
+    await provisionBootstrapAdmin(configured.id);
     return;
   }
 
@@ -26,7 +22,7 @@ export async function ensureAdminUser(): Promise<void> {
     orderBy: { createdAt: "asc" },
   });
   if (existingAdmin) {
-    await provisionUser(existingAdmin.id);
+    await provisionBootstrapAdmin(existingAdmin.id);
     return;
   }
 
@@ -40,11 +36,20 @@ export async function ensureAdminUser(): Promise<void> {
       role: "admin",
     },
   });
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { mustChangePassword: false },
-  });
-  await provisionUser(user.id);
+  await provisionBootstrapAdmin(user.id);
 
   logger.info("Admin user created", { email: config.ADMIN_EMAIL });
+}
+
+/** Keeps the bootstrap account blocked until its personal defaults exist. */
+async function provisionBootstrapAdmin(userId: string): Promise<void> {
+  await prisma.user.update({
+    where: { id: userId },
+    data: { role: "admin", mustChangePassword: true },
+  });
+  await provisionUser(userId);
+  await prisma.user.update({
+    where: { id: userId },
+    data: { mustChangePassword: false },
+  });
 }

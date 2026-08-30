@@ -35,6 +35,11 @@ async function loadDefaults(userId: string): Promise<UserSettingsDefaults> {
   });
 }
 
+/** Returns whether the account has a durable settings record to use. */
+export async function isUserProvisioned(userId: string): Promise<boolean> {
+  return (await userProvisioningRepository.findSettings(userId)) !== null;
+}
+
 /**
  * Idempotently creates a user's settings and independent category copies.
  * Existing settings are never overwritten, making this safe during bootstrap

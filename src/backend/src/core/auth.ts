@@ -25,6 +25,15 @@ export const auth = betterAuth({
       },
     },
   },
+  databaseHooks: {
+    user: {
+      create: {
+        before: async (user) => ({
+          data: { ...user, mustChangePassword: true },
+        }),
+      },
+    },
+  },
   plugins: [admin()],
   trustedOrigins: [config.FRONTEND_URL],
   advanced: {
