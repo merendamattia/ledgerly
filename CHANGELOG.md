@@ -1,3 +1,10 @@
+## [2.1.1](https://github.com/merendamattia/ledgerly/compare/v2.1.0...v2.1.1) (2026-08-31)
+
+
+### Bug Fixes
+
+* **frontend:** contain mobile account layouts ([f8f95f0](https://github.com/merendamattia/ledgerly/commit/f8f95f0bb84fe158abbffe3c0c5dd7beedc3cd35))
+
 # [2.1.0](https://github.com/merendamattia/ledgerly/compare/v2.0.0...v2.1.0) (2026-08-31)
 
 
