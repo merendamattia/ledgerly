@@ -1,5 +1,5 @@
-import { prisma } from "../core/db.ts";
 import { settingsRepository } from "../repositories/settings.ts";
+import { transactionRepository } from "../repositories/transaction.ts";
 import { isInvestmentCategoryName } from "../utils/category.ts";
 
 export interface CashflowRow {
@@ -27,10 +27,10 @@ function monthKey(d: Date): string {
  * Totals, per-year averages and the balance/savings-rate rows are derived by
  * the frontend from these monthly series.
  */
-export async function computeCashflowMatrix(): Promise<CashflowMatrix> {
+export async function computeCashflowMatrix(userId: string): Promise<CashflowMatrix> {
   const [baseCurrency, txs] = await Promise.all([
-    settingsRepository.baseCurrency(),
-    prisma.transaction.findMany({ include: { category: true }, orderBy: { date: "asc" } }),
+    settingsRepository.baseCurrency(userId),
+    transactionRepository.listAll(userId),
   ]);
   if (txs.length === 0) return { baseCurrency, months: [], expense: [], income: [], investment: [] };
 

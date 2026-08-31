@@ -3,33 +3,35 @@ import { prisma } from "../core/db.ts";
 
 // Data access for cash accounts.
 export const cashAccountRepository = {
-  list(category?: CashCategory) {
+  list(userId: string, category?: CashCategory) {
     return prisma.cashAccount.findMany({
-      where: category ? { category } : undefined,
+      where: { userId, ...(category ? { category } : {}) },
       orderBy: { createdAt: "asc" },
     });
   },
 
-  findById(id: string) {
-    return prisma.cashAccount.findUnique({ where: { id } });
+  findById(userId: string, id: string) {
+    return prisma.cashAccount.findFirst({ where: { id, userId } });
   },
 
-  create(data: Prisma.CashAccountCreateInput) {
-    return prisma.cashAccount.create({ data });
+  create(userId: string, data: Omit<Prisma.CashAccountCreateInput, "user">) {
+    return prisma.cashAccount.create({ data: { ...data, user: { connect: { id: userId } } } });
   },
 
-  update(id: string, data: Prisma.CashAccountUpdateInput) {
+  async update(userId: string, id: string, data: Prisma.CashAccountUpdateInput) {
+    if (!(await this.findById(userId, id))) return null;
     return prisma.cashAccount.update({ where: { id }, data });
   },
 
-  resetBalances(ids: string[]) {
+  resetBalances(userId: string, ids: string[]) {
     return prisma.cashAccount.updateMany({
-      where: { id: { in: ids } },
+      where: { id: { in: ids }, userId },
       data: { balance: 0 },
     });
   },
 
-  delete(id: string) {
+  async delete(userId: string, id: string) {
+    if (!(await this.findById(userId, id))) return null;
     return prisma.cashAccount.delete({ where: { id } });
   },
 };

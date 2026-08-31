@@ -2,8 +2,8 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import { Plus } from "lucide-react";
-import { Card } from "@/components/ui/card";
+import { Plus, type LucideIcon } from "lucide-react";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MoneyAmount } from "@/components/money-amount";
@@ -47,6 +47,8 @@ export function SnapshotPanel({
   historySubtitle,
   currency,
   headerAction,
+  icon: Icon,
+  accentClassName,
 }: {
   title: string;
   subtitle: string;
@@ -64,6 +66,8 @@ export function SnapshotPanel({
   historySubtitle: string;
   currency: string;
   headerAction?: ReactNode;
+  icon: LucideIcon;
+  accentClassName: string;
 }) {
   const [date, setDate] = useState(todayISO());
   const [drafts, setDrafts] = useState<Record<string, string>>({});
@@ -106,104 +110,107 @@ export function SnapshotPanel({
       : "";
 
   return (
-    <Card className={cn("col-span-12 gap-0 bg-card p-4 animate-fu sm:p-5")}>
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
-            <p className="font-display text-base font-semibold">{title}</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>
+    <div className="col-span-12 flex flex-col gap-4 animate-fu">
+      {headerAction}
+
+      <Card className="gap-0 overflow-hidden p-0">
+        <CardHeader className="flex flex-row items-center justify-between gap-3 border-b px-4 py-4 sm:px-5">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-xl", accentClassName)}>
+              <Icon />
+            </span>
+            <div className="min-w-0">
+              <CardTitle>{title}</CardTitle>
+              <p className="mt-0.5 truncate text-xs text-muted-foreground">{subtitle}</p>
+            </div>
           </div>
-          <div className="sm:text-right">
-            <p className="text-xs text-muted-foreground">{totalLabel}</p>
-            <p
-              className={cn(
-                "font-mono text-xl font-semibold tabular-nums",
-                negative && "text-negative-ink",
-              )}
-            >
+          <div className="shrink-0 text-right">
+            <p className="text-[10px] text-muted-foreground sm:text-xs">{totalLabel}</p>
+            <p className={cn("font-mono text-base font-semibold tabular-nums sm:text-xl", negative && "text-negative-ink")}>
               {negative ? "−" : ""}
               <MoneyAmount value={total} currency={currency} />
             </p>
           </div>
-        </div>
-        {headerAction}
-      </div>
+        </CardHeader>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(260px,360px)]">
-        <div className="min-w-0">
-          <div className="flex flex-col">
+        <CardContent className="p-3 sm:p-4">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {isLoading ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">Loading…</p>
+              <p className="col-span-full py-8 text-center text-sm text-muted-foreground">Loading…</p>
             ) : rows.length === 0 ? (
-              <div className="flex flex-col items-center gap-3 py-8 text-center">
+              <div className="col-span-full flex min-h-40 flex-col items-center justify-center gap-3 text-center">
                 <p className="text-sm text-muted-foreground">{emptyText}</p>
                 {addAction}
               </div>
             ) : (
               rows.map((r) => (
-                <div
+                <article
                   key={r.id}
-                  className="flex flex-col gap-2.5 border-b py-3.5 last:border-b-0 sm:flex-row sm:items-center sm:gap-3 sm:py-3"
+                  className="group rounded-2xl border bg-muted/20 p-4 transition-[background-color,box-shadow,transform] hover:-translate-y-0.5 hover:bg-card hover:shadow-card"
                 >
-                  <div className="flex min-w-0 items-center gap-3 sm:flex-1">
-                    <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary font-display text-sm font-semibold text-primary-foreground">
-                      {r.name.slice(0, 1).toUpperCase()}
+                  <div className="flex min-w-0 items-start gap-3">
+                    <span className={cn("flex size-10 shrink-0 items-center justify-center rounded-xl font-display text-sm font-semibold", accentClassName)}>
+                      {r.name.slice(0, 2).toUpperCase()}
                     </span>
-                    <div className="min-w-0 flex-1">
+                    <div className="min-w-0 flex-1 pt-0.5">
                       <p className="truncate text-sm font-semibold">{r.name}</p>
-                      {r.note ? (
-                        <p className="truncate text-xs text-muted-foreground">{r.note}</p>
-                      ) : null}
+                      <p className="mt-0.5 truncate text-xs text-muted-foreground" title={r.note ?? undefined}>
+                        {r.note || r.type.replaceAll("_", " ")}
+                      </p>
                     </div>
+                    <div className="-mr-1 -mt-1 flex shrink-0">{rowAction?.(r)}</div>
                   </div>
-                  <div className="flex items-center gap-1.5 sm:shrink-0">
-                    <div className="flex h-10 min-w-0 flex-1 items-center gap-1.5 rounded-lg border bg-background pl-2.5 focus-within:ring-2 focus-within:ring-ring sm:h-9 sm:w-36 sm:flex-none">
-                      <span className="font-mono text-[11px] font-medium text-muted-foreground">
-                        {r.currency}
-                      </span>
+
+                  <div className="mt-4 flex items-end justify-between gap-3 border-t pt-3">
+                    <span className="rounded-md bg-card px-2 py-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase shadow-sm">
+                      {r.type.replaceAll("_", " ")} · {r.currency}
+                    </span>
+                    <label className="min-w-0 text-right">
+                      <span className="block text-[10px] text-muted-foreground">Current balance</span>
                       <Input
                         type={shouldHidePrivateNumbers ? "password" : "number"}
                         inputMode="decimal"
                         step="0.01"
                         value={valueOf(r.id, r.value)}
                         onChange={(e) => setDrafts((d) => ({ ...d, [r.id]: e.target.value }))}
-                        className="h-full min-w-0 flex-1 border-0 bg-transparent px-0 pr-2.5 text-right font-mono text-foreground shadow-none focus-visible:ring-0"
+                        aria-label={`${r.name} balance in ${r.currency}`}
+                        className="mt-0.5 h-7 w-32 bg-background px-2 text-right font-mono text-sm font-semibold tabular-nums sm:w-36"
                       />
-                    </div>
-                    {rowAction?.(r)}
+                    </label>
                   </div>
-                </div>
+                </article>
               ))
             )}
           </div>
+        </CardContent>
 
-          {addAction && rows.length > 0 ? <div className="mt-3">{addAction}</div> : null}
+        {rows.length > 0 ? (
+          <CardFooter className="flex flex-col gap-3 bg-muted/30 sm:flex-row sm:justify-between">
+            {addAction}
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+              <Input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="h-10 w-full bg-background text-foreground sm:h-9 sm:w-40"
+              />
+              <Button onClick={submit} disabled={submitting} className="w-full sm:w-auto">
+                <Plus data-icon="inline-start" />
+                Create snapshot
+              </Button>
+            </div>
+          </CardFooter>
+        ) : null}
+      </Card>
 
-          <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
-            <Input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="h-10 w-full bg-background text-foreground sm:h-9 sm:w-40"
-            />
-            <Button
-              onClick={submit}
-              disabled={submitting || rows.length === 0}
-              className="w-full sm:w-auto"
-            >
-              <Plus data-icon="inline-start" />
-              Create snapshot
-            </Button>
-          </div>
-        </div>
-
-        <aside className="border-t pt-4 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-4">
-          <div>
-            <p className="font-display text-base font-semibold">{historyTitle}</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">{historySubtitle}</p>
-          </div>
+      <Card className="gap-0 overflow-hidden p-0">
+        <CardHeader className="border-b px-4 py-4 sm:px-5">
+          <CardTitle>{historyTitle}</CardTitle>
+          <p className="mt-0.5 text-xs text-muted-foreground">{historySubtitle}</p>
+        </CardHeader>
+        <CardContent className="grid gap-4 p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_minmax(260px,360px)] lg:items-center">
           {points ? (
-            <svg viewBox="0 0 300 60" className="mt-3 h-14 w-full overflow-visible">
+            <svg viewBox="0 0 300 60" className="h-20 w-full overflow-visible" aria-label={`${historyTitle} chart`} role="img">
               <polyline
                 points={points}
                 fill="none"
@@ -213,8 +220,10 @@ export function SnapshotPanel({
                 strokeLinejoin="round"
               />
             </svg>
-          ) : null}
-          <div className="mt-3">
+          ) : (
+            <div className="hidden min-h-20 lg:block" />
+          )}
+          <div>
             {isLoading ? (
               <p className="py-6 text-center text-sm text-muted-foreground">Loading…</p>
             ) : history.length === 0 ? (
@@ -224,10 +233,7 @@ export function SnapshotPanel({
                 .reverse()
                 .slice(0, 5)
                 .map((s) => (
-                  <div
-                    key={s.date}
-                    className="flex items-center justify-between gap-3 border-b py-2.5 last:border-b-0"
-                  >
+                  <div key={s.date} className="flex items-center justify-between gap-3 border-b py-2.5 last:border-b-0">
                     <span className="text-sm font-semibold">{shortDate(s.date)}</span>
                     <span className="font-mono text-sm font-semibold tabular-nums">
                       {negative ? "−" : ""}
@@ -237,8 +243,8 @@ export function SnapshotPanel({
                 ))
             )}
           </div>
-        </aside>
-      </div>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

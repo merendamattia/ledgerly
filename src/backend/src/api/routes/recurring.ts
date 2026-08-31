@@ -3,6 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import type { Prisma } from "@prisma/client";
 import { requireAuth } from "../middlewares/auth.ts";
 import { recurringExpenseRepository } from "../../repositories/recurringExpense.ts";
+import { categoryRepository } from "../../repositories/category.ts";
 import { createRecurringSchema, updateRecurringSchema } from "../../schemas/index.ts";
 import { serializeRecurringExpense } from "../../utils/serialize.ts";
 import { NotFoundError } from "../../core/errors.ts";
@@ -52,12 +53,15 @@ function toData(input: RecurInput): Prisma.RecurringExpenseUpdateInput {
 export const recurringRoutes = new Hono<AppEnv>()
   .use("*", requireAuth)
   .get("/", async (c) => {
-    const rules = await recurringExpenseRepository.list();
+    const rules = await recurringExpenseRepository.list(c.get("user").id);
     return c.json(rules.map(serializeRecurringExpense));
   })
   .post("/", zValidator("json", createRecurringSchema), async (c) => {
     const input = c.req.valid("json");
-    const rule = await recurringExpenseRepository.create({
+    if (input.categoryId && !(await categoryRepository.findById(c.get("user").id, input.categoryId))) {
+      throw new NotFoundError("Category not found");
+    }
+    const rule = await recurringExpenseRepository.create(c.get("user").id, {
       amount: input.amount,
       direction: input.direction,
       note: input.note ?? null,
@@ -75,13 +79,19 @@ export const recurringRoutes = new Hono<AppEnv>()
   })
   .put("/:id", zValidator("json", updateRecurringSchema), async (c) => {
     const id = c.req.param("id");
-    const existing = await recurringExpenseRepository.findById(id);
+    const existing = await recurringExpenseRepository.findById(c.get("user").id, id);
     if (!existing) throw new NotFoundError("Recurring expense not found");
-    const rule = await recurringExpenseRepository.update(id, toData(c.req.valid("json")));
+    const input = c.req.valid("json");
+    if (input.categoryId && !(await categoryRepository.findById(c.get("user").id, input.categoryId))) {
+      throw new NotFoundError("Category not found");
+    }
+    const rule = await recurringExpenseRepository.update(c.get("user").id, id, toData(input));
+    if (!rule) throw new NotFoundError("Recurring expense not found");
     return c.json(serializeRecurringExpense(rule));
   })
   .delete("/:id", async (c) => {
     const id = c.req.param("id");
-    await recurringExpenseRepository.delete(id);
+    const deleted = await recurringExpenseRepository.delete(c.get("user").id, id);
+    if (!deleted) throw new NotFoundError("Recurring expense not found");
     return c.json({ ok: true });
   });

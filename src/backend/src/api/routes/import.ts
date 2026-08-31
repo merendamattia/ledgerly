@@ -21,6 +21,6 @@ export const importRoutes = new Hono<AppEnv>()
   })
   .post("/commit", zValidator("json", importCommitSchema), async (c) => {
     const { rows } = c.req.valid("json");
-    const result = await importService.commit(rows);
+    const result = await importService.commit(c.get("user").id, rows);
     return c.json(result, 201);
   });

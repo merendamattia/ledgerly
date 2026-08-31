@@ -1,18 +1,21 @@
+import type { Ticker } from "@prisma/client";
 import { tickerRepository } from "../../repositories/ticker.ts";
+import { providerPriceKey } from "../../repositories/providerPrice.ts";
 import { settingsRepository } from "../../repositories/settings.ts";
+import { cashAccountRepository } from "../../repositories/cashAccount.ts";
+import { debtRepository } from "../../repositories/debt.ts";
 import { backfillTicker } from "../market/backfill.ts";
 import { backfillFx } from "../market/fx.ts";
 import { createDailySnapshot, createDailyBalanceSnapshots } from "../snapshot.ts";
 import { generateDue } from "../recurring.ts";
+import { userRepository } from "../../repositories/user.ts";
 
 /**
  * Nightly price job: for every tracked ticker, fetch the missing daily closes.
  * Returns the number of tickers processed.
  */
 export async function runNightlyPrices(): Promise<number> {
-  // Manually-valued assets (provider "manual") have no external source — their
-  // prices are entered by the user, so skip them here.
-  const tickers = (await tickerRepository.listAll()).filter((t) => t.provider !== "manual");
+  const tickers = uniqueProviderTickers(await tickerRepository.listAll());
   for (const ticker of tickers) {
     await backfillTicker(ticker, { incremental: true });
   }
@@ -21,19 +24,31 @@ export async function runNightlyPrices(): Promise<number> {
 
 /** Full repair backfill: refetches and overwrites stored closes for every provider ticker. */
 export async function runFullPriceBackfill(): Promise<number> {
-  const tickers = (await tickerRepository.listAll()).filter((t) => t.provider !== "manual");
+  const tickers = uniqueProviderTickers(await tickerRepository.listAll());
   for (const ticker of tickers) {
     await backfillTicker(ticker, { overwrite: true });
   }
   return tickers.length;
 }
 
+/** Keep one backfill source per provider/symbol across all user-owned tickers. */
+export function uniqueProviderTickers(tickers: Ticker[]): Ticker[] {
+  const seen = new Set<string>();
+  return tickers.filter((ticker) => {
+    if (ticker.provider === "manual") return false;
+    const key = providerPriceKey(ticker);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 /**
  * Build the set of FX pairs to refresh nightly: always EUR/USD (both directions,
- * the reference "fix rate") plus every ticker currency converted to the base
+ * the reference "fix rate") plus every valuation currency converted to the base
  * currency. Deduped, with same-currency pairs dropped.
  */
-export function buildFxPairs(base: string, tickerCurrencies: string[]): [string, string][] {
+export function buildFxPairs(base: string, currencies: string[]): [string, string][] {
   const seen = new Set<string>();
   const pairs: [string, string][] = [];
   const add = (b: string, q: string) => {
@@ -48,25 +63,56 @@ export function buildFxPairs(base: string, tickerCurrencies: string[]): [string,
   add("EUR", "USD");
   add("USD", "EUR");
 
-  // Every holding currency valued against the base currency.
-  for (const currency of tickerCurrencies) {
+  // Every valuation currency converted to the base currency.
+  for (const currency of currencies) {
     add(currency, base);
   }
 
   return pairs;
 }
 
+/** Combines the currencies that a single user's valuation can require. */
+export function collectFxCurrencies(
+  tickerCurrencies: string[],
+  cashAccountCurrencies: string[],
+  debtCurrencies: string[],
+): string[] {
+  return [...new Set([...tickerCurrencies, ...cashAccountCurrencies, ...debtCurrencies])];
+}
+
 /**
  * Nightly FX job: refresh the historical FX rates for every tracked pair
- * (EUR/USD plus each holding currency vs base). Returns the number of pairs processed.
+ * (EUR/USD plus each user's valuation currency vs base). Returns the number of pairs processed.
  */
 export async function runFxRates(): Promise<number> {
-  const base = await settingsRepository.baseCurrency();
-  const tickers = await tickerRepository.listAll();
-  const pairs = buildFxPairs(
-    base,
-    tickers.map((t) => t.currency),
+  const pairMap = new Map(
+    buildFxPairs("EUR", []).map((pair) => [pair.join(":"), pair] as const),
   );
+  const users = await userRepository.listIds();
+  const userPairs = await Promise.all(
+    users.map(async ({ id }) => {
+      const [base, tickers, accounts, debts] = await Promise.all([
+        settingsRepository.baseCurrency(id),
+        tickerRepository.list(id),
+        cashAccountRepository.list(id),
+        debtRepository.list(id),
+      ]);
+      return buildFxPairs(
+        base,
+        collectFxCurrencies(
+          tickers.map((ticker) => ticker.currency),
+          accounts.map((account) => account.currency),
+          debts.map((debt) => debt.currency),
+        ),
+      );
+    }),
+  );
+  for (const pairs of userPairs) {
+    for (const pair of pairs) {
+      pairMap.set(pair.join(":"), pair);
+    }
+  }
+  const pairs = [...pairMap.values()];
 
   for (const [b, q] of pairs) {
     await backfillFx(b, q, { incremental: true });
@@ -80,9 +126,14 @@ export async function runFxRates(): Promise<number> {
  * of snapshot groups written (balances + net worth).
  */
 export async function runSnapshots(): Promise<number> {
-  await createDailyBalanceSnapshots();
-  await createDailySnapshot();
-  return 1;
+  const users = await userRepository.listIds();
+  await Promise.all(
+    users.map(async ({ id }) => {
+      await createDailyBalanceSnapshots(id);
+      await createDailySnapshot(id);
+    }),
+  );
+  return users.length;
 }
 
 /**
@@ -90,7 +141,9 @@ export async function runSnapshots(): Promise<number> {
  * enabled recurring rule. Returns the number of movements created.
  */
 export async function runRecurring(): Promise<number> {
-  return generateDue(new Date());
+  const users = await userRepository.listIds();
+  const counts = await Promise.all(users.map(({ id }) => generateDue(id, new Date())));
+  return counts.reduce((total, count) => total + count, 0);
 }
 
 // Jobs that can be triggered by key via POST /api/cron/:key/run.

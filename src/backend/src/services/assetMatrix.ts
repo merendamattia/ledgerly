@@ -1,5 +1,12 @@
-import { prisma } from "../core/db.ts";
 import { settingsRepository } from "../repositories/settings.ts";
+import { investmentTransactionRepository } from "../repositories/investmentTransaction.ts";
+import { cashAccountRepository } from "../repositories/cashAccount.ts";
+import { debtRepository } from "../repositories/debt.ts";
+import { cashSnapshotRepository } from "../repositories/cashSnapshot.ts";
+import { debtSnapshotRepository } from "../repositories/debtSnapshot.ts";
+import { tickerRepository } from "../repositories/ticker.ts";
+import { priceRepository } from "../repositories/price.ts";
+import { fxRepository } from "../repositories/fx.ts";
 import { getFxRate } from "./market/fx.ts";
 import { latestPrice, latestPrices, type Quote } from "./market/quotes.ts";
 
@@ -79,15 +86,15 @@ const EMPTY: AssetMatrix = {
  * `/dashboard/networth-history`. Only the dedicated FX rows and the
  * net-worth-in-other-currency rows below use historical FX/prices.
  */
-export async function computeAssetMatrix(): Promise<AssetMatrix> {
+export async function computeAssetMatrix(userId: string): Promise<AssetMatrix> {
   const [baseCurrency, txs, accounts, debtRows, cashSnaps, debtSnaps, tickers] = await Promise.all([
-    settingsRepository.baseCurrency(),
-    prisma.investmentTransaction.findMany({ include: { ticker: true }, orderBy: { date: "asc" } }),
-    prisma.cashAccount.findMany(),
-    prisma.debt.findMany(),
-    prisma.cashSnapshot.findMany({ include: { cashAccount: true }, orderBy: { date: "asc" } }),
-    prisma.debtSnapshot.findMany({ include: { debt: true }, orderBy: { date: "asc" } }),
-    prisma.ticker.findMany(),
+    settingsRepository.baseCurrency(userId),
+    investmentTransactionRepository.listAll(userId),
+    cashAccountRepository.list(userId),
+    debtRepository.list(userId),
+    cashSnapshotRepository.history(userId),
+    debtSnapshotRepository.history(userId),
+    tickerRepository.list(userId),
   ]);
 
   // Current FX per currency in play (cache-first, no provider on this path).
@@ -133,11 +140,7 @@ export async function computeAssetMatrix(): Promise<AssetMatrix> {
   const prices =
     tickerIds.length === 0
       ? []
-      : await prisma.priceHistory.findMany({
-          where: { tickerId: { in: tickerIds } },
-          orderBy: { date: "asc" },
-          select: { tickerId: true, date: true, close: true },
-        });
+      : await priceRepository.seriesByTickerIds(tickerIds);
   const priceByTicker = new Map<string, { date: number; close: number }[]>();
   const txByTicker = new Map<string, { date: number; qty: number }[]>();
   for (const id of tickerIds) {
@@ -290,11 +293,7 @@ export async function computeAssetMatrix(): Promise<AssetMatrix> {
   // ── FX rows (historical: rate/close on or before each boundary) ─────────────
   async function fiatSeries(from: string, to: string): Promise<{ date: number; val: number }[]> {
     if (from === to) return boundaries.map((date) => ({ date, val: 1 }));
-    const rows = await prisma.fxRate.findMany({
-      where: { base: from, quote: to },
-      orderBy: { date: "asc" },
-      select: { date: true, rate: true },
-    });
+    const rows = await fxRepository.series(from, to);
     return rows.map((r) => ({ date: dayMsOf(r.date), val: Number(r.rate) }));
   }
   function cryptoTicker(coin: "BTC" | "ETH") {
@@ -302,11 +301,7 @@ export async function computeAssetMatrix(): Promise<AssetMatrix> {
     return tickers.find((t) => t.type === "CRYPTO" && t.currency === "USD" && re.test(t.symbol));
   }
   async function cryptoSeries(tickerId: string): Promise<{ date: number; val: number }[]> {
-    const rows = await prisma.priceHistory.findMany({
-      where: { tickerId },
-      orderBy: { date: "asc" },
-      select: { date: true, close: true },
-    });
+    const rows = await priceRepository.series(tickerId);
     return rows.map((r) => ({ date: dayMsOf(r.date), val: Number(r.close) }));
   }
   async function currentQuote(tickerId: string) {

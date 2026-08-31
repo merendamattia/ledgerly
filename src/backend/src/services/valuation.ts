@@ -1,5 +1,7 @@
-import { prisma } from "../core/db.ts";
 import { settingsRepository } from "../repositories/settings.ts";
+import { cashAccountRepository } from "../repositories/cashAccount.ts";
+import { debtRepository } from "../repositories/debt.ts";
+import { holdingRepository } from "../repositories/holding.ts";
 import { getFxRate } from "./market/fx.ts";
 import { latestPrices } from "./market/quotes.ts";
 
@@ -38,12 +40,12 @@ export interface NetWorth {
  * market value of all holdings. Prices and FX are read cache-first (no provider
  * calls on this path).
  */
-export async function computeNetWorth(): Promise<NetWorth> {
+export async function computeNetWorth(userId: string): Promise<NetWorth> {
   const [baseCurrency, accounts, holdings, debtRows] = await Promise.all([
-    settingsRepository.baseCurrency(),
-    prisma.cashAccount.findMany(),
-    prisma.holding.findMany({ include: { ticker: true } }),
-    prisma.debt.findMany(),
+    settingsRepository.baseCurrency(userId),
+    cashAccountRepository.list(userId),
+    holdingRepository.list(userId),
+    debtRepository.list(userId),
   ]);
 
   const currencies = new Set<string>();

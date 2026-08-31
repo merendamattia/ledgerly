@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { requireAuth } from "../middlewares/auth.ts";
+import { requireAdmin, requireAuth } from "../middlewares/auth.ts";
 import { databaseRepository } from "../../repositories/database.ts";
 import { NotFoundError } from "../../core/errors.ts";
 import type { AppEnv } from "../types.ts";
@@ -16,6 +16,7 @@ const tableQuerySchema = z.object({
 // search + pagination. No write endpoints by design.
 export const databaseRoutes = new Hono<AppEnv>()
   .use("*", requireAuth)
+  .use("*", requireAdmin)
   .get("/tables", async (c) => {
     return c.json({ tables: await databaseRepository.listTables() });
   })

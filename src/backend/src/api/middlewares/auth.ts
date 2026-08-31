@@ -14,6 +14,21 @@ export const requireAuth = createMiddleware<AppEnv>(async (c, next) => {
   }
   c.set("user", data.user);
   c.set("session", data.session);
+  if (data.user.mustChangePassword && c.req.path !== "/api/users/password") {
+    return c.json(
+      { error: "Password change required", code: "PASSWORD_CHANGE_REQUIRED" as const },
+      403,
+    );
+  }
+  await next();
+});
+
+/** Require an authenticated user with the Better Auth admin role. */
+export const requireAdmin = createMiddleware<AppEnv>(async (c, next) => {
+  const user = c.get("user");
+  if (!user || user.role !== "admin") {
+    return c.json({ error: "Forbidden" }, 403);
+  }
   await next();
 });
 
@@ -30,6 +45,9 @@ export const requireCronOrAuth = createMiddleware<AppEnv>(async (c, next) => {
   const data = await auth.api.getSession({ headers: c.req.raw.headers });
   if (!data) {
     return c.json({ error: "Unauthorized" }, 401);
+  }
+  if (data.user.role !== "admin") {
+    return c.json({ error: "Forbidden" }, 403);
   }
   c.set("user", data.user);
   c.set("session", data.session);

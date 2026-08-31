@@ -30,6 +30,9 @@ import { CategoryIcon, emojiFor } from "@/components/category-badge";
 import { DIRECTION_LABELS } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useSettings, useUpdateSettings } from "@/hooks/use-settings";
+import { useSession } from "@/lib/auth-client";
+import { AccountSecurityCard } from "@/components/account-security-card";
+import { UserManagementCard } from "@/components/user-management-card";
 import {
   useCategories,
   useCreateCategory,
@@ -289,9 +292,17 @@ function CategoriesCard() {
 export default function SettingsPage() {
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Settings" description="Base currency and categories." />
+      <PageHeader title="Settings" description="Your defaults, categories and account security." />
       <BaseCurrencyCard />
       <CategoriesCard />
+      <AccountSecurityCard />
+      <AdminSettingsSection />
     </div>
   );
+}
+
+/** Renders account-management controls only for administrators. */
+function AdminSettingsSection() {
+  const { data: session } = useSession();
+  return session?.user.role === "admin" ? <UserManagementCard /> : null;
 }

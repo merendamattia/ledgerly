@@ -1,4 +1,6 @@
-import { prisma } from "../core/db.ts";
+import { holdingRepository } from "../repositories/holding.ts";
+import { investmentTransactionRepository } from "../repositories/investmentTransaction.ts";
+import { priceRepository } from "../repositories/price.ts";
 
 export interface AssetReturnMatrixRow {
   id: string;
@@ -54,23 +56,16 @@ function valueOnOrBefore(series: { date: number; close: number }[], boundary: nu
 }
 
 /** Annual asset-return matrix from each currently-held asset's first transaction. */
-export async function computeAssetReturnMatrix(): Promise<AssetReturnMatrix> {
-  const holdings = await prisma.holding.findMany({ include: { ticker: true } });
+export async function computeAssetReturnMatrix(userId: string): Promise<AssetReturnMatrix> {
+  const holdings = await holdingRepository.list(userId);
   const tickerIds = [...new Set(holdings.map((h) => h.tickerId))];
   if (tickerIds.length === 0) return { monthLabels: MONTH_LABELS, years: [] };
 
-  const [txs, prices] = await Promise.all([
-    prisma.investmentTransaction.findMany({
-      where: { tickerId: { in: tickerIds } },
-      orderBy: [{ date: "asc" }, { createdAt: "asc" }],
-      select: { tickerId: true, date: true, price: true },
-    }),
-    prisma.priceHistory.findMany({
-      where: { tickerId: { in: tickerIds } },
-      orderBy: { date: "asc" },
-      select: { tickerId: true, date: true, close: true },
-    }),
+  const [allTxs, prices] = await Promise.all([
+    investmentTransactionRepository.listAll(userId),
+    priceRepository.seriesByTickerIds(tickerIds),
   ]);
+  const txs = allTxs.filter((tx) => tickerIds.includes(tx.tickerId));
   if (txs.length === 0) return { monthLabels: MONTH_LABELS, years: [] };
 
   const txByTicker = new Map<string, typeof txs>();

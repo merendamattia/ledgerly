@@ -17,6 +17,7 @@ export type AppNavItem = {
   label: string;
   shortLabel?: string;
   icon: ComponentType<{ className?: string }>;
+  adminOnly?: boolean;
 };
 
 export const PRIMARY_NAV_ITEMS = [
@@ -31,9 +32,14 @@ export const SECONDARY_NAV_ITEMS = [
   { href: "/matrix", label: "Matrices", icon: Table },
   { href: "/imports", label: "Imports", icon: Upload },
   { href: "/settings", label: "Settings", icon: Settings },
-  { href: "/database", label: "Database", icon: Database },
-  { href: "/dev", label: "Developer tools", shortLabel: "Dev", icon: Terminal },
+  { href: "/database", label: "Database", icon: Database, adminOnly: true },
+  { href: "/dev", label: "Developer tools", shortLabel: "Dev", icon: Terminal, adminOnly: true },
 ] satisfies AppNavItem[];
+
+/** Returns the secondary navigation available to the current account role. */
+export function visibleSecondaryNavItems(role?: string): AppNavItem[] {
+  return SECONDARY_NAV_ITEMS.filter((item) => !item.adminOnly || role === "admin");
+}
 
 /** Returns whether a navigation target represents the current route. */
 export function isNavItemActive(pathname: string, href: string): boolean {

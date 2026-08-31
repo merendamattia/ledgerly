@@ -47,8 +47,12 @@ export async function backfillTicker(
     ? await priceRepository.bulkUpsert(ticker.id, bars)
     : await priceRepository.bulkInsert(ticker.id, bars);
 
-  // The latest-price cache may now be stale.
-  await cacheDel(`price:${ticker.id}:latest`);
+  // A shared provider write can stale every user's ticker-specific cache.
+  const cacheTickerIds =
+    ticker.provider === "manual"
+      ? [ticker.id]
+      : await priceRepository.tickerIdsForSource(ticker);
+  await cacheDel(...cacheTickerIds.map((id) => `price:${id}:latest`));
 
   logger.info("Backfill complete", {
     symbol: ticker.symbol,

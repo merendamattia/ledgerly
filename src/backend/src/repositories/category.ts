@@ -3,35 +3,37 @@ import { prisma } from "../core/db.ts";
 
 // Data access for expense/income categories.
 export const categoryRepository = {
-  list(kind?: CategoryKind) {
+  list(userId: string, kind?: CategoryKind) {
     return prisma.category.findMany({
-      where: kind ? { kind } : undefined,
+      where: { userId, ...(kind ? { kind } : {}) },
       orderBy: [{ kind: "asc" }, { name: "asc" }],
     });
   },
 
-  findById(id: string) {
-    return prisma.category.findUnique({ where: { id } });
+  findById(userId: string, id: string) {
+    return prisma.category.findFirst({ where: { id, userId } });
   },
 
-  findByNameKind(name: string, kind: CategoryKind) {
-    return prisma.category.findFirst({ where: { name, kind } });
+  findByNameKind(userId: string, name: string, kind: CategoryKind) {
+    return prisma.category.findFirst({ where: { userId, name, kind } });
   },
 
-  create(data: Prisma.CategoryCreateInput) {
-    return prisma.category.create({ data });
+  create(userId: string, data: Omit<Prisma.CategoryCreateInput, "user">) {
+    return prisma.category.create({ data: { ...data, user: { connect: { id: userId } } } });
   },
 
-  update(id: string, data: Prisma.CategoryUpdateInput) {
+  async update(userId: string, id: string, data: Prisma.CategoryUpdateInput) {
+    if (!(await this.findById(userId, id))) return null;
     return prisma.category.update({ where: { id }, data });
   },
 
-  delete(id: string) {
+  async delete(userId: string, id: string) {
+    if (!(await this.findById(userId, id))) return null;
     return prisma.category.delete({ where: { id } });
   },
 
   /** Delete every category that has no transactions attached. */
-  deleteUnused() {
-    return prisma.category.deleteMany({ where: { transactions: { none: {} } } });
+  deleteUnused(userId: string) {
+    return prisma.category.deleteMany({ where: { userId, transactions: { none: {} } } });
   },
 };

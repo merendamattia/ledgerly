@@ -5,6 +5,7 @@ import { serializeAccount, serializeTransaction } from "./serialize.ts";
 test("serializeAccount converts Decimal balance to a number", () => {
   const result = serializeAccount({
     id: "a1",
+    userId: "test-user",
     name: "Bank",
     type: "BANK",
     category: "LIQUIDITY",
@@ -21,6 +22,7 @@ test("serializeAccount converts Decimal balance to a number", () => {
 test("serializeTransaction converts Decimal amount to a number", () => {
   const result = serializeTransaction({
     id: "t1",
+    userId: "test-user",
     categoryId: null,
     date: new Date("2026-01-01"),
     amount: new Prisma.Decimal("80.00"),

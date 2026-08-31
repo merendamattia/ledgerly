@@ -4,12 +4,13 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, LogOut, Plus, Search } from "lucide-react";
 import { AppLogo } from "@/components/app-logo";
 import {
   PRIMARY_NAV_ITEMS,
-  SECONDARY_NAV_ITEMS,
   isNavItemActive,
+  visibleSecondaryNavItems,
 } from "@/components/app-navigation";
 import { useSearch } from "@/components/search-context";
 import {
@@ -33,6 +34,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { signOut, useSession } from "@/lib/auth-client";
+import { clearLedgerQueryCache } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 
 const AddTransactionDialog = dynamic(
@@ -98,6 +100,7 @@ export function AppTopbar() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session } = useSession();
+  const queryClient = useQueryClient();
   const { query, setQuery } = useSearch();
   const [addOpenFor, setAddOpenFor] = useState<string | null>(null);
   const meta = metaFor(pathname);
@@ -106,7 +109,8 @@ export function AppTopbar() {
   const showWealthNav = pathname.startsWith("/investments");
   const showAccounts = searchParams.get("view") === "accounts";
   const addMode = addModeFor(pathname);
-  const moreActive = SECONDARY_NAV_ITEMS.some((item) =>
+  const secondaryNavItems = visibleSecondaryNavItems(session?.user.role);
+  const moreActive = secondaryNavItems.some((item) =>
     isNavItemActive(pathname, item.href),
   );
 
@@ -150,6 +154,7 @@ export function AppTopbar() {
 
   async function handleSignOut() {
     await signOut();
+    clearLedgerQueryCache(queryClient);
     router.replace("/login");
   }
 
@@ -199,7 +204,7 @@ export function AppTopbar() {
               <DropdownMenuContent align="center" sideOffset={10} className="w-56 p-1.5">
                 <DropdownMenuGroup>
                   <DropdownMenuLabel>Workspace</DropdownMenuLabel>
-                  {SECONDARY_NAV_ITEMS.map((item) => (
+                  {secondaryNavItems.map((item) => (
                     <DropdownMenuItem
                       key={item.href}
                       render={<Link href={item.href} />}

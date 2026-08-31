@@ -22,7 +22,7 @@ function cachePayload(quote: Quote): CachedQuote {
 }
 
 /**
- * Latest close for a ticker. Cache-first: Redis, then the PriceHistory table.
+ * Latest close for a ticker. Cache-first: Redis, then the effective price history.
  * This read path NEVER calls external providers — prices are populated only by
  * the backfill and nightly cron services.
  */

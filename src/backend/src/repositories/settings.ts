@@ -1,21 +1,26 @@
 import { prisma } from "../core/db.ts";
 
-// Data access for the singleton settings row.
+// Data access for one user's settings row.
 export const settingsRepository = {
-  get() {
+  findByUserId(userId: string) {
+    return prisma.settings.findUnique({ where: { userId } });
+  },
+
+  get(userId: string) {
     return prisma.settings.upsert({
-      where: { id: "singleton" },
+      where: { userId },
       update: {},
-      create: { id: "singleton" },
+      create: { user: { connect: { id: userId } } },
     });
   },
 
-  async baseCurrency(): Promise<string> {
-    const settings = await this.get();
+  async baseCurrency(userId: string): Promise<string> {
+    const settings = await this.get(userId);
     return settings.baseCurrency;
   },
 
-  update(data: { baseCurrency?: string }) {
-    return prisma.settings.update({ where: { id: "singleton" }, data });
+  async update(userId: string, data: { baseCurrency?: string }) {
+    const settings = await this.get(userId);
+    return prisma.settings.update({ where: { id: settings.id }, data });
   },
 };
