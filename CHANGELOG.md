@@ -1,3 +1,22 @@
+# [2.1.0](https://github.com/merendamattia/ledgerly/compare/v2.0.0...v2.1.0) (2026-08-31)
+
+
+### Bug Fixes
+
+* **auth:** close admin route and FX gaps ([6d85b73](https://github.com/merendamattia/ledgerly/commit/6d85b73334020b157a89d6e63120a04748c9cf49))
+* **auth:** close provisioning onboarding race ([b050089](https://github.com/merendamattia/ledgerly/commit/b0500893d75381d6351325082a91cf93419877ea))
+* **auth:** isolate frontend cache by session ([c3dabbe](https://github.com/merendamattia/ledgerly/commit/c3dabbe70a96014652c6bcbbb5f71bc5f3ed9992))
+* **auth:** redirect after password setup ([795c886](https://github.com/merendamattia/ledgerly/commit/795c88668d12ee8234459bdf8745e4189ba08999))
+* **auth:** secure password changes and share provider prices ([ce1dfa9](https://github.com/merendamattia/ledgerly/commit/ce1dfa911949b466fbe34c07263d3c4573d2d409))
+* **frontend:** align snapshot account view ([5a5822c](https://github.com/merendamattia/ledgerly/commit/5a5822c5821ff1f47adc66a5c04c282283b9ff96))
+* **logo:** update application logo ([50e3644](https://github.com/merendamattia/ledgerly/commit/50e3644fcc1971696c9c53a153704ad8b04e2859))
+* **prices:** preserve legacy bond anchors ([46d5531](https://github.com/merendamattia/ledgerly/commit/46d553109f9c1ba4ac1bb93bdf9b6967733befd1))
+
+
+### Features
+
+* **auth:** add admin-managed multi-user accounts ([ed61670](https://github.com/merendamattia/ledgerly/commit/ed61670db84d026bf0a6235fd7a93d4ed1ef86bd))
+
 # [2.0.0](https://github.com/merendamattia/ledgerly/compare/v1.2.0...v2.0.0) (2026-08-28)
 
 
