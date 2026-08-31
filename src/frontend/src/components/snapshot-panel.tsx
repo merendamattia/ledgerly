@@ -7,6 +7,11 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MoneyAmount } from "@/components/money-amount";
+import {
+  ACCOUNT_BALANCE_ROW_CLASS,
+  ACCOUNT_TILE_CLASS,
+  ACCOUNT_TYPE_BADGE_CLASS,
+} from "@/components/mobile-account-layout";
 import { usePrivacyMode } from "@/components/privacy-mode";
 import { shortDate, todayISO } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -146,7 +151,7 @@ export function SnapshotPanel({
               rows.map((r) => (
                 <article
                   key={r.id}
-                  className="group rounded-2xl border bg-muted/20 p-4 transition-[background-color,box-shadow,transform] hover:-translate-y-0.5 hover:bg-card hover:shadow-card"
+                  className={ACCOUNT_TILE_CLASS}
                 >
                   <div className="flex min-w-0 items-start gap-3">
                     <span className={cn("flex size-10 shrink-0 items-center justify-center rounded-xl font-display text-sm font-semibold", accentClassName)}>
@@ -161,11 +166,11 @@ export function SnapshotPanel({
                     <div className="-mr-1 -mt-1 flex shrink-0">{rowAction?.(r)}</div>
                   </div>
 
-                  <div className="mt-4 flex items-end justify-between gap-3 border-t pt-3">
-                    <span className="rounded-md bg-card px-2 py-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase shadow-sm">
+                  <div className={ACCOUNT_BALANCE_ROW_CLASS}>
+                    <span className={ACCOUNT_TYPE_BADGE_CLASS}>
                       {r.type.replaceAll("_", " ")} · {r.currency}
                     </span>
-                    <label className="min-w-0 text-right">
+                    <label className="min-w-0 max-w-full justify-self-end text-right">
                       <span className="block text-[10px] text-muted-foreground">Current balance</span>
                       <Input
                         type={shouldHidePrivateNumbers ? "password" : "number"}
