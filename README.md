@@ -7,36 +7,39 @@
 
 ---
 
-Ledgerly is a self-hosted web app for tracking your **personal net worth and expenses**. It gives
-a centralized view of accounts, investments and cash flow, and **minimizes external provider
-calls** by storing all daily price/FX history in Postgres and caching hot reads in Redis — so your
-data stays on your own server and providers are hit only by background jobs.
+Ledgerly is a self-hosted app for tracking personal net worth and expenses. Accounts, investments
+and cash flow live in one place. Daily price and FX history is stored in Postgres, while Redis
+caches frequently requested data. Background jobs fetch provider data, so normal reads do not call
+providers directly.
+
+<p align="center">
+  <img src="images/ad.webp" alt="Ledgerly overview, wealth, cash flow and activity dashboards on desktop and mobile" width="900" />
+</p>
 
 ## App sections
 
-The UI is organized into four sections (the "modern ledger" design — see [`DESIGN.md`](./DESIGN.md)):
+The main UI has four sections. See [`DESIGN.md`](./DESIGN.md) for the "modern ledger" design notes.
 
-- **Overview** — net worth hero with trend, asset allocation, KPI cards (liquidity, investments,
-  monthly cash flow, savings rate), income-vs-expenses, expenses by category, recent movements,
-  and a **scheduled-jobs section** with run history and a manual "Run now".
-- **Assets & Investments** — portfolio, performance and allocation. *(Scaffold for now; data
-  foundations — tickers, holdings, daily price/FX history — are already in place.)*
-- **Expenses & Cash Flow** — income/expense totals, monthly cash-flow chart, where-money-goes
-  category breakdown, and cumulative savings.
-- **Transactions** — one unified table of all movements (income, expense and, in future,
-  investment buy/sell) with filter chips and a period selector.
+- Overview shows net worth trends, asset allocation, liquidity, investments, monthly cash flow,
+  savings rate, recent movements, and scheduled job history. Administrators can also run jobs
+  manually.
+- Assets & Investments covers portfolio performance and allocation. The interface is currently
+  scaffolded, while tickers, holdings, and daily price and FX history are already in place.
+- Expenses & Cash Flow shows income, expenses, monthly cash flow, category breakdowns, and
+  cumulative savings.
+- Transactions keeps income and expenses in one table with filters and a period selector. The same
+  table is intended to include investment trades in the future.
 
 ## Features
 
-- **Net worth** — cash accounts + investments valued in a single base currency, with a daily
-  snapshot history.
-- **Investments** — add an asset by ticker (e.g. `CSSPX.MI`, `AAPL`, `BTC`); Ledgerly
-  downloads the **full daily closing-price history** automatically and tracks your holdings'
-  value and gain.
-- **Transactions** — income/expense transactions with user-managed categories, surfaced both as
-  a unified ledger and as cash-flow analytics.
-- **Caching** — a nightly job refreshes only the missing daily closes; reads are served
-  cache-first from Redis, then Postgres. External providers are only hit by backfill/cron.
+- Net worth combines cash accounts and investments in one base currency and keeps a daily snapshot
+  history.
+- Investments can be added by ticker, such as `CSSPX.MI`, `AAPL`, or `BTC`. Ledgerly downloads the
+  available daily closing-price history and tracks each holding's value and gain.
+- Transactions use categories managed by the user and appear in both the ledger and cash-flow
+  reports.
+- A nightly job fetches missing daily closes. Reads check Redis first and fall back to Postgres;
+  only backfills and scheduled jobs call external providers.
 
 ## Stack
 
@@ -56,8 +59,8 @@ src/
   frontend/  Next.js UI — talks ONLY to the backend over /api/* (typed RPC client)
 ```
 
-The frontend never accesses the database or external services directly: every request goes
-through the backend. Types flow end-to-end via the backend's exported `AppType`.
+The frontend never accesses the database or external services directly. Every request goes through
+the backend, and the exported `AppType` carries request and response types to the frontend.
 
 ## Run locally
 
@@ -102,7 +105,7 @@ new accounts receive a copy of the administrator's current settings when they ar
 | `bun run db:migrate`    | Create/apply a Prisma migration (dev)   |
 | `bun run db:seed`       | Seed system cron job definitions         |
 
-Database changes must always go through **Prisma migrations** (never `db push`).
+Database changes must go through Prisma migrations, never `db push`.
 
 ## Tests & checks
 
@@ -116,25 +119,25 @@ services, so broken code never lands on the main branch.
 
 ## Deployment (Coolify)
 
-Deploy [`docker-compose.prod.yml`](./docker-compose.prod.yml) — it builds **backend + frontend**
-only (repo root as build context, using the existing Dockerfiles). Postgres and Redis are managed
-Coolify resources passed in via env.
+Deploy [`docker-compose.prod.yml`](./docker-compose.prod.yml). It builds the backend and frontend
+from the repository root. Postgres and Redis are managed Coolify resources passed in through
+environment variables.
 
-- Backend: `src/backend/Dockerfile` (runs `prisma migrate deploy` + seed on start).
-- Frontend: `src/frontend/Dockerfile` (`NEXT_PUBLIC_API_URL` build-arg, baked into the bundle →
-  must be the **public** backend URL).
+- Backend: `src/backend/Dockerfile` runs `prisma migrate deploy` and the seed command on start.
+- Frontend: `src/frontend/Dockerfile` bakes the `NEXT_PUBLIC_API_URL` build argument into the bundle,
+  so it must contain the public backend URL.
 
 Set the environment variables (see [`.env.production.example`](./.env.production.example)):
 
-- From the **PostgreSQL** resource → `DATABASE_URL` (internal host, port 5432).
-- From the **Redis** resource → `REDIS_URL` (internal host).
+- Set `DATABASE_URL` from the PostgreSQL resource (internal host, port 5432).
+- Set `REDIS_URL` from the Redis resource (internal host).
 - `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `CRON_SECRET`,
   `FRONTEND_URL`, `NEXT_PUBLIC_API_URL`.
 
-The **nightly price job runs in-process** in the backend (croner, 02:20 `Europe/Rome` by default;
-per-job schedules come from the seeded `CronJob` rows, while `CRON_TIMEZONE` sets the timezone).
-**No Coolify scheduled task is required.** The HTTP endpoint stays available for the cron secret
-or an administrator's manual trigger:
+The nightly price job runs inside the backend process with croner. Its default schedule is 02:20
+in `Europe/Rome`; seeded `CronJob` rows define each job schedule, and `CRON_TIMEZONE` sets the
+timezone. Coolify does not need a separate scheduled task. The HTTP endpoint remains available to
+the cron secret and to administrators who run it manually:
 
 ```bash
 curl -X POST "$BACKEND_URL/api/cron/nightly-prices/run" -H "x-cron-secret: $CRON_SECRET"
