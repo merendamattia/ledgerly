@@ -10,13 +10,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
-import { authClient, useSession } from "@/lib/auth-client";
+import { useSession } from "@/lib/auth-client";
 import { useChangePassword } from "@/hooks/use-users";
 
 /** Forces temporary-password accounts through the first credential change. */
 export default function ChangePasswordPage() {
   const router = useRouter();
-  const { data: session, isPending } = useSession();
+  const { data: session, isPending, refetch } = useSession();
   const changePassword = useChangePassword();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -39,7 +39,7 @@ export default function ChangePasswordPage() {
       { currentPassword, newPassword, confirmation },
       {
         onSuccess: async () => {
-          await authClient.getSession();
+          await refetch();
           toast.success("Password updated");
           router.replace("/");
         },
