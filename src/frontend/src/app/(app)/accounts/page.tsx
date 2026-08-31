@@ -6,6 +6,11 @@ import { PageHeader } from "@/components/page-header";
 import { MoneyAmount } from "@/components/money-amount";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { AddAccountDialog } from "@/components/add-account-dialog";
+import {
+  ACCOUNT_BALANCE_ROW_CLASS,
+  ACCOUNT_TILE_CLASS,
+  ACCOUNT_TYPE_BADGE_CLASS,
+} from "@/components/mobile-account-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -68,7 +73,7 @@ const SECTION_STYLE: Record<string, { icon: typeof WalletCards; surface: string;
 function AccountTile({ account, onDelete }: { account: Account; onDelete: () => void }) {
   const style = SECTION_STYLE[account.category] ?? SECTION_STYLE.LIQUIDITY;
   return (
-    <article className="group rounded-2xl border bg-muted/20 p-4 transition-[background-color,box-shadow,transform] hover:-translate-y-0.5 hover:bg-card hover:shadow-card">
+    <article className={ACCOUNT_TILE_CLASS}>
       <div className="flex min-w-0 items-start gap-3">
         <span
           className={cn(
@@ -108,11 +113,11 @@ function AccountTile({ account, onDelete }: { account: Account; onDelete: () => 
         </div>
       </div>
 
-      <div className="mt-4 flex items-end justify-between gap-3 border-t pt-3">
-        <span className="rounded-md bg-card px-2 py-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase shadow-sm">
+      <div className={ACCOUNT_BALANCE_ROW_CLASS}>
+        <span className={ACCOUNT_TYPE_BADGE_CLASS}>
           {account.type.replaceAll("_", " ")} · {account.currency}
         </span>
-        <span className="text-right">
+        <span className="min-w-0 max-w-full justify-self-end text-right">
           <span className="block text-[10px] text-muted-foreground">Current balance</span>
           <MoneyAmount
             value={account.balance}
