@@ -33,8 +33,9 @@ utils/      pure helpers (no I/O)
   account model is `CashAccount` to avoid the name clash.
 
 ## Auth
-Single-user. Sign-up is blocked once a user exists (hook in `core/auth.ts`); the admin is
-created at startup from `ADMIN_EMAIL`/`ADMIN_PASSWORD` (`core/bootstrap.ts`).
+Public sign-up is disabled. The initial administrator is created at startup from
+`ADMIN_EMAIL`/`ADMIN_PASSWORD` (`core/bootstrap.ts`); administrators provision member accounts
+through the Better Auth admin API, and all financial repositories require the authenticated owner.
 
 ## Commands
 - `bun run dev` (hot reload) · `bun start` · `bun test` · `bunx tsc --noEmit`

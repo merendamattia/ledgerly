@@ -29,9 +29,9 @@ function whereFromFilters(f: InvestmentTxFilters): Prisma.InvestmentTransactionW
 
 // Data access for investment buy/sell movements.
 export const investmentTransactionRepository = {
-  list(filters: InvestmentTxFilters = {}) {
+  list(userId: string, filters: InvestmentTxFilters = {}) {
     return prisma.investmentTransaction.findMany({
-      where: whereFromFilters(filters),
+      where: { userId, ...whereFromFilters(filters) },
       include: { ticker: true, cashAccount: true },
       orderBy: [{ date: "desc" }, { createdAt: "desc" }],
       take: filters.limit,
@@ -40,26 +40,36 @@ export const investmentTransactionRepository = {
   },
 
   /** All movements for a ticker, oldest first — used to recompute its holding. */
-  listByTicker(tickerId: string) {
+  listByTicker(userId: string, tickerId: string) {
     return prisma.investmentTransaction.findMany({
-      where: { tickerId },
+      where: { userId, tickerId },
       orderBy: [{ date: "asc" }, { createdAt: "asc" }],
     });
   },
 
-  findById(id: string) {
-    return prisma.investmentTransaction.findUnique({
-      where: { id },
+  /** All movements for one user, oldest first, for portfolio calculations. */
+  listAll(userId: string) {
+    return prisma.investmentTransaction.findMany({
+      where: { userId },
+      include: { ticker: true, cashAccount: true },
+      orderBy: [{ date: "asc" }, { createdAt: "asc" }],
+    });
+  },
+
+  findById(userId: string, id: string) {
+    return prisma.investmentTransaction.findFirst({
+      where: { id, userId },
       include: { ticker: true, cashAccount: true },
     });
   },
 
   /** Minimal fields needed to dedup an import against existing movements. */
-  async naturalKeys(filters: InvestmentNaturalKeyFilters = {}) {
+  async naturalKeys(userId: string, filters: InvestmentNaturalKeyFilters = {}) {
     if (filters.tickerIds?.length === 0) return [];
 
     return prisma.investmentTransaction.findMany({
       where: {
+        userId,
         tickerId: filters.tickerIds ? { in: filters.tickerIds } : undefined,
         date:
           filters.from || filters.to
@@ -70,18 +80,21 @@ export const investmentTransactionRepository = {
     });
   },
 
-  create(data: Prisma.InvestmentTransactionCreateInput) {
+  create(userId: string, data: Omit<Prisma.InvestmentTransactionCreateInput, "user">) {
     return prisma.investmentTransaction.create({
-      data,
+      data: { ...data, user: { connect: { id: userId } } },
       include: { ticker: true, cashAccount: true },
     });
   },
 
-  createMany(data: Prisma.InvestmentTransactionCreateManyInput[]) {
-    return prisma.investmentTransaction.createMany({ data });
+  createMany(userId: string, data: Omit<Prisma.InvestmentTransactionCreateManyInput, "userId">[]) {
+    return prisma.investmentTransaction.createMany({
+      data: data.map((row) => ({ ...row, userId })),
+    });
   },
 
-  update(id: string, data: Prisma.InvestmentTransactionUpdateInput) {
+  async update(userId: string, id: string, data: Prisma.InvestmentTransactionUpdateInput) {
+    if (!(await this.findById(userId, id))) return null;
     return prisma.investmentTransaction.update({
       where: { id },
       data,
@@ -89,7 +102,8 @@ export const investmentTransactionRepository = {
     });
   },
 
-  delete(id: string) {
+  async delete(userId: string, id: string) {
+    if (!(await this.findById(userId, id))) return null;
     return prisma.investmentTransaction.delete({ where: { id } });
   },
 };

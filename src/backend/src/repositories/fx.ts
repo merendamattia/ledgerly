@@ -35,4 +35,12 @@ export const fxRepository = {
       orderBy: { date: "desc" },
     });
   },
+
+  series(base: string, quote: string) {
+    return prisma.fxRate.findMany({
+      where: { base, quote },
+      orderBy: { date: "asc" },
+      select: { date: true, rate: true },
+    });
+  },
 };

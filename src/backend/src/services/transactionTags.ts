@@ -9,13 +9,13 @@ import { extractTags } from "../utils/tags.ts";
 
 type TagFilters = Pick<TransactionFilters, "from" | "to" | "categoryId" | "direction">;
 
-export async function listTransactionTags(filters: TagFilters = {}): Promise<string[]> {
-  const cached = await getCachedTransactionTags(filters);
+export async function listTransactionTags(userId: string, filters: TagFilters = {}): Promise<string[]> {
+  const cached = await getCachedTransactionTags(userId, filters);
   if (cached) return cached;
 
   const seen = new Set<string>();
   const tags: string[] = [];
-  for (const row of await transactionRepository.tagNotes(filters)) {
+  for (const row of await transactionRepository.tagNotes(userId, filters)) {
     for (const tag of extractTags(row.note)) {
       const normalized = tag.toLowerCase();
       if (seen.has(normalized)) continue;
@@ -24,7 +24,7 @@ export async function listTransactionTags(filters: TagFilters = {}): Promise<str
     }
   }
 
-  await cacheTransactionTags(filters, tags);
+  await cacheTransactionTags(userId, filters, tags);
   return tags;
 }
 

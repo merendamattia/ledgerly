@@ -3,38 +3,44 @@ import { prisma } from "../core/db.ts";
 
 // Data access for investment holdings.
 export const holdingRepository = {
-  list() {
+  list(userId: string) {
     return prisma.holding.findMany({
+      where: { userId },
       include: { ticker: true, cashAccount: true },
       orderBy: { createdAt: "desc" },
     });
   },
 
-  findById(id: string) {
-    return prisma.holding.findUnique({ where: { id }, include: { ticker: true } });
+  findById(userId: string, id: string) {
+    return prisma.holding.findFirst({ where: { id, userId }, include: { ticker: true } });
   },
 
-  create(data: Prisma.HoldingCreateInput) {
-    return prisma.holding.create({ data, include: { ticker: true } });
+  create(userId: string, data: Omit<Prisma.HoldingCreateInput, "user">) {
+    return prisma.holding.create({
+      data: { ...data, user: { connect: { id: userId } } },
+      include: { ticker: true },
+    });
   },
 
-  update(id: string, data: Prisma.HoldingUpdateInput) {
+  async update(userId: string, id: string, data: Prisma.HoldingUpdateInput) {
+    if (!(await this.findById(userId, id))) return null;
     return prisma.holding.update({ where: { id }, data, include: { ticker: true } });
   },
 
-  delete(id: string) {
+  async delete(userId: string, id: string) {
+    if (!(await this.findById(userId, id))) return null;
     return prisma.holding.delete({ where: { id } });
   },
 
-  countByTicker(tickerId: string) {
-    return prisma.holding.count({ where: { tickerId } });
+  countByTicker(userId: string, tickerId: string) {
+    return prisma.holding.count({ where: { userId, tickerId } });
   },
 
-  findByTicker(tickerId: string) {
-    return prisma.holding.findFirst({ where: { tickerId } });
+  findByTicker(userId: string, tickerId: string) {
+    return prisma.holding.findFirst({ where: { userId, tickerId } });
   },
 
-  deleteByTicker(tickerId: string) {
-    return prisma.holding.deleteMany({ where: { tickerId } });
+  deleteByTicker(userId: string, tickerId: string) {
+    return prisma.holding.deleteMany({ where: { userId, tickerId } });
   },
 };

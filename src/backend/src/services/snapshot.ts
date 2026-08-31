@@ -5,6 +5,7 @@ import { cashAccountRepository } from "../repositories/cashAccount.ts";
 import { debtSnapshotRepository } from "../repositories/debtSnapshot.ts";
 import { debtRepository } from "../repositories/debt.ts";
 import { computeNetWorth } from "./valuation.ts";
+import { NotFoundError } from "../core/errors.ts";
 
 /** Truncate a date to UTC midnight (matches the @db.Date column). */
 function toUtcDate(date: Date): Date {
@@ -16,12 +17,16 @@ function toUtcDate(date: Date): Date {
  * `date` (idempotent per day). This is what builds the cash/debt history the
  * net-worth chart reads, so the nightly job records one point per day.
  */
-export async function createDailyBalanceSnapshots(date: Date = new Date()) {
+export async function createDailyBalanceSnapshots(userId: string, date: Date = new Date()) {
   const day = toUtcDate(date);
-  const [accounts, debts] = await Promise.all([cashAccountRepository.list(), debtRepository.list()]);
+  const [accounts, debts] = await Promise.all([
+    cashAccountRepository.list(userId),
+    debtRepository.list(userId),
+  ]);
   await Promise.all([
     ...accounts.map((account) =>
       cashSnapshotRepository.upsertForAccountDate(
+        userId,
         account.id,
         day,
         Number(account.balance),
@@ -29,7 +34,7 @@ export async function createDailyBalanceSnapshots(date: Date = new Date()) {
       ),
     ),
     ...debts.map((debt) =>
-      debtSnapshotRepository.upsertForDebtDate(debt.id, day, Number(debt.amount), debt.note),
+      debtSnapshotRepository.upsertForDebtDate(userId, debt.id, day, Number(debt.amount), debt.note),
     ),
   ]);
 }
@@ -38,10 +43,10 @@ export async function createDailyBalanceSnapshots(date: Date = new Date()) {
  * Compute and persist today's net worth snapshot. Idempotent per date: running
  * it again on the same day updates the existing row.
  */
-export async function createDailySnapshot(date: Date = new Date()) {
-  const netWorth = await computeNetWorth();
+export async function createDailySnapshot(userId: string, date: Date = new Date()) {
+  const netWorth = await computeNetWorth(userId);
   const day = toUtcDate(date);
-  return snapshotRepository.upsertForDate(day, netWorth.total, {
+  return snapshotRepository.upsertForDate(userId, day, netWorth.total, {
     cash: netWorth.cash,
     credits: netWorth.credits,
     otherAssets: netWorth.otherAssets,
@@ -56,6 +61,7 @@ export async function createDailySnapshot(date: Date = new Date()) {
  * upserts the account's snapshot for `date` and refreshes its cached `balance`.
  */
 export async function createCashSnapshot(
+  userId: string,
   date: Date,
   entries: { accountId: string; balance: number; note?: string | null }[],
 ) {
@@ -63,12 +69,17 @@ export async function createCashSnapshot(
   const snapshots = [];
   for (const entry of entries) {
     const snap = await cashSnapshotRepository.upsertForAccountDate(
+      userId,
       entry.accountId,
       day,
       entry.balance,
       entry.note,
     );
-    await cashAccountRepository.update(entry.accountId, { balance: entry.balance });
+    if (!snap) throw new NotFoundError("Cash account not found");
+    const account = await cashAccountRepository.update(userId, entry.accountId, {
+      balance: entry.balance,
+    });
+    if (!account) throw new NotFoundError("Cash account not found");
     snapshots.push(snap);
   }
   return snapshots;
@@ -79,12 +90,12 @@ export async function createCashSnapshot(
  * recent remaining snapshot (or 0 if none are left). Returns the deleted row, or
  * null if the id doesn't exist.
  */
-export async function deleteCashSnapshot(id: string) {
-  const snap = await cashSnapshotRepository.findById(id);
+export async function deleteCashSnapshot(userId: string, id: string) {
+  const snap = await cashSnapshotRepository.findById(userId, id);
   if (!snap) return null;
-  await cashSnapshotRepository.deleteById(id);
-  const latest = await cashSnapshotRepository.latestForAccount(snap.cashAccountId);
-  await cashAccountRepository.update(snap.cashAccountId, {
+  await cashSnapshotRepository.deleteById(userId, id);
+  const latest = await cashSnapshotRepository.latestForAccount(userId, snap.cashAccountId);
+  await cashAccountRepository.update(userId, snap.cashAccountId, {
     balance: latest ? Number(latest.balance) : 0,
   });
   return snap;
@@ -95,13 +106,13 @@ export async function deleteCashSnapshot(id: string) {
  * accounts that actually had snapshots. After this operation they have no
  * remaining dated source of truth, so their cached balance becomes 0.
  */
-export async function deleteCashSnapshotsByCategory(category: CashCategory) {
-  const accountIds = (await cashSnapshotRepository.accountIdsByCategory(category)).map(
+export async function deleteCashSnapshotsByCategory(userId: string, category: CashCategory) {
+  const accountIds = (await cashSnapshotRepository.accountIdsByCategory(userId, category)).map(
     (row) => row.cashAccountId,
   );
   if (accountIds.length === 0) return { deleted: 0 };
-  const result = await cashSnapshotRepository.deleteByAccountCategory(category);
-  await cashAccountRepository.resetBalances(accountIds);
+  const result = await cashSnapshotRepository.deleteByAccountCategory(userId, category);
+  await cashAccountRepository.resetBalances(userId, accountIds);
   return { deleted: result.count };
 }
 
@@ -110,6 +121,7 @@ export async function deleteCashSnapshotsByCategory(category: CashCategory) {
  * debt's snapshot for `date` and refreshes its cached `amount`.
  */
 export async function createDebtSnapshot(
+  userId: string,
   date: Date,
   entries: { debtId: string; amount: number; note?: string | null }[],
 ) {
@@ -117,12 +129,15 @@ export async function createDebtSnapshot(
   const snapshots = [];
   for (const entry of entries) {
     const snap = await debtSnapshotRepository.upsertForDebtDate(
+      userId,
       entry.debtId,
       day,
       entry.amount,
       entry.note,
     );
-    await debtRepository.update(entry.debtId, { amount: entry.amount });
+    if (!snap) throw new NotFoundError("Debt not found");
+    const debt = await debtRepository.update(userId, entry.debtId, { amount: entry.amount });
+    if (!debt) throw new NotFoundError("Debt not found");
     snapshots.push(snap);
   }
   return snapshots;
@@ -133,12 +148,12 @@ export async function createDebtSnapshot(
  * recent remaining snapshot (or 0 if none are left). Returns the deleted row, or
  * null if the id doesn't exist.
  */
-export async function deleteDebtSnapshot(id: string) {
-  const snap = await debtSnapshotRepository.findById(id);
+export async function deleteDebtSnapshot(userId: string, id: string) {
+  const snap = await debtSnapshotRepository.findById(userId, id);
   if (!snap) return null;
-  await debtSnapshotRepository.deleteById(id);
-  const latest = await debtSnapshotRepository.latestForDebt(snap.debtId);
-  await debtRepository.update(snap.debtId, {
+  await debtSnapshotRepository.deleteById(userId, id);
+  const latest = await debtSnapshotRepository.latestForDebt(userId, snap.debtId);
+  await debtRepository.update(userId, snap.debtId, {
     amount: latest ? Number(latest.amount) : 0,
   });
   return snap;
@@ -148,10 +163,10 @@ export async function deleteDebtSnapshot(id: string) {
  * Delete every debt snapshot and reset only debts that had at least one
  * snapshot. Once the history is gone, no dated amount remains to cache.
  */
-export async function deleteAllDebtSnapshots() {
-  const debtIds = (await debtSnapshotRepository.debtIdsWithSnapshots()).map((row) => row.debtId);
+export async function deleteAllDebtSnapshots(userId: string) {
+  const debtIds = (await debtSnapshotRepository.debtIdsWithSnapshots(userId)).map((row) => row.debtId);
   if (debtIds.length === 0) return { deleted: 0 };
-  const result = await debtSnapshotRepository.deleteAll();
-  await debtRepository.resetAmounts(debtIds);
+  const result = await debtSnapshotRepository.deleteAll(userId);
+  await debtRepository.resetAmounts(userId, debtIds);
   return { deleted: result.count };
 }

@@ -23,6 +23,7 @@ import { pillarsRoutes } from "./routes/pillars.ts";
 import { cronRoutes } from "./routes/cron.ts";
 import { dashboardRoutes } from "./routes/dashboard.ts";
 import { databaseRoutes } from "./routes/database.ts";
+import { usersRoutes } from "./routes/users.ts";
 
 // The Hono app is the backend's only HTTP surface. Routes are transport-only:
 // they validate input, delegate to services, and shape responses. All domain
@@ -40,8 +41,21 @@ app.use(
   }),
 );
 
-// Better Auth owns everything under /api/auth/*.
-app.on(["GET", "POST"], "/auth/*", (c) => auth.handler(c.req.raw));
+// Better Auth owns the public/session endpoints under /api/auth/*. The admin
+// plugin remains available to server-side callers, but its HTTP namespace is
+// intentionally not exposed: Ledgerly's users route applies onboarding,
+// provisioning, and role policy around account creation.
+app.on(["GET", "POST"], "/auth/*", (c) => {
+  const pathname = new URL(c.req.url).pathname;
+  if (
+    pathname === "/api/auth/change-password" ||
+    pathname === "/api/auth/admin" ||
+    pathname.startsWith("/api/auth/admin/")
+  ) {
+    return c.json({ error: "Not Found" }, 404);
+  }
+  return auth.handler(c.req.raw);
+});
 
 app.onError((err, c) => {
   // Domain errors carry their own HTTP status.
@@ -62,6 +76,7 @@ app.notFound((c) => c.json({ error: "Not Found" }, 404));
 // for the frontend's typed Hono RPC client.
 const routes = app
   .get("/health", (c) => c.json({ status: "ok" as const }))
+  .route("/users", usersRoutes)
   .route("/settings", settingsRoutes)
   .route("/accounts", accountsRoutes)
   .route("/categories", categoriesRoutes)

@@ -10,6 +10,7 @@ import { DataTable, type Column } from "@/components/data-table";
 import { useTables, useTableData } from "@/hooks/use-database";
 import { truncate } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { AdminGuard } from "@/components/admin-guard";
 
 const PAGE = 50;
 type Row = Record<string, unknown>;
@@ -82,67 +83,69 @@ export default function DatabasePage() {
   const hasMore = rows.length < total;
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader title="Database" description="Read-only browser for every table in the database." />
+    <AdminGuard>
+      <div className="flex flex-col gap-6">
+        <PageHeader title="Database" description="Read-only browser for every table in the database." />
 
-      <Card>
-        <CardContent className="flex flex-col gap-0 p-0 md:flex-row">
-          <nav className="flex shrink-0 gap-1 overflow-x-auto border-b p-2 md:max-h-[70vh] md:w-56 md:flex-col md:overflow-x-visible md:overflow-y-auto md:border-r md:border-b-0">
-            {tableList.map((t) => (
-              <Button
-                key={t}
-                variant="ghost"
-                size="sm"
-                aria-current={t === active ? "true" : undefined}
-                onClick={() => pickTable(t)}
-                className={cn(
-                  "shrink-0 justify-start font-mono text-xs md:w-full",
-                  t === active && "bg-accent text-accent-foreground",
-                )}
-              >
-                {t}
-              </Button>
-            ))}
-          </nav>
-
-          <div className="flex min-w-0 flex-1 flex-col gap-4 p-4">
-            <div className="relative w-full max-w-xs">
-              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={searchInput}
-                onChange={(e) => onSearch(e.target.value)}
-                placeholder="Search this table…"
-                className="pl-9"
-              />
-            </div>
-
-            <div className="overflow-x-auto">
-              <DataTable
-                columns={columns}
-                data={rows}
-                getRowKey={(r) => String(r.id ?? JSON.stringify(r))}
-                isLoading={data.isLoading}
-                emptyState={
-                  <span className="text-sm text-muted-foreground">
-                    {search ? "No rows match your search." : "This table is empty."}
-                  </span>
-                }
-              />
-            </div>
-
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span className="tabular-nums">
-                Showing {rows.length} of {total} row{total === 1 ? "" : "s"}
-              </span>
-              {hasMore && (
-                <Button variant="outline" size="sm" onClick={() => setLimit((l) => l + PAGE)}>
-                  Load more
+        <Card>
+          <CardContent className="flex flex-col gap-0 p-0 md:flex-row">
+            <nav className="flex shrink-0 gap-1 overflow-x-auto border-b p-2 md:max-h-[70vh] md:w-56 md:flex-col md:overflow-x-visible md:overflow-y-auto md:border-r md:border-b-0">
+              {tableList.map((t) => (
+                <Button
+                  key={t}
+                  variant="ghost"
+                  size="sm"
+                  aria-current={t === active ? "true" : undefined}
+                  onClick={() => pickTable(t)}
+                  className={cn(
+                    "shrink-0 justify-start font-mono text-xs md:w-full",
+                    t === active && "bg-accent text-accent-foreground",
+                  )}
+                >
+                  {t}
                 </Button>
-              )}
+              ))}
+            </nav>
+
+            <div className="flex min-w-0 flex-1 flex-col gap-4 p-4">
+              <div className="relative w-full max-w-xs">
+                <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={searchInput}
+                  onChange={(e) => onSearch(e.target.value)}
+                  placeholder="Search this table…"
+                  className="pl-9"
+                />
+              </div>
+
+              <div className="overflow-x-auto">
+                <DataTable
+                  columns={columns}
+                  data={rows}
+                  getRowKey={(r) => String(r.id ?? JSON.stringify(r))}
+                  isLoading={data.isLoading}
+                  emptyState={
+                    <span className="text-sm text-muted-foreground">
+                      {search ? "No rows match your search." : "This table is empty."}
+                    </span>
+                  }
+                />
+              </div>
+
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span className="tabular-nums">
+                  Showing {rows.length} of {total} row{total === 1 ? "" : "s"}
+                </span>
+                {hasMore && (
+                  <Button variant="outline" size="sm" onClick={() => setLimit((l) => l + PAGE)}>
+                    Load more
+                  </Button>
+                )}
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+          </CardContent>
+        </Card>
+      </div>
+    </AdminGuard>
   );
 }

@@ -4,6 +4,7 @@ import { cashAccountRepository } from "../repositories/cashAccount.ts";
 import { debtRepository } from "../repositories/debt.ts";
 import { createCashSnapshot, createDebtSnapshot } from "./snapshot.ts";
 import { parseInvestmentDate, parseLocaleNumber } from "../utils/investment-csv.ts";
+import { NotFoundError } from "../core/errors.ts";
 
 type CommitInput = z.infer<typeof snapshotImportCommitSchema>;
 
@@ -25,7 +26,7 @@ export const snapshotImportService = {
    * then upserts a dated snapshot per (account, date). Rows are applied oldest →
    * newest so each account's cached balance ends at its most recent value.
    */
-  async commit(input: CommitInput): Promise<SnapshotImportResult> {
+  async commit(userId: string, input: CommitInput): Promise<SnapshotImportResult> {
     const result: SnapshotImportResult = {
       accountsCreated: 0,
       snapshotsImported: 0,
@@ -36,21 +37,30 @@ export const snapshotImportService = {
     // 1. Resolve every non-skipped column to a concrete cash account / debt.
     const targetByIndex = new Map<number, Target>();
     for (const col of input.columns) {
-      if (col.action === "skip") continue;
-      if (col.action === "existing") {
-        targetByIndex.set(col.index, { kind: col.kind, id: col.id });
-        continue;
+      if (col.action !== "existing") continue;
+      const target = col.kind === "DEBT"
+        ? await debtRepository.findById(userId, col.id)
+        : await cashAccountRepository.findById(userId, col.id);
+      if (!target) {
+        throw new NotFoundError(
+          col.kind === "DEBT" ? "Debt not found" : "Cash account not found",
+        );
       }
+      targetByIndex.set(col.index, { kind: col.kind, id: col.id });
+    }
+
+    for (const col of input.columns) {
+      if (col.action !== "create") continue;
       // create
       if (col.kind === "DEBT") {
-        const debt = await debtRepository.create({
+        const debt = await debtRepository.create(userId, {
           name: col.name,
           currency: col.currency,
           amount: 0,
         });
         targetByIndex.set(col.index, { kind: "DEBT", id: debt.id });
       } else {
-        const account = await cashAccountRepository.create({
+        const account = await cashAccountRepository.create(userId, {
           name: col.name,
           category: col.kind,
           currency: col.currency,
@@ -94,11 +104,11 @@ export const snapshotImportService = {
     parsed.sort((a, b) => a.date.getTime() - b.date.getTime());
     for (const p of parsed) {
       if (p.cash.length > 0) {
-        await createCashSnapshot(p.date, p.cash);
+        await createCashSnapshot(userId, p.date, p.cash);
         result.snapshotsImported += p.cash.length;
       }
       if (p.debt.length > 0) {
-        await createDebtSnapshot(p.date, p.debt);
+        await createDebtSnapshot(userId, p.date, p.debt);
         result.snapshotsImported += p.debt.length;
       }
     }

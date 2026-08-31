@@ -4,7 +4,7 @@ import { ensureAdminUser } from "./core/bootstrap.ts";
 import { startScheduler } from "./services/cron/scheduler.ts";
 import { logger } from "./core/logger.ts";
 
-// Ensure the single admin user exists before accepting traffic.
+// Ensure the bootstrap admin exists and has personal defaults before accepting traffic.
 await ensureAdminUser();
 
 // Start the in-process nightly scheduler (no external Coolify task needed).

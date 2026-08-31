@@ -10,6 +10,11 @@
     "dev:backend": "bun --filter ledgerly-backend dev",
     "dev:frontend": "bun --filter ledgerly-frontend dev",
     "db:migrate": "bun --filter ledgerly-backend db:migrate",
-    "db:seed": "bun --filter ledgerly-backend db:seed"
+    "db:generate": "bun --filter ledgerly-backend db:generate",
+    "db:deploy": "bun --filter ledgerly-backend db:deploy",
+    "db:seed": "bun --filter ledgerly-backend db:seed",
+    "typecheck": "bun --filter ledgerly-backend typecheck",
+    "lint": "bun --filter ledgerly-frontend lint",
+    "verify": "bun run typecheck && bun run lint && bun run test"
   }
 }

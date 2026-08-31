@@ -12,13 +12,15 @@ import type { AppEnv } from "../types.ts";
 export const dashboardRoutes = new Hono<AppEnv>()
   .use("*", requireAuth)
   .get("/networth-history", async (c) => {
-    const points = await computeNetWorthHistory();
+    const points = await computeNetWorthHistory(c.get("user").id);
     return c.json(points);
   })
-  .get("/asset-matrix", async (c) => c.json(await computeAssetMatrix()))
-  .get("/asset-return-matrix", async (c) => c.json(await computeAssetReturnMatrix()))
-  .get("/cashflow-matrix", async (c) => c.json(await computeCashflowMatrix()))
+  .get("/asset-matrix", async (c) => c.json(await computeAssetMatrix(c.get("user").id)))
+  .get("/asset-return-matrix", async (c) =>
+    c.json(await computeAssetReturnMatrix(c.get("user").id)),
+  )
+  .get("/cashflow-matrix", async (c) => c.json(await computeCashflowMatrix(c.get("user").id)))
   .get("/", zValidator("query", dashboardQuerySchema), async (c) => {
-    const data = await getDashboardData(c.req.valid("query").months ?? 6);
+    const data = await getDashboardData(c.get("user").id, c.req.valid("query").months ?? 6);
     return c.json(data);
   });

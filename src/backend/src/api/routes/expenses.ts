@@ -3,6 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import type { Prisma } from "@prisma/client";
 import { requireAuth } from "../middlewares/auth.ts";
 import { transactionRepository } from "../../repositories/transaction.ts";
+import { categoryRepository } from "../../repositories/category.ts";
 import {
   createTransactionSchema,
   transactionTagsQuerySchema,
@@ -12,6 +13,7 @@ import {
 } from "../../schemas/index.ts";
 import { listTransactionTags } from "../../services/transactionTags.ts";
 import { serializeTransaction } from "../../utils/serialize.ts";
+import { NotFoundError } from "../../core/errors.ts";
 import type { AppEnv } from "../types.ts";
 
 type TxInput = Partial<{
@@ -40,21 +42,24 @@ function toTxData(input: TxInput): Prisma.TransactionUpdateInput {
 export const expensesRoutes = new Hono<AppEnv>()
   .use("*", requireAuth)
   .get("/tags", zValidator("query", transactionTagsQuerySchema), async (c) => {
-    const tags = await listTransactionTags(c.req.valid("query"));
+    const tags = await listTransactionTags(c.get("user").id, c.req.valid("query"));
     return c.json({ tags });
   })
   .get("/summary", zValidator("query", transactionSummaryQuerySchema), async (c) => {
-    const summary = await transactionRepository.summary(c.req.valid("query"));
+    const summary = await transactionRepository.summary(c.get("user").id, c.req.valid("query"));
     return c.json(summary);
   })
   .get("/", zValidator("query", transactionFiltersSchema), async (c) => {
     const filters = c.req.valid("query");
-    const transactions = await transactionRepository.list(filters);
+    const transactions = await transactionRepository.list(c.get("user").id, filters);
     return c.json(transactions.map(serializeTransaction));
   })
   .post("/", zValidator("json", createTransactionSchema), async (c) => {
     const input = c.req.valid("json");
-    const transaction = await transactionRepository.create({
+    if (input.categoryId && !(await categoryRepository.findById(c.get("user").id, input.categoryId))) {
+      throw new NotFoundError("Category not found");
+    }
+    const transaction = await transactionRepository.create(c.get("user").id, {
       date: input.date,
       amount: input.amount,
       direction: input.direction,
@@ -65,11 +70,21 @@ export const expensesRoutes = new Hono<AppEnv>()
   })
   .put("/:id", zValidator("json", updateTransactionSchema), async (c) => {
     const id = c.req.param("id");
-    const transaction = await transactionRepository.update(id, toTxData(c.req.valid("json")));
+    const input = c.req.valid("json");
+    if (input.categoryId && !(await categoryRepository.findById(c.get("user").id, input.categoryId))) {
+      throw new NotFoundError("Category not found");
+    }
+    const transaction = await transactionRepository.update(
+      c.get("user").id,
+      id,
+      toTxData(input),
+    );
+    if (!transaction) throw new NotFoundError("Transaction not found");
     return c.json(serializeTransaction(transaction));
   })
   .delete("/:id", async (c) => {
     const id = c.req.param("id");
-    await transactionRepository.delete(id);
+    const deleted = await transactionRepository.delete(c.get("user").id, id);
+    if (!deleted) throw new NotFoundError("Transaction not found");
     return c.json({ ok: true });
   });

@@ -1,10 +1,12 @@
 import { test, expect, beforeAll } from "bun:test";
 import { prisma } from "../src/core/db.ts";
 import { runTrackedJob } from "../src/services/cron/runner.ts";
+import { ensureTestUser } from "./fixtures.ts";
 
 // Integration test (requires Postgres). Verifies the cron runner opens/closes a
 // CronRun with the right status and captures errors.
 beforeAll(async () => {
+  await ensureTestUser();
   for (const key of ["nightly-prices", "fx-rates", "snapshots"]) {
     await prisma.cronJob.upsert({
       where: { key },

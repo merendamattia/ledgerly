@@ -34,6 +34,6 @@ export const investmentImportRoutes = new Hono<AppEnv>()
   })
   .post("/commit", zValidator("json", importInvestmentTxCommitSchema), async (c) => {
     const { rows } = c.req.valid("json");
-    const result = await investmentImportService.commit(rows);
+    const result = await investmentImportService.commit(c.get("user").id, rows);
     return c.json(result, 201);
   });

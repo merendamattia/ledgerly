@@ -19,7 +19,7 @@ route bar plus fixed **ink bottom dock** below `lg`. Four primary tabs, with sec
 4. **Transactions** (`/transactions`) — one unified table of all movements. Income/expense exist
    today; investment buy/sell is a placeholder filter until the schema records them.
 Secondary routes live in the bottom-nav **More** sheet: `/matrix` (asset & cash-flow matrices),
-`/imports`, `/settings`, `/database`, `/dev` (plus `/accounts`).
+`/imports`, `/settings`, `/database` and `/dev` (admin only; plus `/accounts`).
 
 ## Monorepo layout (bun workspaces)
 ```

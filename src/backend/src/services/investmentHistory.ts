@@ -1,5 +1,6 @@
-import { prisma } from "../core/db.ts";
 import { settingsRepository } from "../repositories/settings.ts";
+import { investmentTransactionRepository } from "../repositories/investmentTransaction.ts";
+import { priceRepository } from "../repositories/price.ts";
 import { getFxRate } from "./market/fx.ts";
 
 export interface PortfolioPoint {
@@ -21,13 +22,10 @@ function isoDay(d: Date): string {
  * cumulative buys − sells up to that day; the price is the latest close ≤ day.
  * FX uses the current rate (historical FX is not modelled here).
  */
-export async function computeInvestmentHistory(): Promise<PortfolioPoint[]> {
+export async function computeInvestmentHistory(userId: string): Promise<PortfolioPoint[]> {
   const [txs, baseCurrency] = await Promise.all([
-    prisma.investmentTransaction.findMany({
-      include: { ticker: true },
-      orderBy: { date: "asc" },
-    }),
-    settingsRepository.baseCurrency(),
+    investmentTransactionRepository.listAll(userId),
+    settingsRepository.baseCurrency(userId),
   ]);
   if (txs.length === 0) return [];
 
@@ -40,11 +38,11 @@ export async function computeInvestmentHistory(): Promise<PortfolioPoint[]> {
 
   // Ascending price series per ticker.
   const [prices, fxEntries] = await Promise.all([
-    prisma.priceHistory.findMany({
-      where: { tickerId: { in: tickerIds } },
-      orderBy: { date: "asc" },
-      select: { tickerId: true, date: true, close: true },
-    }),
+    Promise.all(
+      tickerIds.map(async (tickerId) =>
+        (await priceRepository.series(tickerId)).map((point) => ({ ...point, tickerId })),
+      ),
+    ).then((series) => series.flat()),
     Promise.all(currencies.map(async (cur) => [cur, await getFxRate(cur, baseCurrency)] as const)),
   ]);
   const fxByCurrency = new Map<string, number>(fxEntries);

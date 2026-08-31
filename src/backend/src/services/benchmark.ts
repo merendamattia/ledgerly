@@ -38,12 +38,12 @@ export type BenchmarkComparison =
  * Returns `{ available: false }` when IWDA.AS (or its price history) is absent,
  * so the UI can show a placeholder instead of a broken chart.
  */
-export async function computeBenchmarkComparison(): Promise<BenchmarkComparison> {
-  const ticker = await tickerRepository.findBySymbol(BENCHMARK_SYMBOL);
+export async function computeBenchmarkComparison(userId: string): Promise<BenchmarkComparison> {
+  const ticker = await tickerRepository.findBySymbol(userId, BENCHMARK_SYMBOL);
   if (!ticker) return { available: false };
 
   const [portfolio, bench] = await Promise.all([
-    computeInvestmentHistory(),
+    computeInvestmentHistory(userId),
     priceRepository.series(ticker.id),
   ]);
   if (portfolio.length === 0 || bench.length === 0) return { available: false };

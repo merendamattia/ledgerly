@@ -41,13 +41,13 @@ export const importService = {
    * (created verbatim when missing); rows duplicating an existing transaction or
    * an earlier row in the same batch are skipped.
    */
-  async commit(rows: ImportRow[]): Promise<ImportResult> {
+  async commit(userId: string, rows: ImportRow[]): Promise<ImportResult> {
     const range = importDayRange(rows.map((row) => row.date));
     if (!range) return { imported: 0, skipped: 0, createdCategories: 0 };
 
     // 1. Resolve / create categories, caching by `name\x00kind`.
     const categoryCache = new Map(
-      (await categoryRepository.list()).map((category) => [
+      (await categoryRepository.list(userId)).map((category) => [
         `${category.name}\0${category.kind}`,
         category.id,
       ]),
@@ -63,9 +63,9 @@ export const importService = {
       const cacheKey = `${normalized}\0${kind}`;
       const cached = categoryCache.get(cacheKey);
       if (cached) return cached;
-      const existing = await categoryRepository.findByNameKind(normalized, kind);
+      const existing = await categoryRepository.findByNameKind(userId, normalized, kind);
       const category =
-        existing ?? (await categoryRepository.create({ name: normalized, kind }));
+        existing ?? (await categoryRepository.create(userId, { name: normalized, kind }));
       if (!existing) createdCategories++;
       categoryCache.set(cacheKey, category.id);
       return category.id;
@@ -90,7 +90,7 @@ export const importService = {
 
     // 2. Seed the dedup set from existing transactions in the imported date span.
     const seen = new Set<string>();
-    for (const t of await transactionRepository.naturalKeys(range)) {
+    for (const t of await transactionRepository.naturalKeys(userId, range)) {
       seen.add(
         naturalKey({
           date: isoDay(t.date),
@@ -103,7 +103,7 @@ export const importService = {
     }
 
     // 3. Build the insert payload, skipping duplicates.
-    const data: Prisma.TransactionCreateManyInput[] = [];
+    const data: Omit<Prisma.TransactionCreateManyInput, "userId">[] = [];
     let skipped = 0;
     for (const row of prepared) {
       const key = naturalKey({
@@ -127,7 +127,7 @@ export const importService = {
       });
     }
 
-    if (data.length > 0) await transactionRepository.createMany(data);
+    if (data.length > 0) await transactionRepository.createMany(userId, data);
     return { imported: data.length, skipped, createdCategories };
   },
 };

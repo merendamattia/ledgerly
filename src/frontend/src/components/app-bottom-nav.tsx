@@ -3,14 +3,16 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { LogOut, MoreHorizontal } from "lucide-react";
 import {
   PRIMARY_NAV_ITEMS,
-  SECONDARY_NAV_ITEMS,
   isNavItemActive,
   type AppNavItem,
+  visibleSecondaryNavItems,
 } from "@/components/app-navigation";
 import { signOut, useSession } from "@/lib/auth-client";
+import { clearLedgerQueryCache } from "@/lib/query-keys";
 import {
   Sheet,
   SheetContent,
@@ -61,14 +63,17 @@ export function AppBottomNav() {
   const pathname = usePathname();
   const router = useRouter();
   const { data: session } = useSession();
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
-  const moreActive = SECONDARY_NAV_ITEMS.some((item) =>
+  const secondaryNavItems = visibleSecondaryNavItems(session?.user.role);
+  const moreActive = secondaryNavItems.some((item) =>
     isNavItemActive(pathname, item.href),
   );
 
   async function handleSignOut() {
     setOpen(false);
     await signOut();
+    clearLedgerQueryCache(queryClient);
     router.replace("/login");
   }
 
@@ -108,7 +113,7 @@ export function AppBottomNav() {
                 ) : null}
               </SheetHeader>
               <div className="flex flex-col gap-1 px-2 pb-3">
-                {SECONDARY_NAV_ITEMS.map((item) => {
+                {secondaryNavItems.map((item) => {
                   const active = isNavItemActive(pathname, item.href);
                   return (
                     <Link

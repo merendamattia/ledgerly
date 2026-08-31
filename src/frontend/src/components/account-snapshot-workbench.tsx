@@ -2,7 +2,16 @@
 
 import { useMemo, useState, type ReactElement, type ReactNode } from "react";
 import { toast } from "sonner";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import {
+  Coins,
+  Landmark,
+  Layers3,
+  Pencil,
+  Plus,
+  Trash2,
+  WalletCards,
+  type LucideIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -52,6 +61,13 @@ const SNAPSHOT_SECTIONS: { value: SnapshotSection; label: string }[] = [
   { value: "OTHER_ASSET", label: "Other assets" },
   { value: "DEBT", label: "Debts" },
 ];
+
+const SNAPSHOT_SECTION_STYLE: Record<SnapshotSection, { icon: LucideIcon; accent: string }> = {
+  LIQUIDITY: { icon: WalletCards, accent: "bg-positive/10 text-positive" },
+  CREDIT: { icon: Coins, accent: "bg-chart-3/10 text-chart-3" },
+  OTHER_ASSET: { icon: Layers3, accent: "bg-chart-4/10 text-chart-4" },
+  DEBT: { icon: Landmark, accent: "bg-negative/10 text-negative-ink" },
+};
 
 const addActionClass =
   "w-fit px-0 text-positive hover:bg-transparent hover:text-positive hover:underline";
@@ -119,10 +135,11 @@ function ActiveSnapshotPanel({
   currency: string;
   headerAction: ReactNode;
 }) {
+  const style = SNAPSHOT_SECTION_STYLE[section];
   if (section === "DEBT") {
-    return <DebtsCard currency={currency} headerAction={headerAction} />;
+    return <DebtsCard currency={currency} headerAction={headerAction} {...style} />;
   }
-  return <CashCategoryPanel category={section} currency={currency} headerAction={headerAction} />;
+  return <CashCategoryPanel category={section} currency={currency} headerAction={headerAction} {...style} />;
 }
 
 const CASH_PANEL_COPY: Record<
@@ -175,10 +192,14 @@ function CashCategoryPanel({
   category,
   currency,
   headerAction,
+  icon,
+  accent,
 }: {
   category: CashCategory;
   currency: string;
   headerAction?: ReactNode;
+  icon: LucideIcon;
+  accent: string;
 }) {
   const accounts = useAccounts();
   const snapshots = useCashSnapshots();
@@ -318,12 +339,24 @@ function CashCategoryPanel({
       historySubtitle={copy.historySubtitle}
       currency={currency}
       headerAction={headerAction}
+      icon={icon}
+      accentClassName={accent}
     />
   );
 }
 
 /** Renders editable debt amounts, dated snapshot capture, and debt history. */
-function DebtsCard({ currency, headerAction }: { currency: string; headerAction?: ReactNode }) {
+function DebtsCard({
+  currency,
+  headerAction,
+  icon,
+  accent,
+}: {
+  currency: string;
+  headerAction?: ReactNode;
+  icon: LucideIcon;
+  accent: string;
+}) {
   const debts = useDebts();
   const snapshots = useDebtSnapshots();
   const createSnapshot = useCreateDebtSnapshot();
@@ -441,6 +474,8 @@ function DebtsCard({ currency, headerAction }: { currency: string; headerAction?
       historySubtitle="Liabilities over time"
       currency={currency}
       headerAction={headerAction}
+      icon={icon}
+      accentClassName={accent}
     />
   );
 }

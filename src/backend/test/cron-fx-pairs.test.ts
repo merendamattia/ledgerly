@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { buildFxPairs } from "../src/services/cron/jobs.ts";
+import { buildFxPairs, collectFxCurrencies } from "../src/services/cron/jobs.ts";
 
 // Pure unit test (no DB / no provider): the nightly FX job must always refresh the
 // reference EUR/USD pair, even when no holding uses USD.
@@ -21,4 +21,12 @@ test("never produces duplicate pairs", () => {
   const pairs = buildFxPairs("USD", ["EUR", "USD"]);
   const keys = pairs.map(([b, q]) => `${b}:${q}`);
   expect(new Set(keys).size).toBe(keys.length);
+});
+
+test("includes currencies used only by cash accounts and debts", () => {
+  const currencies = collectFxCurrencies([], ["GBP"], ["CHF", "GBP"]);
+  const pairs = buildFxPairs("EUR", currencies);
+
+  expect(pairs).toContainEqual(["GBP", "EUR"]);
+  expect(pairs).toContainEqual(["CHF", "EUR"]);
 });

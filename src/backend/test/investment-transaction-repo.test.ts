@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { prisma } from "../src/core/db.ts";
 import { investmentTransactionRepository } from "../src/repositories/investmentTransaction.ts";
+import { ensureTestUser, TEST_USER_ID } from "./fixtures.ts";
 
 const suffix = Date.now();
 let accountId: string;
@@ -8,8 +9,10 @@ let tickerAId: string;
 let tickerBId: string;
 
 beforeAll(async () => {
+  await ensureTestUser();
   const account = await prisma.cashAccount.create({
     data: {
+      userId: TEST_USER_ID,
       name: `Investment Repo ${suffix}`,
       type: "BROKER",
       category: "LIQUIDITY",
@@ -22,6 +25,7 @@ beforeAll(async () => {
   const [tickerA, tickerB] = await Promise.all([
     prisma.ticker.create({
       data: {
+        userId: TEST_USER_ID,
         symbol: `INV.REPO.A.${suffix}`,
         name: "Investment Repo A",
         type: "ETF",
@@ -31,6 +35,7 @@ beforeAll(async () => {
     }),
     prisma.ticker.create({
       data: {
+        userId: TEST_USER_ID,
         symbol: `INV.REPO.B.${suffix}`,
         name: "Investment Repo B",
         type: "ETF",
@@ -45,6 +50,7 @@ beforeAll(async () => {
   await prisma.investmentTransaction.createMany({
     data: [
       {
+        userId: TEST_USER_ID,
         tickerId: tickerAId,
         cashAccountId: accountId,
         date: new Date("2024-06-01T00:00:00.000Z"),
@@ -53,6 +59,7 @@ beforeAll(async () => {
         price: 10,
       },
       {
+        userId: TEST_USER_ID,
         tickerId: tickerAId,
         cashAccountId: accountId,
         date: new Date("2024-06-02T00:00:00.000Z"),
@@ -61,6 +68,7 @@ beforeAll(async () => {
         price: 20,
       },
       {
+        userId: TEST_USER_ID,
         tickerId: tickerBId,
         cashAccountId: accountId,
         date: new Date("2024-06-02T00:00:00.000Z"),
@@ -82,7 +90,7 @@ afterAll(async () => {
 });
 
 test("naturalKeys limits duplicate preload by ticker and date range", async () => {
-  const keys = await investmentTransactionRepository.naturalKeys({
+  const keys = await investmentTransactionRepository.naturalKeys(TEST_USER_ID, {
     tickerIds: [tickerAId],
     from: new Date("2024-06-02T00:00:00.000Z"),
     to: new Date("2024-06-02T23:59:59.999Z"),

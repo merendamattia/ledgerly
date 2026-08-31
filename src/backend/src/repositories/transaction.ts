@@ -38,9 +38,9 @@ function whereFromFilters(f: TransactionFilters): Prisma.TransactionWhereInput {
 
 // Data access for expense/income transactions.
 export const transactionRepository = {
-  list(filters: TransactionFilters = {}) {
+  list(userId: string, filters: TransactionFilters = {}) {
     return prisma.transaction.findMany({
-      where: whereFromFilters(filters),
+      where: { userId, ...whereFromFilters(filters) },
       include: { category: true },
       orderBy: [{ date: "desc" }, { createdAt: "desc" }],
       take: filters.limit,
@@ -48,9 +48,9 @@ export const transactionRepository = {
     });
   },
 
-  async summary(filters: Omit<TransactionFilters, "limit" | "offset"> = {}) {
+  async summary(userId: string, filters: Omit<TransactionFilters, "limit" | "offset"> = {}) {
     const groups = await prisma.transaction.groupBy({
-      where: whereFromFilters(filters),
+      where: { userId, ...whereFromFilters(filters) },
       by: ["direction"],
       _sum: { amount: true },
     });
@@ -64,44 +64,70 @@ export const transactionRepository = {
     return { income, expenses, net: income - expenses };
   },
 
-  recent(limit: number) {
+  recent(userId: string, limit: number) {
     return prisma.transaction.findMany({
+      where: { userId },
       include: { category: true },
       orderBy: [{ date: "desc" }, { createdAt: "desc" }],
       take: limit,
     });
   },
 
-  async create(data: Prisma.TransactionCreateInput) {
-    const transaction = await prisma.transaction.create({ data, include: { category: true } });
+  findById(userId: string, id: string) {
+    return prisma.transaction.findFirst({ where: { id, userId }, include: { category: true } });
+  },
+
+  /** All transactions for one user in chronological order for analytics. */
+  listAll(userId: string) {
+    return prisma.transaction.findMany({
+      where: { userId },
+      include: { category: true },
+      orderBy: [{ date: "asc" }, { createdAt: "asc" }],
+    });
+  },
+
+  async create(userId: string, data: Omit<Prisma.TransactionCreateInput, "user">) {
+    const transaction = await prisma.transaction.create({
+      data: { ...data, user: { connect: { id: userId } } },
+      include: { category: true },
+    });
     await invalidateTransactionTagCache();
     return transaction;
   },
 
-  async createMany(data: Prisma.TransactionCreateManyInput[]) {
-    const result = await prisma.transaction.createMany({ data });
+  async createMany(
+    userId: string,
+    data: Omit<Prisma.TransactionCreateManyInput, "userId">[],
+  ) {
+    const result = await prisma.transaction.createMany({
+      data: data.map((row) => ({ ...row, userId })),
+    });
     if (result.count > 0) await invalidateTransactionTagCache();
     return result;
   },
 
   /** Minimal fields needed to dedup an import against existing rows. */
-  naturalKeys(filters: Pick<TransactionFilters, "from" | "to"> = {}) {
+  naturalKeys(userId: string, filters: Pick<TransactionFilters, "from" | "to"> = {}) {
     return prisma.transaction.findMany({
-      where: whereFromFilters(filters),
+      where: { userId, ...whereFromFilters(filters) },
       select: { date: true, amount: true, direction: true, categoryId: true, note: true },
     });
   },
 
   /** Notes that may contain tags, newest first, for the lightweight tag endpoint. */
-  tagNotes(filters: Pick<TransactionFilters, "from" | "to" | "categoryId" | "direction"> = {}) {
+  tagNotes(
+    userId: string,
+    filters: Pick<TransactionFilters, "from" | "to" | "categoryId" | "direction"> = {},
+  ) {
     return prisma.transaction.findMany({
-      where: { ...whereFromFilters(filters), note: { contains: "#" } },
+      where: { userId, ...whereFromFilters(filters), note: { contains: "#" } },
       orderBy: [{ date: "desc" }, { createdAt: "desc" }],
       select: { note: true },
     });
   },
 
-  async update(id: string, data: Prisma.TransactionUpdateInput) {
+  async update(userId: string, id: string, data: Prisma.TransactionUpdateInput) {
+    if (!(await prisma.transaction.findFirst({ where: { id, userId } }))) return null;
     const transaction = await prisma.transaction.update({
       where: { id },
       data,
@@ -111,7 +137,8 @@ export const transactionRepository = {
     return transaction;
   },
 
-  async delete(id: string) {
+  async delete(userId: string, id: string) {
+    if (!(await prisma.transaction.findFirst({ where: { id, userId } }))) return null;
     const transaction = await prisma.transaction.delete({ where: { id } });
     await invalidateTransactionTagCache();
     return transaction;

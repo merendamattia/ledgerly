@@ -1,5 +1,4 @@
 import type { RecurInterval, RecurringExpense } from "@prisma/client";
-import { prisma } from "../core/db.ts";
 import { recurringExpenseRepository } from "../repositories/recurringExpense.ts";
 import { transactionRepository } from "../repositories/transaction.ts";
 import { isRecurringEnded } from "../utils/recurring-status.ts";
@@ -67,9 +66,9 @@ export function occurrenceDates(rule: OccurrenceRule, limit: number): Date[] {
  * `nextRunDate`/`occurrencesCount` and disabling rules that reach their end
  * condition. Returns the number of movements created.
  */
-export async function generateDue(today: Date): Promise<number> {
+export async function generateDue(userId: string, today: Date): Promise<number> {
   const cutoff = utcDay(today);
-  const rules = await recurringExpenseRepository.listDue(cutoff);
+  const rules = await recurringExpenseRepository.listDue(userId, cutoff);
   let created = 0;
 
   for (const rule of rules) {
@@ -87,7 +86,7 @@ export async function generateDue(today: Date): Promise<number> {
       )
         break;
 
-      await transactionRepository.create({
+      await transactionRepository.create(userId, {
         date: nextRunDate,
         amount: rule.amount,
         direction: rule.direction,
@@ -101,14 +100,13 @@ export async function generateDue(today: Date): Promise<number> {
     }
 
     const updated = { ...rule, occurrencesCount, nextRunDate };
-    await prisma.recurringExpense.update({
-      where: { id: rule.id },
-      data: {
-        occurrencesCount,
-        nextRunDate,
-        enabled: isRecurringEnded(updated) ? false : rule.enabled,
-      },
-    });
+    await recurringExpenseRepository.updateProgress(
+      userId,
+      rule.id,
+      occurrencesCount,
+      nextRunDate,
+      isRecurringEnded(updated) ? false : rule.enabled,
+    );
   }
 
   return created;
