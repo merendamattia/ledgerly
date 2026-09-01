@@ -23,4 +23,12 @@ export const settingsRepository = {
     const settings = await this.get(userId);
     return prisma.settings.update({ where: { id: settings.id }, data });
   },
+
+  async acknowledgeRelease(userId: string, version: string) {
+    const settings = await this.get(userId);
+    return prisma.settings.update({
+      where: { id: settings.id },
+      data: { lastSeenReleaseVersion: version },
+    });
+  },
 };
