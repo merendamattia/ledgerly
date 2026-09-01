@@ -1,6 +1,7 @@
 "use client";
 
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { Coins, Layers3, Pencil, Trash2, WalletCards } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { MoneyAmount } from "@/components/money-amount";
@@ -15,10 +16,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAccounts, useDeleteAccount, type Account } from "@/hooks/use-accounts";
-import { CASH_CATEGORY_LABELS } from "@/lib/format";
+import { useLocaleLabels } from "@/hooks/use-locale-labels";
 import { cn } from "@/lib/utils";
 
-const SECTION_ORDER = Object.keys(CASH_CATEGORY_LABELS);
+const SECTION_ORDER = ["LIQUIDITY", "CREDIT", "OTHER_ASSET"];
 
 function RegistryStat({
   label,
@@ -71,6 +72,9 @@ const SECTION_STYLE: Record<string, { icon: typeof WalletCards; surface: string;
 };
 
 function AccountTile({ account, onDelete }: { account: Account; onDelete: () => void }) {
+  const t = useTranslations("accountsPage");
+  const common = useTranslations("common");
+  const { cashCategories } = useLocaleLabels();
   const style = SECTION_STYLE[account.category] ?? SECTION_STYLE.LIQUIDITY;
   return (
     <article className={ACCOUNT_TILE_CLASS}>
@@ -94,18 +98,18 @@ function AccountTile({ account, onDelete }: { account: Account; onDelete: () => 
           <AddAccountDialog
             account={account}
             trigger={
-              <Button variant="ghost" size="icon-sm" aria-label={`Edit ${account.name}`}>
+              <Button variant="ghost" size="icon-sm" aria-label={t("edit", { name: account.name })}>
                 <Pencil />
               </Button>
             }
           />
           <ConfirmDialog
-            title="Delete account?"
-            description={`This removes "${account.name}".`}
-            confirmLabel="Delete"
+            title={t("deleteTitle")}
+            description={t("deleteDescription", { name: account.name })}
+            confirmLabel={common("delete")}
             onConfirm={onDelete}
             trigger={
-              <Button variant="ghost" size="icon-sm" aria-label={`Delete ${account.name}`}>
+              <Button variant="ghost" size="icon-sm" aria-label={t("delete", { name: account.name })}>
                 <Trash2 />
               </Button>
             }
@@ -115,10 +119,10 @@ function AccountTile({ account, onDelete }: { account: Account; onDelete: () => 
 
       <div className={ACCOUNT_BALANCE_ROW_CLASS}>
         <span className={ACCOUNT_TYPE_BADGE_CLASS}>
-          {account.type.replaceAll("_", " ")} · {account.currency}
+          {cashCategories[account.category]} · {account.currency}
         </span>
         <span className="min-w-0 max-w-full justify-self-end text-right">
-          <span className="block text-[10px] text-muted-foreground">Current balance</span>
+          <span className="block text-[10px] text-muted-foreground">{t("currentBalance")}</span>
           <MoneyAmount
             value={account.balance}
             currency={account.currency}
@@ -132,6 +136,8 @@ function AccountTile({ account, onDelete }: { account: Account; onDelete: () => 
 
 /** Renders the account list and account-management actions. */
 export default function AccountsPage() {
+  const t = useTranslations("accountsPage");
+  const { cashCategories } = useLocaleLabels();
   const { data, isLoading } = useAccounts();
   const del = useDeleteAccount();
   const accounts = data ?? [];
@@ -145,32 +151,30 @@ export default function AccountsPage() {
   return (
     <div className="flex flex-col gap-5 animate-fu">
       <PageHeader
-        title="Accounts"
-        description="A clean registry of every account used by snapshots, net worth and portfolio flows."
+        title={t("title")}
+        description={t("description")}
         action={<AddAccountDialog />}
       />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4">
         <RegistryStat
-          label="Accounts"
+          label={t("accounts")}
           value={accounts.length}
           icon={WalletCards}
           spotlight
           className="col-span-2 sm:col-span-1"
         />
-        <RegistryStat label="Sections" value={new Set(accounts.map((account) => account.category)).size} icon={Layers3} />
-        <RegistryStat label="Currencies" value={new Set(accounts.map((account) => account.currency)).size} icon={Coins} />
+        <RegistryStat label={t("sections")} value={new Set(accounts.map((account) => account.category)).size} icon={Layers3} />
+        <RegistryStat label={t("currencies")} value={new Set(accounts.map((account) => account.currency)).size} icon={Coins} />
       </div>
 
       <div className="flex items-end justify-between gap-4">
         <div>
-          <h2 className="font-display text-lg font-semibold">Account registry</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Balances stay in their native currencies; edit an account to reclassify it.
-          </p>
+          <h2 className="font-display text-lg font-semibold">{t("registry")}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{t("registryDescription")}</p>
         </div>
         <span className="hidden rounded-full border bg-card px-3 py-1 font-mono text-xs font-semibold text-muted-foreground sm:inline-flex">
-          {accounts.length} total
+          {t("total", { count: accounts.length })}
         </span>
       </div>
 
@@ -189,8 +193,8 @@ export default function AccountsPage() {
                 <WalletCards />
               </span>
               <div>
-                <p className="font-display font-semibold">No accounts yet</p>
-                <p className="mt-1 text-sm text-muted-foreground">Add the first account to start tracking balances.</p>
+                <p className="font-display font-semibold">{t("emptyTitle")}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{t("emptyDescription")}</p>
               </div>
               <AddAccountDialog />
             </div>
@@ -207,9 +211,9 @@ export default function AccountsPage() {
                     <SectionIcon />
                   </span>
                   <div>
-                    <CardTitle>{CASH_CATEGORY_LABELS[section.category] ?? section.category}</CardTitle>
+                    <CardTitle>{cashCategories[section.category as keyof typeof cashCategories]}</CardTitle>
                     <p className="mt-0.5 text-xs text-muted-foreground">
-                      {section.items.length} {section.items.length === 1 ? "account" : "accounts"}
+                      {t("count", { count: section.items.length })}
                     </p>
                   </div>
                 </div>
@@ -224,7 +228,7 @@ export default function AccountsPage() {
                     account={account}
                     onDelete={() =>
                       del.mutate(account.id, {
-                        onSuccess: () => toast.success("Account deleted"),
+                        onSuccess: () => toast.success(t("deleted")),
                         onError: (error) => toast.error(error.message),
                       })
                     }

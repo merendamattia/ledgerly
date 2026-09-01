@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Eye, EyeOff } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -20,6 +21,7 @@ import { useInvestmentHistory } from "@/hooks/use-investments";
 import { usePrivacyMode } from "@/components/privacy-mode";
 import { formatNumber, formatPercent, truncate } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { useLocaleLabels } from "@/hooks/use-locale-labels";
 
 const PositionTransactionsDialog = dynamic(
   () => import("@/components/position-transactions-dialog").then((mod) => mod.PositionTransactionsDialog),
@@ -55,7 +57,6 @@ function periodCutoff(period: string): string | null {
   return d.toISOString().slice(0, 10);
 }
 
-const CLASS_LABELS: Record<string, string> = { EQUITY: "Equity", ETF: "ETF", CRYPTO: "Crypto" };
 const CLASS_COLOR: Record<string, string> = {
   EQUITY: "var(--chart-1)",
   ETF: "var(--chart-2)",
@@ -64,6 +65,8 @@ const CLASS_COLOR: Record<string, string> = {
 
 /** Renders portfolio analysis and account snapshot tracking in one wealth workspace. */
 export default function InvestmentsPage() {
+  const t = useTranslations("investmentsPage");
+  const { tickerTypes } = useLocaleLabels();
   const searchParams = useSearchParams();
   const { data, isLoading } = useDashboard();
   const [period, setPeriod] = useState<string>("YTD");
@@ -151,7 +154,7 @@ export default function InvestmentsPage() {
       <Card className={cn("col-span-12 gap-0 p-5 animate-fu lg:col-span-8")}>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-medium text-muted-foreground">Portfolio value</p>
+            <p className="text-xs font-medium text-muted-foreground">{t("portfolioValue")}</p>
             <div className="mt-1.5 flex items-start gap-2.5">
               {isLoading ? (
                 <span className="font-mono text-4xl font-semibold tracking-tight tabular-nums">
@@ -171,14 +174,14 @@ export default function InvestmentsPage() {
                       type="button"
                       onClick={togglePrivacyMode}
                       className="mt-1 inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                      aria-label={shouldHidePrivateNumbers ? "Show amounts" : "Hide amounts"}
+                      aria-label={shouldHidePrivateNumbers ? t("showAmounts") : t("hideAmounts")}
                     >
                       <PrivacyIcon className="size-4.5" />
                     </button>
                   }
                 />
                 <TooltipContent>
-                  {shouldHidePrivateNumbers ? "Show amounts" : "Hide amounts"}
+                  {shouldHidePrivateNumbers ? t("showAmounts") : t("hideAmounts")}
                 </TooltipContent>
               </Tooltip>
             </div>
@@ -192,7 +195,7 @@ export default function InvestmentsPage() {
               />
             ) : null}
             <p className="mt-1.5 text-xs text-muted-foreground">
-              Invested <MoneyAmount value={stats.invested} currency={currency} />
+              {t("invested")} <MoneyAmount value={stats.invested} currency={currency} />
             </p>
           </div>
           <div className="flex gap-0.5 self-start rounded-lg bg-muted p-0.5">
@@ -208,7 +211,7 @@ export default function InvestmentsPage() {
                     : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                {p.label}
+                {p.value === "Max" ? t("max") : p.label}
               </button>
             ))}
           </div>
@@ -218,12 +221,12 @@ export default function InvestmentsPage() {
             <NetWorthChart
               data={series}
               currency={currency}
-              valueLabel="Portfolio value"
+              valueLabel={t("portfolioValue")}
               isLoading={history.isLoading}
             />
           ) : (
             <div className="flex h-[280px] items-center justify-center text-sm text-muted-foreground">
-              Not enough history yet — snapshots build the portfolio curve over time.
+              {t("notEnoughHistory")}
             </div>
           )}
         </div>
@@ -231,7 +234,7 @@ export default function InvestmentsPage() {
 
       {/* Allocation by class — beside the chart */}
       <Card className={cn("col-span-12 gap-0 p-5 animate-fu lg:col-span-4")}>
-        <p className="font-display text-base font-semibold">Allocation by position</p>
+        <p className="font-display text-base font-semibold">{t("allocation")}</p>
         <div className="mt-4">
           <AllocationChart
             allocation={investmentAllocation}
@@ -249,7 +252,7 @@ export default function InvestmentsPage() {
       {/* Positions table */}
       <Card className={cn("col-span-12 gap-0 p-5 animate-fu")}>
         <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
-          <p className="font-display text-base font-semibold">Positions</p>
+          <p className="font-display text-base font-semibold">{t("positions")}</p>
           <div className="flex flex-wrap items-center gap-2">
             {classes.map((cls) => {
               const active = classFilter === cls;
@@ -265,7 +268,7 @@ export default function InvestmentsPage() {
                       : "border bg-card text-foreground hover:bg-muted",
                   )}
                 >
-                  {cls === "ALL" ? "All" : (CLASS_LABELS[cls] ?? cls)}
+                  {cls === "ALL" ? t("all") : (tickerTypes[cls as keyof typeof tickerTypes] ?? cls)}
                 </button>
               );
             })}
@@ -279,21 +282,21 @@ export default function InvestmentsPage() {
                 POS_COLS,
               )}
             >
-              <span>Asset</span>
-              <span>Class</span>
-              <span className="text-right">Qty</span>
-              <span className="text-right">Avg cost</span>
-              <span className="text-right">Price</span>
-              <span className="text-right">Invested</span>
-              <span className="text-right">Value</span>
-              <span className="text-right">P/L</span>
-              <span className="text-right">Weight</span>
+              <span>{t("asset")}</span>
+              <span>{t("class")}</span>
+              <span className="text-right">{t("quantity")}</span>
+              <span className="text-right">{t("averageCost")}</span>
+              <span className="text-right">{t("price")}</span>
+              <span className="text-right">{t("invested")}</span>
+              <span className="text-right">{t("value")}</span>
+              <span className="text-right">{t("profitLoss")}</span>
+              <span className="text-right">{t("weight")}</span>
             </div>
             {isLoading ? (
-              <div className="px-2 py-10 text-center text-sm text-muted-foreground">Loading…</div>
+              <div className="px-2 py-10 text-center text-sm text-muted-foreground">{t("loading")}</div>
             ) : filteredHoldings.length === 0 ? (
               <div className="px-2 py-12 text-center text-sm text-muted-foreground">
-                No positions — record a buy with the + Add button.
+                {t("empty")}
               </div>
             ) : (
               filteredHoldings.map((h) => (
@@ -355,6 +358,7 @@ function PositionRow({
   weight: number;
   onClick: () => void;
 }) {
+  const { tickerTypes } = useLocaleLabels();
   const tile = (
     <span
       className="flex size-8 shrink-0 items-center justify-center rounded-lg font-display text-[11px] font-semibold text-white"
@@ -378,7 +382,7 @@ function PositionRow({
             <span className="block truncate text-xs text-muted-foreground">{h.symbol}</span>
           </span>
         </span>
-        <span className="text-muted-foreground">{CLASS_LABELS[h.type] ?? h.type}</span>
+        <span className="text-muted-foreground">{tickerTypes[h.type as keyof typeof tickerTypes] ?? h.type}</span>
         <span className="text-right font-mono text-xs text-muted-foreground tabular-nums">
           <PrivateNumber text={formatNumber(h.quantity, 4)} />
         </span>
@@ -436,7 +440,7 @@ function PositionRow({
           </div>
           <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
             <span className="truncate">
-              {CLASS_LABELS[h.type] ?? h.type} · {h.symbol} · {weight.toFixed(1)}%
+              {tickerTypes[h.type as keyof typeof tickerTypes] ?? h.type} · {h.symbol} · {weight.toFixed(1)}%
             </span>
             <span
               className={cn(

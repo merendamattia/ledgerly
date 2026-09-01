@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, LogOut, Plus, Search } from "lucide-react";
 import { AppLogo } from "@/components/app-logo";
@@ -36,25 +37,30 @@ import {
 import { signOut, useSession } from "@/lib/auth-client";
 import { clearLedgerQueryCache } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
+import { NotificationCenter } from "@/components/notification-center";
+import type { Messages } from "@/i18n/config";
 
 const AddTransactionDialog = dynamic(
   () => import("@/components/add-transaction-dialog").then((mod) => mod.AddTransactionDialog),
   { ssr: false },
 );
 
-type PageMeta = { title: string; subtitle: string };
+type PageMeta = {
+  titleKey?: keyof Messages["nav"];
+  subtitleKey: keyof Messages["pageMeta"];
+};
 
 const PAGE_META: Record<string, PageMeta> = {
-  "/": { title: "Overview", subtitle: "Your financial position at a glance" },
-  "/investments": { title: "Wealth", subtitle: "Portfolio, accounts and balance history" },
-  "/cashflow": { title: "Cash flow", subtitle: "Income, spending and monthly flows" },
-  "/transactions": { title: "Activity", subtitle: "All your recent movements" },
-  "/accounts": { title: "Accounts", subtitle: "Tracked balances and registries" },
-  "/matrix": { title: "Matrices", subtitle: "Monthly assets, returns and cash flow" },
-  "/imports": { title: "Imports", subtitle: "Bring balances and movements into Ledgerly" },
-  "/settings": { title: "Settings", subtitle: "Currency and transaction categories" },
-  "/database": { title: "Database", subtitle: "Read-only data browser" },
-  "/dev": { title: "Developer tools", subtitle: "Jobs and background activity" },
+  "/": { titleKey: "overview", subtitleKey: "overviewSubtitle" },
+  "/investments": { titleKey: "wealth", subtitleKey: "wealthSubtitle" },
+  "/cashflow": { titleKey: "cashFlow", subtitleKey: "cashFlowSubtitle" },
+  "/transactions": { titleKey: "activity", subtitleKey: "activitySubtitle" },
+  "/accounts": { titleKey: "accounts", subtitleKey: "accountsSubtitle" },
+  "/matrix": { titleKey: "matrices", subtitleKey: "matricesSubtitle" },
+  "/imports": { titleKey: "imports", subtitleKey: "importsSubtitle" },
+  "/settings": { titleKey: "settings", subtitleKey: "settingsSubtitle" },
+  "/database": { titleKey: "database", subtitleKey: "databaseSubtitle" },
+  "/dev": { titleKey: "developerTools", subtitleKey: "developerToolsSubtitle" },
 };
 
 /** Returns the metadata for the current route. */
@@ -63,7 +69,7 @@ function metaFor(pathname: string): PageMeta {
   const route = Object.keys(PAGE_META).find(
     (candidate) => candidate !== "/" && pathname.startsWith(candidate),
   );
-  return route ? PAGE_META[route] : { title: "Ledgerly", subtitle: "Personal finance console" };
+  return route ? PAGE_META[route] : { subtitleKey: "fallbackSubtitle" };
 }
 
 /** Resolves the contextual creation mode for the current route. */
@@ -74,20 +80,27 @@ function addModeFor(pathname: string): AddMode | null {
   return null;
 }
 
-const ADD_LABEL: Record<AddMode, string> = {
-  full: "Add transaction",
-  cashflow: "Add expense",
-  investment: "Add investment",
+const ADD_LABEL_KEY: Record<AddMode, keyof Messages["nav"]> = {
+  full: "addTransaction",
+  cashflow: "addExpense",
+  investment: "addInvestment",
 };
 
 /** Renders the cash-flow period selector backed by the shared provider. */
 function CashflowPeriodControl() {
+  const t = useTranslations("cashflow");
   const { period, setPeriod } = useCashflowPeriod();
+  const resolved = resolvePeriod(period);
+  const label = period === "this-year" ? t("thisYear") : period === "12m" ? t("last12Months") : resolved.label;
+  const options = periodOptions().map((option) => ({
+    ...option,
+    label: option.value === "this-year" ? t("thisYear") : option.value === "12m" ? t("last12Months") : option.label,
+  }));
   return (
     <PeriodPicker
       value={period}
-      label={resolvePeriod(period).label}
-      options={periodOptions()}
+      label={label}
+      options={options}
       onChange={setPeriod}
       triggerClassName="max-w-full sm:max-w-56 lg:w-auto lg:max-w-44"
     />
@@ -96,6 +109,9 @@ function CashflowPeriodControl() {
 
 /** Renders the sticky adaptive app header and desktop navigation. */
 export function AppTopbar() {
+  const nav = useTranslations("nav");
+  const pageMeta = useTranslations("pageMeta");
+  const common = useTranslations("common");
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -103,7 +119,11 @@ export function AppTopbar() {
   const queryClient = useQueryClient();
   const { query, setQuery } = useSearch();
   const [addOpenFor, setAddOpenFor] = useState<string | null>(null);
-  const meta = metaFor(pathname);
+  const metaKeys = metaFor(pathname);
+  const meta = {
+    title: metaKeys.titleKey ? nav(metaKeys.titleKey) : common("appName"),
+    subtitle: pageMeta(metaKeys.subtitleKey),
+  };
   const showSearch = pathname.startsWith("/transactions");
   const showPeriod = pathname.startsWith("/cashflow");
   const showWealthNav = pathname.startsWith("/investments");
@@ -116,19 +136,19 @@ export function AppTopbar() {
 
   const searchField = (
     <label className="relative block min-w-0">
-      <span className="sr-only">Search transactions</span>
+      <span className="sr-only">{nav("searchTransactions")}</span>
       <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
       <input
         value={query}
         onChange={(event) => setQuery(event.target.value)}
-        placeholder="Search transactions…"
+        placeholder={nav("searchTransactionsPlaceholder")}
         className="h-10 w-full rounded-lg border border-input bg-card pr-3 pl-9 text-base outline-none placeholder:text-muted-foreground hover:border-foreground/20 focus:border-ring focus:ring-3 focus:ring-ring/50 md:text-sm"
       />
     </label>
   );
 
   const wealthNav = (
-    <nav aria-label="Wealth views" className={cn(SEGMENTED_CONTROL_CLASS, "flex min-w-0")}>
+    <nav aria-label={nav("wealthViews")} className={cn(SEGMENTED_CONTROL_CLASS, "flex min-w-0")}>
       <Link
         href="/investments"
         aria-current={!showAccounts ? "page" : undefined}
@@ -137,7 +157,7 @@ export function AppTopbar() {
           !showAccounts ? SEGMENTED_CONTROL_ACTIVE_CLASS : SEGMENTED_CONTROL_INACTIVE_CLASS,
         )}
       >
-        Portfolio
+        {nav("portfolio")}
       </Link>
       <Link
         href="/investments?view=accounts"
@@ -147,7 +167,7 @@ export function AppTopbar() {
           showAccounts ? SEGMENTED_CONTROL_ACTIVE_CLASS : SEGMENTED_CONTROL_INACTIVE_CLASS,
         )}
       >
-        Accounts
+        {nav("accounts")}
       </Link>
     </nav>
   );
@@ -164,7 +184,7 @@ export function AppTopbar() {
         <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
           <AppLogo label={meta.title} className="min-w-0 justify-self-start" />
 
-          <nav aria-label="Primary" className="hidden min-w-0 items-center justify-center gap-1 lg:col-start-2 lg:flex">
+          <nav aria-label={nav("primary")} className="hidden min-w-0 items-center justify-center gap-1 lg:col-start-2 lg:flex">
             {PRIMARY_NAV_ITEMS.map((item) => {
               const active = isNavItemActive(pathname, item.href);
               return (
@@ -179,7 +199,7 @@ export function AppTopbar() {
                       : "text-muted-foreground hover:bg-muted hover:text-foreground",
                   )}
                 >
-                  {item.label}
+                  {nav(item.labelKey)}
                 </Link>
               );
             })}
@@ -198,12 +218,12 @@ export function AppTopbar() {
                   />
                 }
               >
-                More
+                {nav("more")}
                 <ChevronDown />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="center" sideOffset={10} className="w-56 p-1.5">
                 <DropdownMenuGroup>
-                  <DropdownMenuLabel>Workspace</DropdownMenuLabel>
+                  <DropdownMenuLabel>{nav("workspace")}</DropdownMenuLabel>
                   {secondaryNavItems.map((item) => (
                     <DropdownMenuItem
                       key={item.href}
@@ -211,7 +231,7 @@ export function AppTopbar() {
                       className="gap-2.5 px-2.5 py-2"
                     >
                       <item.icon />
-                      {item.label}
+                      {nav(item.labelKey)}
                     </DropdownMenuItem>
                   ))}
                 </DropdownMenuGroup>
@@ -228,7 +248,7 @@ export function AppTopbar() {
                     className="gap-2.5 px-2.5 py-2"
                   >
                     <LogOut />
-                    Sign out
+                    {nav("signOut")}
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
               </DropdownMenuContent>
@@ -239,15 +259,16 @@ export function AppTopbar() {
             {showSearch ? <div className="hidden w-60 xl:block">{searchField}</div> : null}
             {showPeriod ? <div className="hidden lg:block"><CashflowPeriodControl /></div> : null}
             {showWealthNav ? <div className="hidden xl:block">{wealthNav}</div> : null}
+            <NotificationCenter />
 
             {addMode ? (
               <>
               <Button
-                aria-label={ADD_LABEL[addMode]}
+                aria-label={nav(ADD_LABEL_KEY[addMode])}
                 onClick={() => setAddOpenFor(pathname)}
               >
                 <Plus data-icon="inline-start" />
-                <span className="hidden xl:inline">{ADD_LABEL[addMode]}</span>
+                <span className="hidden xl:inline">{nav(ADD_LABEL_KEY[addMode])}</span>
               </Button>
               {addOpenFor === pathname ? (
                 <AddTransactionDialog

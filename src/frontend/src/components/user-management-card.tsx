@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { UserPlus } from "lucide-react";
 import { useCreateUser, useUsers } from "@/hooks/use-users";
@@ -14,6 +15,7 @@ import { Spinner } from "@/components/ui/spinner";
 
 /** Renders admin-managed member provisioning and the account directory. */
 export function UserManagementCard() {
+  const t = useTranslations("users");
   const users = useUsers();
   const createUser = useCreateUser();
   const [email, setEmail] = useState("");
@@ -31,7 +33,7 @@ export function UserManagementCard() {
           setEmail("");
           setName("");
           setPassword("");
-          toast.success("User created");
+          toast.success(t("created"));
         },
         onError: (requestError) => setError(requestError.message),
       },
@@ -43,17 +45,15 @@ export function UserManagementCard() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <UserPlus className="size-4 text-primary" />
-          Users
+          {t("title")}
         </CardTitle>
-        <CardDescription>
-          Create members with a temporary password. They must replace it before using Ledgerly.
-        </CardDescription>
+        <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
         <form onSubmit={submit} className="max-w-3xl">
           <FieldGroup className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_auto]">
             <Field className="min-w-0">
-              <FieldLabel htmlFor="new-user-email">Email</FieldLabel>
+              <FieldLabel htmlFor="new-user-email">{t("email")}</FieldLabel>
               <Input
                 id="new-user-email"
                 type="email"
@@ -64,17 +64,17 @@ export function UserManagementCard() {
               />
             </Field>
             <Field className="min-w-0">
-              <FieldLabel htmlFor="new-user-name">Name</FieldLabel>
+              <FieldLabel htmlFor="new-user-name">{t("name")}</FieldLabel>
               <Input
                 id="new-user-name"
                 autoComplete="name"
                 value={name}
                 onChange={(event) => setName(event.target.value)}
-                placeholder="Optional"
+                placeholder={t("optional")}
               />
             </Field>
             <Field className="min-w-0">
-              <FieldLabel htmlFor="temporary-password">Temporary password</FieldLabel>
+              <FieldLabel htmlFor="temporary-password">{t("temporaryPassword")}</FieldLabel>
               <Input
                 id="temporary-password"
                 type="password"
@@ -87,7 +87,7 @@ export function UserManagementCard() {
             </Field>
             <Button type="submit" disabled={createUser.isPending} className="w-full sm:w-fit">
               {createUser.isPending ? <Spinner data-icon="inline-start" /> : <UserPlus data-icon="inline-start" />}
-              Create user
+              {t("create")}
             </Button>
           </FieldGroup>
           <FieldError>{error}</FieldError>
@@ -106,18 +106,20 @@ export function UserManagementCard() {
                   <p className="truncate text-muted-foreground">{user.email}</p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  <Badge variant={user.role === "admin" ? "default" : "secondary"}>{user.role}</Badge>
-                  {user.mustChangePassword ? <Badge variant="outline">Password change required</Badge> : null}
+                  <Badge variant={user.role === "admin" ? "default" : "secondary"}>
+                    {user.role === "admin" ? t("admin") : t("member")}
+                  </Badge>
+                  {user.mustChangePassword ? <Badge variant="outline">{t("passwordChangeRequired")}</Badge> : null}
                 </div>
               </div>
             ))}
             {users.isLoading ? (
               <div className="flex items-center gap-2 px-3 py-4 text-sm text-muted-foreground">
-                <Spinner /> Loading users…
+                <Spinner /> {t("loading")}
               </div>
             ) : null}
             {!users.isLoading && (users.data ?? []).length === 0 ? (
-              <p className="px-3 py-4 text-sm text-muted-foreground">No users found.</p>
+              <p className="px-3 py-4 text-sm text-muted-foreground">{t("empty")}</p>
             ) : null}
           </div>
         </div>

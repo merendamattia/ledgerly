@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { KeyRound } from "lucide-react";
 import { useChangePassword } from "@/hooks/use-users";
@@ -13,6 +14,7 @@ import { Spinner } from "@/components/ui/spinner";
 
 /** Renders the credential-change form shared by administrators and members. */
 export function AccountSecurityCard() {
+  const t = useTranslations("security");
   const changePassword = useChangePassword();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -23,7 +25,7 @@ export function AccountSecurityCard() {
     event.preventDefault();
     setValidationError(null);
     if (newPassword !== confirmation) {
-      setValidationError("New passwords do not match");
+      setValidationError(t("passwordMismatch"));
       return;
     }
     changePassword.mutate(
@@ -33,7 +35,7 @@ export function AccountSecurityCard() {
           setCurrentPassword("");
           setNewPassword("");
           setConfirmation("");
-          toast.success("Password changed");
+          toast.success(t("passwordChanged"));
         },
         onError: (error) => setValidationError(error.message),
       },
@@ -45,15 +47,15 @@ export function AccountSecurityCard() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <KeyRound className="size-4 text-primary" />
-          Account security
+          {t("title")}
         </CardTitle>
-        <CardDescription>Change your password. Other active sessions are signed out.</CardDescription>
+        <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={submit} className="max-w-xl">
           <FieldGroup>
             <Field>
-              <FieldLabel htmlFor="current-password">Current password</FieldLabel>
+              <FieldLabel htmlFor="current-password">{t("currentPassword")}</FieldLabel>
               <Input
                 id="current-password"
                 type="password"
@@ -64,7 +66,7 @@ export function AccountSecurityCard() {
               />
             </Field>
             <Field>
-              <FieldLabel htmlFor="new-password">New password</FieldLabel>
+              <FieldLabel htmlFor="new-password">{t("newPassword")}</FieldLabel>
               <Input
                 id="new-password"
                 type="password"
@@ -76,7 +78,7 @@ export function AccountSecurityCard() {
               />
             </Field>
             <Field>
-              <FieldLabel htmlFor="confirm-password">Confirm new password</FieldLabel>
+              <FieldLabel htmlFor="confirm-password">{t("confirmPassword")}</FieldLabel>
               <Input
                 id="confirm-password"
                 type="password"
@@ -95,7 +97,7 @@ export function AccountSecurityCard() {
             ) : null}
             <Button type="submit" disabled={changePassword.isPending} className="w-fit">
               {changePassword.isPending ? <Spinner data-icon="inline-start" /> : null}
-              Change password
+              {t("changePassword")}
             </Button>
           </FieldGroup>
         </form>

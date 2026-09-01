@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { EmojiPicker } from "frimousse";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
@@ -19,13 +20,14 @@ export function EmojiPickerField({
   id?: string;
   className?: string;
 }) {
+  const t = useTranslations("common");
   const [open, setOpen] = useState(false);
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         id={id}
         type="button"
-        aria-label="Pick an emoji"
+        aria-label={t("pickEmoji")}
         className={cn(
           "flex size-9 shrink-0 items-center justify-center rounded-md border bg-card text-lg leading-none transition-colors hover:bg-secondary",
           className,
@@ -44,10 +46,10 @@ export function EmojiPickerField({
           <EmojiPicker.Search className="z-10 mx-2.5 mt-2.5 appearance-none rounded-md bg-secondary px-2.5 py-2 text-sm outline-hidden" />
           <EmojiPicker.Viewport className="relative flex-1 outline-hidden">
             <EmojiPicker.Loading className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
-              Loading…
+              {t("loading")}
             </EmojiPicker.Loading>
             <EmojiPicker.Empty className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
-              No emoji found.
+              {t("noEmoji")}
             </EmojiPicker.Empty>
             <EmojiPicker.List
               className="select-none pb-1.5"

@@ -2,6 +2,7 @@ import { ArrowDown, ArrowUp } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { MoneyAmount } from "@/components/money-amount";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 
 export interface ComparisonRow {
   label: string;
@@ -57,10 +58,11 @@ export function ComparisonCard({
   rows: ComparisonRow[];
   currency: string;
 }) {
+  const t = useTranslations("cashflow");
   return (
     <Card className="h-full gap-0 p-5">
       <CardHeader className="flex flex-row items-baseline justify-between px-0">
-        <CardTitle className="font-display font-semibold">vs previous period</CardTitle>
+        <CardTitle className="font-display font-semibold">{t("comparisonTitle")}</CardTitle>
         <span className="text-xs text-muted-foreground">{prevLabel}</span>
       </CardHeader>
       <div className="mt-4 flex flex-col gap-4">

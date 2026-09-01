@@ -4,15 +4,17 @@
   "private": true,
   "workspaces": ["src/backend", "src/frontend"],
   "scripts": {
-    "dev": "bun run dev:backend & bun run dev:frontend & wait",
+    "dev": "bun run dev:backend & bun run dev:worker & bun run dev:frontend & wait",
     "build": "bun --filter '*' build",
     "test": "bun --filter '*' test",
     "dev:backend": "bun --filter ledgerly-backend dev",
     "dev:frontend": "bun --filter ledgerly-frontend dev",
+    "dev:worker": "bun --filter ledgerly-backend dev:worker",
     "db:migrate": "bun --filter ledgerly-backend db:migrate",
     "db:generate": "bun --filter ledgerly-backend db:generate",
     "db:deploy": "bun --filter ledgerly-backend db:deploy",
     "db:seed": "bun --filter ledgerly-backend db:seed",
+    "docker:build": "docker compose -f docker-compose.prod.yml --parallel 4 build --builder ledgerly-max4",
     "typecheck": "bun --filter ledgerly-backend typecheck",
     "lint": "bun --filter ledgerly-frontend lint",
     "verify": "bun run typecheck && bun run lint && bun run test"

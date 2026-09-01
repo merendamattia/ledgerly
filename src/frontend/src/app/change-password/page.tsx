@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { AppLogo } from "@/components/app-logo";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -15,6 +16,7 @@ import { useChangePassword } from "@/hooks/use-users";
 
 /** Forces temporary-password accounts through the first credential change. */
 export default function ChangePasswordPage() {
+  const t = useTranslations("auth");
   const router = useRouter();
   const { data: session, isPending, refetch } = useSession();
   const changePassword = useChangePassword();
@@ -25,14 +27,14 @@ export default function ChangePasswordPage() {
 
   useEffect(() => {
     if (!isPending && !session) router.replace("/login");
-    if (!isPending && session && !session.user.mustChangePassword) router.replace("/");
+    if (!isPending && session && !session.user.mustChangePassword) router.replace("/language");
   }, [isPending, router, session]);
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
     if (newPassword !== confirmation) {
-      setError("New passwords do not match");
+      setError(t("passwordMismatch"));
       return;
     }
     changePassword.mutate(
@@ -40,8 +42,8 @@ export default function ChangePasswordPage() {
       {
         onSuccess: async () => {
           await refetch();
-          toast.success("Password updated");
-          router.replace("/");
+          toast.success(t("passwordUpdated"));
+          router.replace("/language");
         },
         onError: (requestError) => setError(requestError.message),
       },
@@ -61,19 +63,17 @@ export default function ChangePasswordPage() {
       <div className="pointer-events-none absolute -top-40 -right-32 size-[34rem] rounded-full bg-primary/20 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-48 -left-32 size-[30rem] rounded-full bg-positive/15 blur-3xl" />
       <section className="relative w-full max-w-lg">
-        <AppLogo className="mb-8" label="Account security" />
+        <AppLogo className="mb-8" label={t("accountSecurity")} />
         <Card>
           <CardHeader>
-            <CardTitle className="text-2xl">Choose a new password</CardTitle>
-            <CardDescription>
-              This temporary password can only be used once. Set a new one to continue.
-            </CardDescription>
+            <CardTitle className="text-2xl">{t("choosePassword")}</CardTitle>
+            <CardDescription>{t("temporaryPasswordDescription")}</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={submit}>
               <FieldGroup>
                 <Field>
-                  <FieldLabel htmlFor="temporary-current-password">Temporary password</FieldLabel>
+                  <FieldLabel htmlFor="temporary-current-password">{t("temporaryPassword")}</FieldLabel>
                   <Input
                     id="temporary-current-password"
                     type="password"
@@ -84,7 +84,7 @@ export default function ChangePasswordPage() {
                   />
                 </Field>
                 <Field>
-                  <FieldLabel htmlFor="first-new-password">New password</FieldLabel>
+                  <FieldLabel htmlFor="first-new-password">{t("newPassword")}</FieldLabel>
                   <Input
                     id="first-new-password"
                     type="password"
@@ -96,7 +96,7 @@ export default function ChangePasswordPage() {
                   />
                 </Field>
                 <Field>
-                  <FieldLabel htmlFor="first-confirm-password">Confirm new password</FieldLabel>
+                  <FieldLabel htmlFor="first-confirm-password">{t("confirmPassword")}</FieldLabel>
                   <Input
                     id="first-confirm-password"
                     type="password"
@@ -115,7 +115,7 @@ export default function ChangePasswordPage() {
                 ) : null}
                 <Button type="submit" size="lg" disabled={changePassword.isPending} className="w-full">
                   {changePassword.isPending ? <Spinner data-icon="inline-start" /> : null}
-                  Set password and continue
+                  {t("setPassword")}
                 </Button>
               </FieldGroup>
             </form>

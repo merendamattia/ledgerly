@@ -23,7 +23,7 @@ beforeAll(async () => {
       { id: laterMemberId, name: "Later Member", email: laterMemberEmail, role: "user" },
     ],
   });
-  await prisma.settings.create({ data: { userId: adminId, baseCurrency: "USD" } });
+  await prisma.settings.create({ data: { userId: adminId, baseCurrency: "USD", locale: "it" } });
   adminCategoryId = (
     await prisma.category.create({
       data: { userId: adminId, name: `Shared-looking ${suffix}`, kind: "EXPENSE", emoji: "🧾" },
@@ -67,6 +67,9 @@ test("provisioning copies a settings snapshot and later defaults remain independ
   expect(laterSettings.baseCurrency).toBe("EUR");
   expect(memberSettings.lastSeenReleaseVersion).toBeNull();
   expect(laterSettings.lastSeenReleaseVersion).toBeNull();
+  expect(memberSettings.locale).toBeNull();
+  expect(laterSettings.locale).toBeNull();
+  expect((await settingsRepository.get(adminId)).locale).toBe("it");
   expect((await settingsRepository.get(adminId)).lastSeenReleaseVersion).toBe("1.1.1");
 
   const memberCategory = await categoryRepository.findByNameKind(
@@ -87,6 +90,14 @@ test("provisioning copies a settings snapshot and later defaults remain independ
   await categoryRepository.update(memberId, memberCategory!.id, { emoji: "🧮" });
   expect((await categoryRepository.findById(adminId, adminCategoryId))?.emoji).toBe("🪙");
   expect((await categoryRepository.findById(laterMemberId, laterCategory!.id))?.emoji).toBe("🪙");
+});
+
+test("locale updates remain isolated between users", async () => {
+  await settingsRepository.update(memberId, { locale: "it" });
+
+  expect((await settingsRepository.get(memberId)).locale).toBe("it");
+  expect((await settingsRepository.get(adminId)).locale).toBe("it");
+  expect((await settingsRepository.get(laterMemberId)).locale).toBeNull();
 });
 
 test("release acknowledgements remain isolated between existing users", async () => {

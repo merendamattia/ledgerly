@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactElement } from "react";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -19,13 +20,15 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
 import { useCreateAccount, useUpdateAccount, type Account } from "@/hooks/use-accounts";
 import { usePillars, useUpsertPillar } from "@/hooks/use-rebalance";
-import { CASH_CATEGORY_LABELS, shortDate } from "@/lib/format";
+import { shortDate } from "@/lib/format";
+import { useLocaleLabels } from "@/hooks/use-locale-labels";
 
 const NO_PILLAR = "none";
 
@@ -50,6 +53,8 @@ export function AddAccountDialog({
   labels?: { title?: string; description?: string };
   noteHistory?: SnapshotNoteHistoryItem[];
 }) {
+  const t = useTranslations("accountDialog");
+  const { cashCategories } = useLocaleLabels();
   const editing = account != null;
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(account?.name ?? "");
@@ -70,11 +75,11 @@ export function AddAccountDialog({
     : null;
   const [pillar, setPillar] = useState<string>(currentPillar ? String(currentPillar) : NO_PILLAR);
   const pillarItems = {
-    [NO_PILLAR]: "No pillar",
+    [NO_PILLAR]: t("noPillar"),
     ...Object.fromEntries(
       [1, 2, 3, 4].map((n) => [
         String(n),
-        pillars.data?.find((p) => p.position === n)?.name ?? `Pillar ${n}`,
+        pillars.data?.find((p) => p.position === n)?.name ?? t("pillarNumber", { number: n }),
       ]),
     ),
   };
@@ -108,7 +113,7 @@ export function AddAccountDialog({
       upsertPillar.mutate(
         {
           position: desired,
-          name: target?.name ?? `Pillar ${desired}`,
+          name: target?.name ?? t("pillarNumber", { number: desired }),
           members: [
             ...(target?.members ?? []).map((m) =>
               m.cashAccountId ? { cashAccountId: m.cashAccountId } : { tickerId: m.tickerId ?? "" },
@@ -152,7 +157,7 @@ export function AddAccountDialog({
     const opts = {
       onSuccess: (saved: Account) => {
         syncPillar(saved.id);
-        toast.success(editing ? "Account updated" : "Account created");
+        toast.success(editing ? t("updated") : t("created"));
         setOpen(false);
         if (!editing) {
           setName("");
@@ -174,7 +179,7 @@ export function AddAccountDialog({
           trigger ?? (
             <Button>
               <Plus data-icon="inline-start" />
-              Add account
+              {t("add")}
             </Button>
           )
         }
@@ -182,58 +187,58 @@ export function AddAccountDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {editing ? "Edit account" : (labels?.title ?? "New account")}
+            {editing ? t("editTitle") : (labels?.title ?? t("newTitle"))}
           </DialogTitle>
           <DialogDescription>
-            {labels?.description ?? "Add a cash or bank account."}
+            {labels?.description ?? t("description")}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit}>
           <FieldGroup>
             <Field>
-              <FieldLabel htmlFor="name">Name</FieldLabel>
+              <FieldLabel htmlFor="name">{t("name")}</FieldLabel>
               <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required />
             </Field>
             <Field>
-              <FieldLabel htmlFor="section">Type</FieldLabel>
+              <FieldLabel htmlFor="section">{t("type")}</FieldLabel>
               <Select
                 value={section}
-                items={CASH_CATEGORY_LABELS}
+                items={cashCategories}
                 onValueChange={(v) => setSection((v ?? "LIQUIDITY") as Account["category"])}
               >
                 <SelectTrigger id="section">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {(Object.keys(CASH_CATEGORY_LABELS) as Account["category"][]).map((k) => (
-                    <SelectItem key={k} value={k}>
-                      {CASH_CATEGORY_LABELS[k]}
-                    </SelectItem>
-                  ))}
+                  <SelectGroup>
+                    {(Object.keys(cashCategories) as Account["category"][]).map((k) => (
+                      <SelectItem key={k} value={k}>{cashCategories[k]}</SelectItem>
+                    ))}
+                  </SelectGroup>
                 </SelectContent>
               </Select>
-              <FieldDescription>Choosing another type moves this account to that section.</FieldDescription>
+              <FieldDescription>{t("typeHelp")}</FieldDescription>
             </Field>
             <Field>
-              <FieldLabel htmlFor="pillar">Pillar</FieldLabel>
+              <FieldLabel htmlFor="pillar">{t("pillar")}</FieldLabel>
               <Select value={pillar} items={pillarItems} onValueChange={(v) => setPillar(v ?? NO_PILLAR)}>
                 <SelectTrigger id="pillar">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(pillarItems).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>
-                      {label}
-                    </SelectItem>
-                  ))}
+                  <SelectGroup>
+                    {Object.entries(pillarItems).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>{label}</SelectItem>
+                    ))}
+                  </SelectGroup>
                 </SelectContent>
               </Select>
               <FieldDescription>
-                Counts this account inside one of the 4 pillars on the Investments page.
+                {t("pillarHelp")}
               </FieldDescription>
             </Field>
             <Field>
-              <FieldLabel htmlFor="currency">Currency</FieldLabel>
+              <FieldLabel htmlFor="currency">{t("currency")}</FieldLabel>
               <Input
                 id="currency"
                 value={currency}
@@ -243,7 +248,7 @@ export function AddAccountDialog({
               />
             </Field>
             <Field>
-              <FieldLabel htmlFor="balance">Balance</FieldLabel>
+              <FieldLabel htmlFor="balance">{t("balance")}</FieldLabel>
               <Input
                 id="balance"
                 type="number"
@@ -253,7 +258,7 @@ export function AddAccountDialog({
               />
             </Field>
             <Field>
-              <FieldLabel htmlFor="account-note">Note</FieldLabel>
+              <FieldLabel htmlFor="account-note">{t("note")}</FieldLabel>
               <Textarea
                 id="account-note"
                 value={note}
@@ -264,7 +269,7 @@ export function AddAccountDialog({
             </Field>
             {editing ? (
               <Field>
-                <FieldLabel>Note history</FieldLabel>
+                <FieldLabel>{t("noteHistory")}</FieldLabel>
                 {noteHistory.length > 0 ? (
                   <div className="flex max-h-44 flex-col overflow-auto rounded-lg border">
                     {noteHistory.map((item) => (
@@ -280,13 +285,13 @@ export function AddAccountDialog({
                     ))}
                   </div>
                 ) : (
-                  <FieldDescription>No saved snapshot notes yet.</FieldDescription>
+                  <FieldDescription>{t("noNoteHistory")}</FieldDescription>
                 )}
               </Field>
             ) : null}
             <DialogFooter>
               <Button type="submit" disabled={pending}>
-                {editing ? "Save changes" : "Create"}
+                {editing ? t("save") : t("create")}
               </Button>
             </DialogFooter>
           </FieldGroup>

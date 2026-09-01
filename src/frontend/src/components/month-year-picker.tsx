@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -20,20 +21,6 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
-const MONTHS = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-] as const;
 const MIN_YEAR = 1900;
 
 function selectedMonth(value: string, fallback: Date): { year: number; month: number } {
@@ -57,6 +44,11 @@ export function MonthYearPicker({
   options?: { value: string; label: string }[];
   triggerClassName?: string;
 }) {
+  const t = useTranslations("monthPicker");
+  const locale = useLocale();
+  const months = Array.from({ length: 12 }, (_, index) =>
+    new Intl.DateTimeFormat(locale, { month: "long" }).format(new Date(2026, index, 1)),
+  );
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1;
@@ -109,12 +101,12 @@ export function MonthYearPicker({
         className="w-[min(22rem,calc(100vw-1rem))] gap-4 p-4"
       >
         <PopoverHeader className="pr-8">
-          <PopoverTitle className="font-display text-base font-semibold">Choose a period</PopoverTitle>
-          <PopoverDescription>Select a shortcut or find any month by year.</PopoverDescription>
+          <PopoverTitle className="font-display text-base font-semibold">{t("title")}</PopoverTitle>
+          <PopoverDescription>{t("description")}</PopoverDescription>
         </PopoverHeader>
 
         {options.length ? (
-          <div className="flex flex-wrap gap-1" aria-label="Quick periods">
+          <div className="flex flex-wrap gap-1" aria-label={t("quickPeriods")}>
             {options.map((option) => (
               <Button
                 key={option.value}
@@ -135,13 +127,13 @@ export function MonthYearPicker({
 
         <form className="grid gap-4" onSubmit={(event) => { event.preventDefault(); applyMonth(); }}>
           <Field>
-            <FieldLabel htmlFor="month-year-search">Year</FieldLabel>
+            <FieldLabel htmlFor="month-year-search">{t("year")}</FieldLabel>
             <InputGroup className="h-10 bg-card">
               <InputGroupAddon>
                 <Search />
               </InputGroupAddon>
               <InputGroupButton
-                aria-label="Previous year"
+                aria-label={t("previousYear")}
                 onClick={() => moveYear(-1)}
                 disabled={validYear && year <= MIN_YEAR}
               >
@@ -159,7 +151,7 @@ export function MonthYearPicker({
                 onChange={(event) => setYearInput(event.target.value.replace(/\D/g, "").slice(0, 4))}
               />
               <InputGroupButton
-                aria-label="Next year"
+                aria-label={t("nextYear")}
                 onClick={() => moveYear(1)}
                 disabled={validYear && year >= currentYear}
               >
@@ -168,8 +160,8 @@ export function MonthYearPicker({
             </InputGroup>
           </Field>
 
-          <div className="grid grid-cols-3 gap-1" role="group" aria-label="Month">
-            {MONTHS.map((name, index) => {
+          <div className="grid grid-cols-3 gap-1" role="group" aria-label={t("month")}>
+            {months.map((name, index) => {
               const number = index + 1;
               const disabled = !validYear || (year === currentYear && number > currentMonth);
               return (
@@ -189,9 +181,9 @@ export function MonthYearPicker({
           </div>
 
           <div className="flex items-center justify-between gap-3 border-t pt-3">
-            <p className="text-xs text-muted-foreground">Press Enter to apply</p>
+            <p className="text-xs text-muted-foreground">{t("enterHelp")}</p>
             <Button type="submit" size="sm" disabled={!validYear || (year === currentYear && month > currentMonth)}>
-              Apply
+              {t("apply")}
             </Button>
           </div>
         </form>

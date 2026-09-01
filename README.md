@@ -80,7 +80,7 @@ bun install
 bun run db:migrate
 bun run db:seed
 
-# 5. Start both apps
+# 5. Start the backend, Apple Wallet worker, and frontend
 bun run dev
 ```
 
@@ -102,7 +102,7 @@ Wallet automation. The full secret is returned only when it is generated or rota
 stores a verifier and only shows the token's short prefix, suffix and creation date afterward.
 Treat the secret like a password. Revoke or rotate it in Ledgerly if it is exposed.
 
-The narrow integration endpoint accepts only expense creation:
+The narrow integration endpoint accepts the complete raw Wallet transaction and queues it:
 
 ```http
 POST /api/integrations/transactions
@@ -110,20 +110,28 @@ Authorization: Bearer <personal-token>
 Content-Type: application/json
 ```
 
-Send `amount`, `date` (`yyyy-MM-dd`), fixed `direction: "EXPENSE"`, and the Wallet merchant as
-`note`. An optional `categoryId` must belong to the token owner. The complete iPhone Shortcuts
-configuration, including the Wallet `Transaction` trigger and `Run Immediately`, is documented in
-the Advanced section inside Ledgerly. This is Wallet-triggered automation, not bank-account
-synchronization, so the backend must be reachable from the iPhone and the Wallet-authorized amount
-may differ from the final amount posted by the card issuer.
+The request body is the Shortcut's raw Wallet input; no amount, merchant, category, direction, or
+date mapping is required on the phone. Ledgerly persists the request, enqueues it in BullMQ, and a
+dedicated worker uses GPT-5.6 Luna Structured Outputs to create the transaction. Repeated identical
+payloads are idempotent; callers may also send an `Idempotency-Key` header. The minimal Wallet
+`Run Immediately` setup is documented in Settings → Advanced.
+
+After import, Ledgerly stores an in-app notification linked directly to the new transaction. Web
+Push is optional: configure `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT`, then enable
+notifications in Settings. After enabling them, use **Send test notification** in Settings → Advanced
+to verify the complete server-to-browser delivery path. This is Wallet-triggered automation, not bank-account synchronization,
+so the backend must be reachable from the iPhone and the authorized amount may differ from the final
+amount posted by the card issuer.
 
 ### Useful scripts (run from the repo root)
 
 | Command                 | What it does                            |
 | ----------------------- | --------------------------------------- |
-| `bun run dev`           | Run backend + frontend                  |
+| `bun run dev`           | Run backend + worker + frontend         |
 | `bun run dev:backend`   | Run the backend only                    |
 | `bun run dev:frontend`  | Run the frontend only                   |
+| `bun run dev:worker`    | Run the Apple Wallet worker only        |
+| `bun run docker:build` | Build Docker images with a four-worker cap |
 | `bun run db:migrate`    | Create/apply a Prisma migration (dev)   |
 | `bun run db:seed`       | Seed system cron job definitions         |
 
@@ -145,7 +153,19 @@ Deploy [`docker-compose.prod.yml`](./docker-compose.prod.yml). It builds the bac
 from the repository root. Postgres and Redis are managed Coolify resources passed in through
 environment variables.
 
+For local or CI builds, create the capped BuildKit builder once, then use `bun run docker:build`:
+
+```bash
+docker buildx create --name ledgerly-max4 --driver docker-container \
+  --buildkitd-config docker/buildkitd.toml --use --bootstrap
+bun run docker:build
+```
+
+The builder caps BuildKit solver parallelism at four and Compose also caps concurrent service
+build calls at four.
+
 - Backend: `src/backend/Dockerfile` runs `prisma migrate deploy` and the seed command on start.
+- Worker: the backend image runs a separate BullMQ process with configurable concurrency (default 1).
 - Frontend: `src/frontend/Dockerfile` bakes the `NEXT_PUBLIC_API_URL` build argument into the bundle,
   so it must contain the public backend URL.
 
@@ -155,6 +175,9 @@ Set the environment variables (see [`.env.production.example`](./.env.production
 - Set `REDIS_URL` from the Redis resource (internal host).
 - `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `CRON_SECRET`,
   `FRONTEND_URL`, `NEXT_PUBLIC_API_URL`.
+- `OPENAI_API_KEY` for the worker; `OPENAI_MODEL` and `OPENAI_REASONING_EFFORT` default to
+  `gpt-5.6-luna` and `low`. Worker concurrency defaults to `1`.
+- `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT` to enable Web Push.
 
 The nightly price job runs inside the backend process with croner. Its default schedule is 02:20
 in `Europe/Rome`; seeded `CronJob` rows define each job schedule, and `CRON_TIMEZONE` sets the

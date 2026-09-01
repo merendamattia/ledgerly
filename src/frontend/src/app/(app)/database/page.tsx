@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Search } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,6 +18,7 @@ type Row = Record<string, unknown>;
 
 /** Renders the read-only database browser for inspecting app tables. */
 export default function DatabasePage() {
+  const t = useTranslations("databasePage");
   const tables = useTables();
   const [table, setTable] = useState("");
   const [searchInput, setSearchInput] = useState("");
@@ -85,7 +87,7 @@ export default function DatabasePage() {
   return (
     <AdminGuard>
       <div className="flex flex-col gap-6">
-        <PageHeader title="Database" description="Read-only browser for every table in the database." />
+        <PageHeader title={t("title")} description={t("description")} />
 
         <Card>
           <CardContent className="flex flex-col gap-0 p-0 md:flex-row">
@@ -113,7 +115,7 @@ export default function DatabasePage() {
                 <Input
                   value={searchInput}
                   onChange={(e) => onSearch(e.target.value)}
-                  placeholder="Search this table…"
+                  placeholder={t("searchPlaceholder")}
                   className="pl-9"
                 />
               </div>
@@ -126,7 +128,7 @@ export default function DatabasePage() {
                   isLoading={data.isLoading}
                   emptyState={
                     <span className="text-sm text-muted-foreground">
-                      {search ? "No rows match your search." : "This table is empty."}
+                      {search ? t("noMatches") : t("empty")}
                     </span>
                   }
                 />
@@ -134,11 +136,11 @@ export default function DatabasePage() {
 
               <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <span className="tabular-nums">
-                  Showing {rows.length} of {total} row{total === 1 ? "" : "s"}
+                  {t("showing", { shown: rows.length, total })}
                 </span>
                 {hasMore && (
                   <Button variant="outline" size="sm" onClick={() => setLimit((l) => l + PAGE)}>
-                    Load more
+                    {t("loadMore")}
                   </Button>
                 )}
               </div>

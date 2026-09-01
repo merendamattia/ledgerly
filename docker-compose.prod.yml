@@ -1,4 +1,4 @@
-# Production compose for Coolify. Only backend + frontend.
+# Production compose for Coolify. Backend, worker, and frontend.
 # Postgres and Redis are managed Coolify resources: set DATABASE_URL / REDIS_URL
 # in the Coolify env. The nightly job runs IN-PROCESS in the backend (croner),
 # so there is no scheduled task to configure on Coolify.
@@ -17,6 +17,10 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       CRON_SECRET: ${CRON_SECRET}
       FRONTEND_URL: ${FRONTEND_URL}                # public frontend URL (CORS)
+      APP_ENV: ${APP_ENV:-production}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:admin@example.com}
       PORT: 3001
       # CRON_SCHEDULE is legacy/unused; per-job schedules are seeded in cron_job.
       CRON_ENABLED: ${CRON_ENABLED:-true}
@@ -24,6 +28,32 @@ services:
       CRON_TIMEZONE: ${CRON_TIMEZONE:-Europe/Rome}
     expose:
       - "3001"
+
+  worker:
+    build:
+      context: .
+      dockerfile: src/backend/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - backend
+    command: ["sh", "-c", "bunx prisma migrate deploy && bun run start:worker"]
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      CRON_SECRET: ${CRON_SECRET}
+      FRONTEND_URL: ${FRONTEND_URL}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5.6-luna}
+      OPENAI_REASONING_EFFORT: ${OPENAI_REASONING_EFFORT:-low}
+      APPLE_PAY_WORKER_CONCURRENCY: ${APPLE_PAY_WORKER_CONCURRENCY:-1}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:admin@example.com}
 
   frontend:
     build:
