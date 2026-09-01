@@ -1,3 +1,18 @@
+# [2.2.0](https://github.com/merendamattia/ledgerly/compare/v2.1.1...v2.2.0) (2026-09-01)
+
+
+### Bug Fixes
+
+* **frontend:** contain mobile account layouts ([8e5f94d](https://github.com/merendamattia/ledgerly/commit/8e5f94df95df5cb29bef518fc172ad385dccc2b9))
+* **transactions:** refine filters and warnings ([90512cf](https://github.com/merendamattia/ledgerly/commit/90512cfaf2e3e9e34b3ef305d9bba1749d5f886f))
+
+
+### Features
+
+* **integrations:** add personal wallet tokens ([7a552ea](https://github.com/merendamattia/ledgerly/commit/7a552ea425050ec0039fcfc400eefff4a6c67044)), closes [#49](https://github.com/merendamattia/ledgerly/issues/49)
+* **integrations:** guide Wallet setup ([12f95d5](https://github.com/merendamattia/ledgerly/commit/12f95d57a28dae79959bff20b69e839eb5566f75))
+* **release:** announce latest changelog release ([d650b9d](https://github.com/merendamattia/ledgerly/commit/d650b9d8681e0cce89e7773df73f8ad53b8866d8))
+
 ## [2.1.1](https://github.com/merendamattia/ledgerly/compare/v2.1.0...v2.1.1) (2026-08-31)
 
 
