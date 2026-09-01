@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import Image from "next/image";
+import { type ReactNode, useState } from "react";
 import { toast } from "sonner";
 import { Copy, KeyRound, RotateCw, ShieldCheck, Smartphone, Trash2 } from "lucide-react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -18,41 +19,66 @@ import {
 } from "@/hooks/use-integration-token";
 import { formatDate } from "@/lib/format";
 
-/** Renders the one-time secret, with an explicit dismissal action. */
-function OneTimeSecret({ secret, onDismiss }: { secret: string; onDismiss: () => void }) {
+const SHORTCUT_LINK = "https://www.icloud.com/shortcuts/a90eb7d1e7db4e79a00382b15e450102";
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001").replace(/\/+$/, "");
+const INTEGRATION_ENDPOINT = `${API_BASE_URL}/api/integrations/transactions`;
+
+/** Renders a copyable setup value without exposing it in a form field. */
+function CopyableValue({
+  label,
+  value,
+  successMessage,
+}: {
+  label: string;
+  value: string;
+  successMessage: string;
+}) {
   const [copied, setCopied] = useState(false);
 
-  async function copySecret() {
+  async function copyValue() {
     try {
-      await navigator.clipboard.writeText(secret);
+      await navigator.clipboard.writeText(value);
       setCopied(true);
-      toast.success("Token copied");
+      toast.success(successMessage);
     } catch {
-      toast.error("Copy failed. Select the token and copy it manually.");
+      toast.error("Copy failed. Select the value and copy it manually.");
     }
   }
 
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border border-border/80 bg-muted/35 p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+      <div className="min-w-0">
+        <p className="text-xs font-medium text-muted-foreground">{label}</p>
+        <code className="mt-1 block break-all font-mono text-xs leading-5 text-foreground">{value}</code>
+      </div>
+      <Button type="button" variant="outline" size="sm" onClick={() => void copyValue()} className="shrink-0 self-start sm:self-auto">
+        <Copy data-icon="inline-start" />
+        {copied ? "Copied" : "Copy"}
+      </Button>
+    </div>
+  );
+}
+
+/** Renders the one-time secret, with an explicit dismissal action. */
+function OneTimeSecret({ secret, onDismiss }: { secret: string; onDismiss: () => void }) {
   return (
     <Alert className="border-positive/40 bg-accent">
       <ShieldCheck />
       <AlertTitle>Save this token now</AlertTitle>
       <AlertDescription className="flex flex-col gap-3">
         <p>
-          This is the only time Ledgerly will show the full token. Treat it like a password and
-          replace it in Shortcuts if it is ever exposed.
+          The full token is shown only now. Copy the raw token for the Shortcut setup question, or
+          copy the complete header for a manual request.
         </p>
-        <code className="block rounded-md border border-border/80 bg-card px-3 py-2 font-mono text-xs leading-5 break-all text-foreground">
-          {secret}
-        </code>
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" size="sm" onClick={copySecret}>
-            <Copy data-icon="inline-start" />
-            {copied ? "Copied" : "Copy token"}
-          </Button>
-          <Button type="button" size="sm" variant="outline" onClick={onDismiss}>
-            I&apos;ve saved it
-          </Button>
-        </div>
+        <CopyableValue label="Personal token" value={secret} successMessage="Token copied" />
+        <CopyableValue
+          label="Authorization header"
+          value={`Bearer ${secret}`}
+          successMessage="Authorization header copied"
+        />
+        <Button type="button" size="sm" variant="outline" onClick={onDismiss} className="self-start">
+          I&apos;ve saved it
+        </Button>
       </AlertDescription>
     </Alert>
   );
@@ -117,75 +143,84 @@ function ActiveToken({
   );
 }
 
-/** Renders the iPhone Wallet setup steps required for the integration. */
-function IPhoneWalletInstructions() {
+/** Renders the values and short setup flow for the shared iPhone shortcut. */
+function IPhoneWalletInstructions({ children }: { children: ReactNode }) {
   return (
     <div className="flex flex-col gap-3 border-t border-border/80 pt-5">
       <div className="flex items-start gap-2">
         <Smartphone className="mt-0.5 size-4 shrink-0 text-primary" />
         <div>
           <h3 className="font-display text-base font-semibold tracking-tight">
-            Set up an iPhone Wallet automation
+            iPhone Wallet setup
           </h3>
           <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-            Use Apple Shortcuts to send Wallet payments to Ledgerly as expenses. This is a Wallet
-            automation, not bank-account synchronization.
+            Install the shared Shortcut, then connect it to a Wallet transaction automation.
           </p>
         </div>
       </div>
+      <p className="text-xs leading-5 text-muted-foreground">
+        <strong className="font-medium text-foreground">Note:</strong> This records Wallet payments
+        as expenses, not bank-account synchronization. Rotate the token if it is exposed.
+      </p>
+      <div className="flex flex-col gap-3">
+        <CopyableValue
+          label="iCloud Shortcut link"
+          value={SHORTCUT_LINK}
+          successMessage="Shortcut link copied"
+        />
+        <CopyableValue
+          label="Ledgerly API endpoint"
+          value={INTEGRATION_ENDPOINT}
+          successMessage="API endpoint copied"
+        />
+      </div>
+      {children}
       <ol className="flex list-decimal flex-col gap-2 pl-5 text-sm leading-6 text-muted-foreground marker:text-foreground">
         <li>
-          In Ledgerly, open <strong className="font-medium text-foreground">Settings → Advanced</strong>,
-          generate the personal API token and copy it. The full token is shown only once and must
-          be treated like a password.
+          Open the iCloud link on your iPhone, tap <strong className="font-medium text-foreground">Get Shortcut</strong>,
+          then answer the two setup questions with the API endpoint above and the raw token.
         </li>
         <li>
-          On iPhone, open <strong className="font-medium text-foreground">Shortcuts → Automation → + → Transaction</strong>.
-        </li>
-        <li>
-          Select the Wallet card(s) that should trigger the automation and choose <strong className="font-medium text-foreground">Run Immediately</strong>.
-        </li>
-        <li>
-          Create a blank automation and add <strong className="font-medium text-foreground">Get Contents of URL</strong>{" "}
-          (<span className="text-foreground">Ottieni contenuti dell&apos;URL</span>).
-        </li>
-        <li>
-          Set the URL to the Ledgerly backend integration endpoint, for example{" "}
-          <code className="break-all rounded bg-muted px-1 py-0.5 font-mono text-xs text-foreground">
-            https://&lt;ledgerly-backend&gt;/api/integrations/transactions
-          </code>
-          .
-        </li>
-        <li>
-          Use method <code className="font-mono text-xs text-foreground">POST</code> and add:
+          In <strong className="font-medium text-foreground">Shortcuts → Automation → + → Wallet</strong>,
+          select the cards, and choose <strong className="font-medium text-foreground">Run Immediately</strong>.
+          Add a <strong className="font-medium text-foreground">Dictionary</strong> with:
           <ul className="mt-1 flex list-disc flex-col gap-1 pl-5">
             <li>
-              <code className="font-mono text-xs text-foreground">Authorization: Bearer &lt;personal-token&gt;</code>
+              Choose <strong className="font-medium text-foreground">Text</strong>. Set the key to{" "}
+              <code className="font-mono text-xs text-foreground">merchant</code> and the value to the{" "}
+              <strong className="font-medium text-foreground">Merchant</strong> variable.
             </li>
             <li>
-              <code className="font-mono text-xs text-foreground">Content-Type: application/json</code>
+              Choose <strong className="font-medium text-foreground">Number</strong>. Set the key to{" "}
+              <code className="font-mono text-xs text-foreground">amount</code> and the value to the{" "}
+              <strong className="font-medium text-foreground">Amount</strong> variable.
             </li>
           </ul>
+          <p className="mt-1">
+            To insert a value, tap its value field → <strong className="font-medium text-foreground">Select Variable</strong>
+            → <strong className="font-medium text-foreground">Receive transaction as input</strong>, then choose{" "}
+            <strong className="font-medium text-foreground">Merchant</strong> or{" "}
+            <strong className="font-medium text-foreground">Amount</strong>. A blue variable chip means it is correct;
+            do not type those words manually.
+          </p>
+          Then add <strong className="font-medium text-foreground">Run Shortcut → Ledgerly - Apple Pay</strong> and
+          pass the Dictionary as its input.
         </li>
-        <li>
-          Build the JSON body from the transaction automation input:
-          <ul className="mt-1 flex list-disc flex-col gap-1 pl-5">
-            <li><code className="font-mono text-xs text-foreground">amount</code>: Wallet transaction <strong className="font-medium text-foreground">Amount</strong>.</li>
-            <li><code className="font-mono text-xs text-foreground">date</code>: current date formatted as <code className="font-mono text-xs text-foreground">yyyy-MM-dd</code>.</li>
-            <li><code className="font-mono text-xs text-foreground">direction</code>: fixed value <code className="font-mono text-xs text-foreground">EXPENSE</code>.</li>
-            <li><code className="font-mono text-xs text-foreground">note</code>: Wallet transaction <strong className="font-medium text-foreground">Merchant</strong>.</li>
-          </ul>
-        </li>
-        <li>Save the automation and verify the next Wallet payment appears in Ledgerly.</li>
-        <li>
-          This is an iPhone Wallet automation, <strong className="font-medium text-foreground">not bank-account synchronization</strong>.
-          The Ledgerly backend must be reachable from the iPhone, and the amount authorized in
-          Wallet can in some cases differ from the final amount posted by the card issuer.
-        </li>
-        <li>
-          If the token is ever exposed, regenerate it in Ledgerly and replace it in Shortcuts.
-        </li>
+        <li>Run one test payment. The backend must be reachable from the iPhone over HTTPS.</li>
       </ol>
+      <figure className="mx-auto flex w-full max-w-[280px] flex-col gap-2">
+        <Image
+          src="/images/iphone-wallet-automation.png"
+          alt="Final iPhone Wallet automation showing transaction input, a Dictionary with blue Merchant and Amount variables, and Ledgerly - Apple Pay receiving that Dictionary"
+          width={1179}
+          height={1488}
+          sizes="(max-width: 640px) 100vw, 448px"
+          className="h-auto w-full rounded-xl border border-border/80"
+        />
+        <figcaption className="text-center text-xs leading-5 text-muted-foreground">
+          Final configuration: both Dictionary values are blue transaction variables, and Run Shortcut receives the Dictionary as input.
+        </figcaption>
+      </figure>
     </div>
   );
 }
@@ -253,44 +288,45 @@ export function AdvancedSettingsCard() {
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
-        {secret ? <OneTimeSecret secret={secret} onDismiss={dismissSecret} /> : null}
-        {error ? (
-          <Alert variant="destructive">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        ) : null}
-        {status.isPending ? <Skeleton className="h-20 w-full rounded-lg" /> : null}
-        {status.isError ? (
-          <Alert variant="destructive">
-            <AlertTitle>Token status unavailable</AlertTitle>
-            <AlertDescription>{status.error.message}</AlertDescription>
-          </Alert>
-        ) : null}
-        {!status.isPending && !status.isError && metadata ? (
-          <ActiveToken
-            prefix={metadata.prefix}
-            suffix={metadata.suffix}
-            createdAt={metadata.createdAt}
-            pending={pending}
-            onRotate={() => void rotateToken()}
-            onRevoke={() => void revokeToken()}
-          />
-        ) : null}
-        {!status.isPending && !status.isError && !metadata ? (
-          <div className="flex flex-col gap-3 rounded-lg border border-dashed border-border/80 p-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm font-medium">No automation token yet</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Generate one to let an iPhone Shortcut create expenses for this account.
-              </p>
+        <IPhoneWalletInstructions>
+          {secret ? <OneTimeSecret secret={secret} onDismiss={dismissSecret} /> : null}
+          {error ? (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : null}
+          {status.isPending ? <Skeleton className="h-20 w-full rounded-lg" /> : null}
+          {status.isError ? (
+            <Alert variant="destructive">
+              <AlertTitle>Token status unavailable</AlertTitle>
+              <AlertDescription>{status.error.message}</AlertDescription>
+            </Alert>
+          ) : null}
+          {!status.isPending && !status.isError && metadata ? (
+            <ActiveToken
+              prefix={metadata.prefix}
+              suffix={metadata.suffix}
+              createdAt={metadata.createdAt}
+              pending={pending}
+              onRotate={() => void rotateToken()}
+              onRevoke={() => void revokeToken()}
+            />
+          ) : null}
+          {!status.isPending && !status.isError && !metadata ? (
+            <div className="flex flex-col gap-3 rounded-lg border border-dashed border-border/80 p-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-medium">No automation token yet</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Generate one to let an iPhone Shortcut create expenses for this account.
+                </p>
+              </div>
+              <Button type="button" onClick={() => void generate()} disabled={pending} className="w-full sm:w-fit">
+                {pending ? <Spinner data-icon="inline-start" /> : <KeyRound data-icon="inline-start" />}
+                Generate token
+              </Button>
             </div>
-            <Button type="button" onClick={() => void generate()} disabled={pending} className="w-full sm:w-fit">
-              {pending ? <Spinner data-icon="inline-start" /> : <KeyRound data-icon="inline-start" />}
-              Generate token
-            </Button>
-          </div>
-        ) : null}
-        <IPhoneWalletInstructions />
+          ) : null}
+        </IPhoneWalletInstructions>
       </CardContent>
     </Card>
   );
