@@ -24,7 +24,7 @@ repos:
     hooks:
       - id: frontend-eslint
         name: eslint (frontend)
-        entry: bash -c 'cd src/frontend && bun run lint'
+        entry: bash -c 'cd src/frontend && bunx eslint'
         language: system
         files: ^src/frontend/.*\.(ts|tsx|js|jsx|mjs)$
         pass_filenames: false

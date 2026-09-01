@@ -1,3 +1,66 @@
+## [2.1.1](https://github.com/merendamattia/ledgerly/compare/v2.1.0...v2.1.1) (2026-08-31)
+
+
+### Bug Fixes
+
+* **frontend:** contain mobile account layouts ([f8f95f0](https://github.com/merendamattia/ledgerly/commit/f8f95f0bb84fe158abbffe3c0c5dd7beedc3cd35))
+
+# [2.1.0](https://github.com/merendamattia/ledgerly/compare/v2.0.0...v2.1.0) (2026-08-31)
+
+
+### Bug Fixes
+
+* **auth:** close admin route and FX gaps ([6d85b73](https://github.com/merendamattia/ledgerly/commit/6d85b73334020b157a89d6e63120a04748c9cf49))
+* **auth:** close provisioning onboarding race ([b050089](https://github.com/merendamattia/ledgerly/commit/b0500893d75381d6351325082a91cf93419877ea))
+* **auth:** isolate frontend cache by session ([c3dabbe](https://github.com/merendamattia/ledgerly/commit/c3dabbe70a96014652c6bcbbb5f71bc5f3ed9992))
+* **auth:** redirect after password setup ([795c886](https://github.com/merendamattia/ledgerly/commit/795c88668d12ee8234459bdf8745e4189ba08999))
+* **auth:** secure password changes and share provider prices ([ce1dfa9](https://github.com/merendamattia/ledgerly/commit/ce1dfa911949b466fbe34c07263d3c4573d2d409))
+* **frontend:** align snapshot account view ([5a5822c](https://github.com/merendamattia/ledgerly/commit/5a5822c5821ff1f47adc66a5c04c282283b9ff96))
+* **logo:** update application logo ([50e3644](https://github.com/merendamattia/ledgerly/commit/50e3644fcc1971696c9c53a153704ad8b04e2859))
+* **prices:** preserve legacy bond anchors ([46d5531](https://github.com/merendamattia/ledgerly/commit/46d553109f9c1ba4ac1bb93bdf9b6967733befd1))
+
+
+### Features
+
+* **auth:** add admin-managed multi-user accounts ([ed61670](https://github.com/merendamattia/ledgerly/commit/ed61670db84d026bf0a6235fd7a93d4ed1ef86bd))
+
+# [2.0.0](https://github.com/merendamattia/ledgerly/compare/v1.2.0...v2.0.0) (2026-08-28)
+
+
+* feat(frontend)!: ship adaptive UI 2.0 ([f2a54dd](https://github.com/merendamattia/ledgerly/commit/f2a54dd5b9246f7aa063da86ba8f189117f9bb62))
+
+
+### Bug Fixes
+
+* **charts:** stack cash flow outflows ([3e15af9](https://github.com/merendamattia/ledgerly/commit/3e15af908b843699975f449e343faee210548053))
+
+
+### Features
+
+* **activity:** add period insights ([32fbc1f](https://github.com/merendamattia/ledgerly/commit/32fbc1f73c1b093c3557fc8c2ba2b037bae601bb))
+* **frontend:** add adaptive finance UI ([f92000b](https://github.com/merendamattia/ledgerly/commit/f92000b07474945dd5fe415d6f866a45e005fc14))
+
+
+### BREAKING CHANGES
+
+* Replaces the Ledgerly navigation, account registry, period controls, overlay styling, and chart stack, and releases every workspace as 2.0.0. No API migration is required.
+
+# [1.2.0](https://github.com/merendamattia/ledgerly/compare/v1.1.1...v1.2.0) (2026-08-27)
+
+
+### Bug Fixes
+
+* **ci:** scope commit check to pull requests ([6166fed](https://github.com/merendamattia/ledgerly/commit/6166fed05c18c7b7f8928d794a4e7b02ed80af03))
+* **matrix:** use live period baselines ([b6deab3](https://github.com/merendamattia/ledgerly/commit/b6deab330e2ed73828f0e33027ee7d6dc52005cb))
+* **matrix:** use UTC period boundaries ([b9c837e](https://github.com/merendamattia/ledgerly/commit/b9c837e9b5f923a423a9f401a06825a4ad14aeec))
+* **transactions:** complete bounded period results ([8da530a](https://github.com/merendamattia/ledgerly/commit/8da530a34a99d3081294261d92a933086980d824))
+* **transactions:** prioritize mobile period summary ([#39](https://github.com/merendamattia/ledgerly/issues/39)) ([5c9f2f0](https://github.com/merendamattia/ledgerly/commit/5c9f2f0a8c829ee5a6c62fa5a8e7350515d11275))
+
+
+### Features
+
+* **transactions:** add custom date-range filters ([e1dbc62](https://github.com/merendamattia/ledgerly/commit/e1dbc625e23ac7cda9f7ba859404c685f0bd2118))
+
 ## [1.1.1](https://github.com/merendamattia/ledgerly/compare/v1.1.0...v1.1.1) (2026-08-10)
 
 
