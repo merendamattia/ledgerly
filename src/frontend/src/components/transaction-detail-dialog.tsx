@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Pencil, Repeat, Trash2 } from "lucide-react";
+import { CircleAlert, Pencil, Repeat, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Dialog,
   DialogContent,
@@ -122,6 +123,18 @@ function DetailContent({
           {editing ? "Update the details below." : "Review or change this record."}
         </DialogDescription>
       </DialogHeader>
+
+      {!tx.category ? (
+        <Alert variant="destructive">
+          <CircleAlert />
+          <AlertTitle>Category missing</AlertTitle>
+          <AlertDescription>
+            {editing
+              ? "Choose a category in the Category field, then press Save."
+              : "Press Edit, choose a category in the Category field, then press Save."}
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
       {editing ? (
         <form onSubmit={save}>

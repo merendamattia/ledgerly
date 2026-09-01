@@ -217,6 +217,18 @@ export const createTransactionSchema = z.object({
 
 export const updateTransactionSchema = createTransactionSchema.partial();
 
+// Wallet automations can only create expenses. Keep this payload deliberately
+// narrow so integration credentials cannot be used as a general transaction API.
+export const integrationTransactionSchema = z
+  .object({
+    categoryId: z.string().min(1).nullable().optional(),
+    date: z.coerce.date(),
+    amount: z.number().positive(),
+    direction: z.literal("EXPENSE"),
+    note: z.string().trim().min(1).max(280),
+  })
+  .strict();
+
 // One row from a Budjet CSV import. `category` is the verbatim (lowercase) name;
 // the import service resolves it to a Category id (creating it if missing).
 export const importRowSchema = z.object({
@@ -334,6 +346,18 @@ export const upsertPillarSchema = z.object({
 export const updateSettingsSchema = z.object({
   baseCurrency: z.string().trim().length(3).toUpperCase(),
 });
+
+export const acknowledgeReleaseSchema = z
+  .object({
+    version: z
+      .string()
+      .trim()
+      .regex(
+        /^(?:v)?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/,
+        "Invalid release version",
+      ),
+  })
+  .strict();
 
 // --- Account administration and security -----------------------------------
 export const createUserSchema = z.object({

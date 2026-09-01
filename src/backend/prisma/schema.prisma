@@ -40,6 +40,7 @@ model User {
   netWorthSnapshots      NetWorthSnapshot[]
   rebalanceGroups        RebalanceGroup[]
   pillars                Pillar[]
+  personalApiToken       PersonalApiToken?
 
   @@map("user")
 }
@@ -156,8 +157,22 @@ model Settings {
   userId       String   @unique
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   baseCurrency String   @default("EUR")
+  lastSeenReleaseVersion String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+/// One active, user-owned token for narrow external integrations.
+model PersonalApiToken {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  prefix    String
+  suffix    String
+  createdAt DateTime @default(now())
+
+  @@map("personal_api_token")
 }
 
 /// Liquid account (bank, cash, ...).

@@ -43,6 +43,7 @@ beforeAll(async () => {
   await provisionUser(memberId, adminId);
 
   await settingsRepository.update(adminId, { baseCurrency: "EUR" });
+  await settingsRepository.acknowledgeRelease(adminId, "1.1.1");
   await categoryRepository.update(adminId, adminCategoryId, { emoji: "🪙" });
   await provisionUser(laterMemberId, adminId);
 });
@@ -64,6 +65,9 @@ test("provisioning copies a settings snapshot and later defaults remain independ
   const laterSettings = await settingsRepository.get(laterMemberId);
   expect(memberSettings.baseCurrency).toBe("USD");
   expect(laterSettings.baseCurrency).toBe("EUR");
+  expect(memberSettings.lastSeenReleaseVersion).toBeNull();
+  expect(laterSettings.lastSeenReleaseVersion).toBeNull();
+  expect((await settingsRepository.get(adminId)).lastSeenReleaseVersion).toBe("1.1.1");
 
   const memberCategory = await categoryRepository.findByNameKind(
     memberId,
@@ -83,4 +87,12 @@ test("provisioning copies a settings snapshot and later defaults remain independ
   await categoryRepository.update(memberId, memberCategory!.id, { emoji: "🧮" });
   expect((await categoryRepository.findById(adminId, adminCategoryId))?.emoji).toBe("🪙");
   expect((await categoryRepository.findById(laterMemberId, laterCategory!.id))?.emoji).toBe("🪙");
+});
+
+test("release acknowledgements remain isolated between existing users", async () => {
+  await settingsRepository.acknowledgeRelease(memberId, "1.1.2");
+
+  expect((await settingsRepository.get(memberId)).lastSeenReleaseVersion).toBe("1.1.2");
+  expect((await settingsRepository.get(adminId)).lastSeenReleaseVersion).toBe("1.1.1");
+  expect((await settingsRepository.get(laterMemberId)).lastSeenReleaseVersion).toBeNull();
 });

@@ -1,6 +1,7 @@
 import { createMiddleware } from "hono/factory";
 import { auth } from "../../core/auth.ts";
 import { config } from "../../core/config.ts";
+import { personalApiTokenRepository } from "../../repositories/personalApiToken.ts";
 import type { AppEnv } from "../types.ts";
 
 /**
@@ -51,5 +52,25 @@ export const requireCronOrAuth = createMiddleware<AppEnv>(async (c, next) => {
   }
   c.set("user", data.user);
   c.set("session", data.session);
+  await next();
+});
+
+const bearerTokenPattern = /^ledgerly_[A-Za-z0-9_-]{43}$/;
+
+function readBearerToken(value: string | undefined): string | null {
+  const match = value?.match(/^Bearer[ \t]+([^ \t]+)$/i);
+  if (!match || !bearerTokenPattern.test(match[1])) return null;
+  return match[1];
+}
+
+/** Authenticates only the narrow external integration surface. */
+export const requireIntegrationToken = createMiddleware<AppEnv>(async (c, next) => {
+  const token = readBearerToken(c.req.header("Authorization"));
+  if (!token) return c.json({ error: "Unauthorized" }, 401);
+
+  const record = await personalApiTokenRepository.findUserBySecret(token);
+  if (!record) return c.json({ error: "Unauthorized" }, 401);
+
+  c.set("integrationUserId", record.userId);
   await next();
 });

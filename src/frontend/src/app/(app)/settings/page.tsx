@@ -33,6 +33,7 @@ import { useSettings, useUpdateSettings } from "@/hooks/use-settings";
 import { useSession } from "@/lib/auth-client";
 import { AccountSecurityCard } from "@/components/account-security-card";
 import { UserManagementCard } from "@/components/user-management-card";
+import { AdvancedSettingsCard } from "@/components/advanced-settings-card";
 import {
   useCategories,
   useCreateCategory,
@@ -296,6 +297,7 @@ export default function SettingsPage() {
       <BaseCurrencyCard />
       <CategoriesCard />
       <AccountSecurityCard />
+      <AdvancedSettingsCard />
       <AdminSettingsSection />
     </div>
   );

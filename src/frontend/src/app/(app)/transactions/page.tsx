@@ -2,7 +2,8 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
-import { Repeat } from "lucide-react";
+import { CircleAlert, Repeat } from "lucide-react";
+import { toast } from "sonner";
 import { MonthYearPicker } from "@/components/month-year-picker";
 import { ActivityPeriodInsights } from "@/components/activity-period-insights";
 import { MoneyAmount } from "@/components/money-amount";
@@ -258,6 +259,7 @@ export default function TransactionsPage() {
                   TRANSACTION_FILTER_TAB_CLASS,
                   active ? SEGMENTED_CONTROL_ACTIVE_CLASS : SEGMENTED_CONTROL_INACTIVE_CLASS,
                 )}
+                aria-label={f.label}
               >
                 {f.label}
               </button>
@@ -493,6 +495,33 @@ export default function TransactionsPage() {
                       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                         <span className="flex items-center gap-1.5 truncate font-medium capitalize">
                           {t.category?.name || "Transaction"}
+                          {!t.category ? (
+                            <span
+                              className="inline-flex shrink-0 cursor-help rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                              role="button"
+                              aria-label="Needs category"
+                              title="Needs category"
+                              tabIndex={0}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                toast.warning("Category missing", {
+                                  description:
+                                    "Open the transaction, choose a category under Edit → Category, then save it.",
+                                });
+                              }}
+                              onKeyDown={(event) => {
+                                if (event.key !== "Enter" && event.key !== " ") return;
+                                event.preventDefault();
+                                event.stopPropagation();
+                                toast.warning("Category missing", {
+                                  description:
+                                    "Open the transaction, choose a category under Edit → Category, then save it.",
+                                });
+                              }}
+                            >
+                              <CircleAlert className="size-3.5 text-negative-ink" aria-hidden="true" />
+                            </span>
+                          ) : null}
                           {t.recurringExpenseId ? (
                             <Repeat
                               className="size-3.5 shrink-0 text-muted-foreground"

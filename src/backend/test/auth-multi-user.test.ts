@@ -146,6 +146,36 @@ test("temporary-password users are blocked until they change credentials", async
   expect((await request("/api/settings", {}, memberCookie)).status).toBe(200);
 });
 
+test("release acknowledgement is scoped to the authenticated user", async () => {
+  const acknowledged = await request(
+    "/api/settings/release-acknowledgement",
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ version: "1.1.3", userId: adminId }),
+    },
+    memberCookie,
+  );
+
+  expect(acknowledged.status).toBe(400);
+
+  const validAcknowledgement = await request(
+    "/api/settings/release-acknowledgement",
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ version: "1.1.3" }),
+    },
+    memberCookie,
+  );
+
+  expect(validAcknowledgement.status).toBe(200);
+  expect((await prisma.settings.findUniqueOrThrow({ where: { userId: memberId } })).lastSeenReleaseVersion).toBe(
+    "1.1.3",
+  );
+  expect((await prisma.settings.findUniqueOrThrow({ where: { userId: adminId } })).lastSeenReleaseVersion).toBeNull();
+});
+
 test("normal users cannot use admin surfaces", async () => {
   const users = await request("/api/users", {}, memberCookie);
   expect(users.status).toBe(403);

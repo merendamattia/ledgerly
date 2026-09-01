@@ -3,6 +3,7 @@ import { AppBottomNav } from "@/components/app-bottom-nav";
 import { AppTopbar } from "@/components/app-topbar";
 import { SearchProvider } from "@/components/search-context";
 import { CashflowPeriodProvider } from "@/components/cashflow/period-context";
+import { ReleaseAnnouncement } from "@/components/release-announcement";
 
 /**
  * Renders the authenticated app shell with topbar, content, and bottom navigation.
@@ -10,6 +11,7 @@ import { CashflowPeriodProvider } from "@/components/cashflow/period-context";
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <AuthGuard>
+      <ReleaseAnnouncement />
       <SearchProvider>
         <CashflowPeriodProvider>
           <div className="flex min-h-svh flex-col">

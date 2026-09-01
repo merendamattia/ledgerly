@@ -5,10 +5,11 @@ import {
   TRANSACTION_FILTER_TAB_CLASS,
 } from "./transaction-filter-layout";
 
-test("keeps transaction filters contained at a 320px viewport", () => {
-  expect(TRANSACTION_FILTERS_CLASS).toContain("grid-cols-2");
-  expect(TRANSACTION_FILTERS_CLASS).toContain("sm:inline-flex");
-  expect(TRANSACTION_FILTER_TAB_CLASS).toContain("min-w-0");
+test("keeps full transaction filter labels without overflowing", () => {
+  expect(TRANSACTION_FILTERS_CLASS).toContain("w-max");
+  expect(TRANSACTION_FILTERS_CLASS).toContain("max-w-full");
+  expect(TRANSACTION_FILTERS_CLASS).toContain("overflow-x-auto");
+  expect(TRANSACTION_FILTER_TAB_CLASS).toContain("shrink-0");
   expect(TRANSACTION_FILTER_TAB_CLASS).toContain("whitespace-nowrap");
 });
 
