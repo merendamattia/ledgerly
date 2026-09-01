@@ -95,6 +95,28 @@ email address and temporary password. New members must choose a permanent passwo
 can use the application. Each account has independent financial data, categories and settings;
 new accounts receive a copy of the administrator's current settings when they are created.
 
+### iPhone Wallet automation
+
+Settings → Advanced lets each user create one personal integration token for an Apple Shortcuts
+Wallet automation. The full secret is returned only when it is generated or rotated; Ledgerly
+stores a verifier and only shows the token's short prefix, suffix and creation date afterward.
+Treat the secret like a password. Revoke or rotate it in Ledgerly if it is exposed.
+
+The narrow integration endpoint accepts only expense creation:
+
+```http
+POST /api/integrations/transactions
+Authorization: Bearer <personal-token>
+Content-Type: application/json
+```
+
+Send `amount`, `date` (`yyyy-MM-dd`), fixed `direction: "EXPENSE"`, and the Wallet merchant as
+`note`. An optional `categoryId` must belong to the token owner. The complete iPhone Shortcuts
+configuration, including the Wallet `Transaction` trigger and `Run Immediately`, is documented in
+the Advanced section inside Ledgerly. This is Wallet-triggered automation, not bank-account
+synchronization, so the backend must be reachable from the iPhone and the Wallet-authorized amount
+may differ from the final amount posted by the card issuer.
+
 ### Useful scripts (run from the repo root)
 
 | Command                 | What it does                            |
