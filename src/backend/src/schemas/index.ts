@@ -347,6 +347,18 @@ export const updateSettingsSchema = z.object({
   baseCurrency: z.string().trim().length(3).toUpperCase(),
 });
 
+export const acknowledgeReleaseSchema = z
+  .object({
+    version: z
+      .string()
+      .trim()
+      .regex(
+        /^(?:v)?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/,
+        "Invalid release version",
+      ),
+  })
+  .strict();
+
 // --- Account administration and security -----------------------------------
 export const createUserSchema = z.object({
   email: z.string().trim().email(),

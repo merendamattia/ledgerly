@@ -3,10 +3,15 @@
   "version": "2.0.0",
   "private": true,
   "scripts": {
+    "generate-release-info": "bun scripts/generate-release-info.ts",
+    "predev": "bun run generate-release-info",
     "dev": "next dev -p 3000",
+    "prebuild": "bun run generate-release-info",
     "build": "next build",
     "start": "next start",
+    "prelint": "bun run generate-release-info",
     "lint": "eslint",
+    "pretest": "bun run generate-release-info",
     "test": "bun test"
   },
   "dependencies": {

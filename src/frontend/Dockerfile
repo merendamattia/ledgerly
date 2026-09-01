@@ -7,6 +7,7 @@ COPY package.json bun.lock ./
 COPY src/backend/package.json ./src/backend/package.json
 COPY src/frontend/package.json ./src/frontend/package.json
 RUN bun install --frozen-lockfile
+COPY CHANGELOG.md ./CHANGELOG.md
 # Backend source is needed for the typed RPC import + its generated Prisma types.
 COPY src/backend ./src/backend
 COPY src/frontend ./src/frontend
