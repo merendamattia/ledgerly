@@ -13,6 +13,7 @@ import {
 } from "../../schemas/index.ts";
 import { listTransactionTags } from "../../services/transactionTags.ts";
 import { serializeTransaction } from "../../utils/serialize.ts";
+import { createTransaction } from "../../services/transactions.ts";
 import { NotFoundError } from "../../core/errors.ts";
 import type { AppEnv } from "../types.ts";
 
@@ -56,16 +57,7 @@ export const expensesRoutes = new Hono<AppEnv>()
   })
   .post("/", zValidator("json", createTransactionSchema), async (c) => {
     const input = c.req.valid("json");
-    if (input.categoryId && !(await categoryRepository.findById(c.get("user").id, input.categoryId))) {
-      throw new NotFoundError("Category not found");
-    }
-    const transaction = await transactionRepository.create(c.get("user").id, {
-      date: input.date,
-      amount: input.amount,
-      direction: input.direction,
-      note: input.note ?? null,
-      category: input.categoryId ? { connect: { id: input.categoryId } } : undefined,
-    });
+    const transaction = await createTransaction(c.get("user").id, input);
     return c.json(serializeTransaction(transaction), 201);
   })
   .put("/:id", zValidator("json", updateTransactionSchema), async (c) => {

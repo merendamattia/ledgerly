@@ -24,6 +24,7 @@ import { cronRoutes } from "./routes/cron.ts";
 import { dashboardRoutes } from "./routes/dashboard.ts";
 import { databaseRoutes } from "./routes/database.ts";
 import { usersRoutes } from "./routes/users.ts";
+import { integrationsRoutes } from "./routes/integrations.ts";
 
 // The Hono app is the backend's only HTTP surface. Routes are transport-only:
 // they validate input, delegate to services, and shape responses. All domain
@@ -81,6 +82,7 @@ const routes = app
   .route("/accounts", accountsRoutes)
   .route("/categories", categoriesRoutes)
   .route("/expenses", expensesRoutes)
+  .route("/integrations", integrationsRoutes)
   .route("/recurring-expenses", recurringRoutes)
   .route("/expenses/import", importRoutes)
   .route("/tickers", tickersRoutes)

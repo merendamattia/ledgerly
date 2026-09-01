@@ -217,6 +217,18 @@ export const createTransactionSchema = z.object({
 
 export const updateTransactionSchema = createTransactionSchema.partial();
 
+// Wallet automations can only create expenses. Keep this payload deliberately
+// narrow so integration credentials cannot be used as a general transaction API.
+export const integrationTransactionSchema = z
+  .object({
+    categoryId: z.string().min(1).nullable().optional(),
+    date: z.coerce.date(),
+    amount: z.number().positive(),
+    direction: z.literal("EXPENSE"),
+    note: z.string().trim().min(1).max(280),
+  })
+  .strict();
+
 // One row from a Budjet CSV import. `category` is the verbatim (lowercase) name;
 // the import service resolves it to a Category id (creating it if missing).
 export const importRowSchema = z.object({

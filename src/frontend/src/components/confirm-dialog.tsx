@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactElement, type ReactNode } from "react";
+import { useState, type ComponentProps, type ReactElement, type ReactNode } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,6 +12,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import type { Button } from "@/components/ui/button";
 
 /** Renders a reusable confirmation dialog around a caller-provided trigger. */
 export function ConfirmDialog({
@@ -19,12 +20,14 @@ export function ConfirmDialog({
   title,
   description,
   confirmLabel = "Confirm",
+  confirmVariant = "default",
   onConfirm,
 }: {
   trigger: ReactNode;
   title: string;
   description?: string;
   confirmLabel?: string;
+  confirmVariant?: ComponentProps<typeof Button>["variant"];
   onConfirm: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -45,7 +48,9 @@ export function ConfirmDialog({
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={confirm}>{confirmLabel}</AlertDialogAction>
+          <AlertDialogAction variant={confirmVariant} onClick={confirm}>
+            {confirmLabel}
+          </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
