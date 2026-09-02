@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { releaseInfo } from "@/generated/release-info";
@@ -19,9 +20,9 @@ import {
 } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
 
-function formatReleaseDate(date: string): string {
+function formatReleaseDate(date: string, locale: string): string {
   const [year, month, day] = date.split("-").map(Number);
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat(locale, {
     dateStyle: "medium",
     timeZone: "UTC",
   }).format(new Date(Date.UTC(year, month - 1, day)));
@@ -29,6 +30,8 @@ function formatReleaseDate(date: string): string {
 
 /** Announces the latest built release once per authenticated user. */
 export function ReleaseAnnouncement() {
+  const t = useTranslations("release");
+  const locale = useLocale();
   const settings = useSettings();
   const acknowledgement = useAcknowledgeRelease();
   const shouldAnnounce = settings.data
@@ -49,7 +52,7 @@ export function ReleaseAnnouncement() {
       {
         onError: (error) => {
           setDismissedVersion(null);
-          toast.error(error.message || "Release acknowledgement could not be saved");
+          toast.error(error.message || t("saveError"));
         },
       },
     );
@@ -64,7 +67,7 @@ export function ReleaseAnnouncement() {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="inset-x-3 top-1/2 bottom-auto max-h-[calc(100dvh-1.5rem)] w-auto -translate-y-1/2 rounded-2xl pb-4 data-open:slide-in-from-bottom-0 data-closed:slide-out-to-bottom-0 sm:max-w-lg">
         <DialogHeader className="gap-3">
           <div className="flex items-start gap-3">
             <div
@@ -74,10 +77,8 @@ export function ReleaseAnnouncement() {
               <Sparkles className="size-5" />
             </div>
             <div className="min-w-0">
-              <DialogTitle>New version available</DialogTitle>
-              <DialogDescription>
-                Ledgerly has a fresh set of improvements.
-              </DialogDescription>
+              <DialogTitle>{t("title")}</DialogTitle>
+              <DialogDescription>{t("description")}</DialogDescription>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -86,7 +87,7 @@ export function ReleaseAnnouncement() {
             </Badge>
             {releaseInfo.date ? (
               <span className="text-xs text-muted-foreground">
-                Released {formatReleaseDate(releaseInfo.date)}
+                {t("released", { date: formatReleaseDate(releaseInfo.date, locale) })}
               </span>
             ) : null}
           </div>
@@ -111,8 +112,8 @@ export function ReleaseAnnouncement() {
 
         {acknowledgement.isError ? (
           <Alert variant="destructive">
-            <AlertTitle>Release acknowledgement could not be saved.</AlertTitle>
-            <AlertDescription>Close again to retry.</AlertDescription>
+            <AlertTitle>{t("saveErrorTitle")}</AlertTitle>
+            <AlertDescription>{t("retry")}</AlertDescription>
           </Alert>
         ) : null}
 
@@ -123,7 +124,7 @@ export function ReleaseAnnouncement() {
             onClick={acknowledgeAndClose}
           >
             {acknowledgement.isPending ? <Spinner data-icon="inline-start" /> : null}
-            {acknowledgement.isPending ? "Saving..." : "Got it"}
+            {acknowledgement.isPending ? t("saving") : t("confirm")}
           </Button>
         </DialogFooter>
       </DialogContent>

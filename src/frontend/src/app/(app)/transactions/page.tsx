@@ -1,7 +1,9 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { CircleAlert, Repeat } from "lucide-react";
 import { toast } from "sonner";
 import { MonthYearPicker } from "@/components/month-year-picker";
@@ -24,6 +26,7 @@ import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -35,6 +38,7 @@ import {
   useCompleteExpenses,
   useExpenseSummary,
   useExpenseTags,
+  useTransaction,
   type Transaction,
   type TransactionFilters,
 } from "@/hooks/use-expenses";
@@ -43,7 +47,8 @@ import {
   type InvestmentTransaction,
 } from "@/hooks/use-investments";
 import { useCategories } from "@/hooks/use-categories";
-import { formatMoney, formatMonthYear, INVESTMENT_SIDE_LABELS } from "@/lib/format";
+import { formatMoney, formatMonthYear } from "@/lib/format";
+import { useLocaleLabels } from "@/hooks/use-locale-labels";
 import {
   CUSTOM_TRANSACTION_PERIOD,
   resolveTransactionRange,
@@ -74,18 +79,6 @@ const PAGE_MOBILE = 10;
 // movements (buy/sell) are not yet recorded as transactions, so it yields none.
 type Filter = "ALL" | "INCOME" | "EXPENSE" | "INVESTMENT";
 
-const FILTERS: { value: Filter; label: string }[] = [
-  { value: "ALL", label: "All" },
-  { value: "INCOME", label: "Income" },
-  { value: "EXPENSE", label: "Expense" },
-  { value: "INVESTMENT", label: "Investments" },
-];
-
-const TRANSACTION_PERIOD_OPTIONS = [
-  { value: "all", label: "All time" },
-  { value: CUSTOM_TRANSACTION_PERIOD, label: "Custom range" },
-];
-
 /** Formats a local calendar day for date-only API filters. */
 function localISO(date: Date): string {
   return [
@@ -97,6 +90,18 @@ function localISO(date: Date): string {
 
 /** Renders the transaction activity page with filters, search, and detail dialogs. */
 export default function TransactionsPage() {
+  const tr = useTranslations("transactionsPage");
+  const { investmentSides } = useLocaleLabels();
+  const filtersList: { value: Filter; label: string }[] = [
+    { value: "ALL", label: tr("all") },
+    { value: "INCOME", label: tr("income") },
+    { value: "EXPENSE", label: tr("expense") },
+    { value: "INVESTMENT", label: tr("investments") },
+  ];
+  const periodOptions = [
+    { value: "all", label: tr("allTime") },
+    { value: CUSTOM_TRANSACTION_PERIOD, label: tr("customRange") },
+  ];
   const [filter, setFilter] = useState<Filter>("ALL");
   const [period, setPeriod] = useState<string>("all");
   const [customFrom, setCustomFrom] = useState("");
@@ -105,6 +110,10 @@ export default function TransactionsPage() {
   const [pageSize, setPageSize] = useState(PAGE_DESKTOP);
   const [limit, setLimit] = useState(PAGE_DESKTOP);
   const [showAllTags, setShowAllTags] = useState(false);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const linkedTransactionId = searchParams.get("transaction") ?? "";
+  const linkedTransaction = useTransaction(linkedTransactionId, !!linkedTransactionId);
 
   // Track viewport to size the page (lg breakpoint = 1024px); reset the visible
   // window when it changes.
@@ -127,7 +136,7 @@ export default function TransactionsPage() {
   const currency = settings.data?.baseCurrency ?? "EUR";
 
   const periodLabel =
-    TRANSACTION_PERIOD_OPTIONS.find((option) => option.value === period)?.label ??
+    periodOptions.find((option) => option.value === period)?.label ??
     formatMonthYear(`${period}-01T00:00:00`);
   const today = localISO(new Date());
 
@@ -140,13 +149,13 @@ export default function TransactionsPage() {
   const categories = useCategories(categoryKind, categoryKind !== undefined);
   const categoryOptions = useMemo(
     () => [
-      { value: "all", label: "All categories" },
+      { value: "all", label: tr("allCategories") },
       ...(categories.data ?? [])
         .slice()
         .sort((a, b) => a.name.localeCompare(b.name))
         .map((c) => ({ value: c.id, label: c.name })),
     ],
-    [categories.data],
+    [categories.data, tr],
   );
   const categoryItems = useMemo(
     () => Object.fromEntries(categoryOptions.map((o) => [o.value, o.label])),
@@ -234,6 +243,7 @@ export default function TransactionsPage() {
     () => (detailTx ? ((data ?? []).find((t) => t.id === detailTx.id) ?? detailTx) : null),
     [data, detailTx],
   );
+  const activeDetailTx = linkedTransaction.data ?? liveDetailTx;
   const liveInvTx = useMemo(
     () => (invTx ? ((investments.data ?? []).find((t) => t.id === invTx.id) ?? invTx) : null),
     [investments.data, invTx],
@@ -244,7 +254,7 @@ export default function TransactionsPage() {
       {/* Filters: full-width top bar */}
       <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className={TRANSACTION_FILTERS_CLASS}>
-          {FILTERS.map((f) => {
+          {filtersList.map((f) => {
             const active = filter === f.value;
             return (
               <button
@@ -281,11 +291,13 @@ export default function TransactionsPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {categoryOptions.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>
-                    {o.label}
-                  </SelectItem>
-                ))}
+                <SelectGroup>
+                  {categoryOptions.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
               </SelectContent>
             </Select>
           ) : null}
@@ -293,7 +305,7 @@ export default function TransactionsPage() {
           <MonthYearPicker
             value={period}
             label={periodLabel}
-            options={TRANSACTION_PERIOD_OPTIONS}
+            options={periodOptions}
             triggerClassName="sm:min-w-44"
             onChange={(next) => {
               setPeriod(next);
@@ -305,12 +317,12 @@ export default function TransactionsPage() {
           {period === CUSTOM_TRANSACTION_PERIOD ? (
             <div className="flex w-full min-w-0 flex-col gap-2 rounded-lg border border-input bg-card p-2 sm:w-auto sm:flex-row sm:items-end">
               <label className="flex w-full min-w-0 flex-col gap-1 text-xs font-medium text-muted-foreground sm:w-auto">
-                From
+                {tr("from")}
                 <Input
                   type="date"
                   value={customFrom}
                   max={today}
-                  aria-label="From date"
+                  aria-label={tr("fromDate")}
                   className={TRANSACTION_DATE_INPUT_CLASS}
                   onChange={(event) => {
                     const nextFrom = event.target.value > today ? today : event.target.value;
@@ -321,13 +333,13 @@ export default function TransactionsPage() {
                 />
               </label>
               <label className="flex w-full min-w-0 flex-col gap-1 text-xs font-medium text-muted-foreground sm:w-auto">
-                To
+                {tr("to")}
                 <Input
                   type="date"
                   value={customTo}
                   min={customFrom || undefined}
                   max={today}
-                  aria-label="To date"
+                  aria-label={tr("toDate")}
                   className={TRANSACTION_DATE_INPUT_CLASS}
                   onChange={(event) => {
                     const nextTo = event.target.value > today ? today : event.target.value;
@@ -350,7 +362,7 @@ export default function TransactionsPage() {
                   setLimit(pageSize);
                 }}
               >
-                Clear range
+                {tr("clearRange")}
               </Button>
             </div>
           ) : null}
@@ -360,7 +372,7 @@ export default function TransactionsPage() {
       {/* Tag quick-filter: click a tag to list every tagged movement in the period. */}
       {allTags.length > 0 ? (
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="mr-1 text-xs font-medium text-muted-foreground">Tags</span>
+          <span className="mr-1 text-xs font-medium text-muted-foreground">{tr("tags")}</span>
           {(showAllTags ? allTags : allTags.slice(0, 12)).map((tag) => {
             const active = activeTag === tag.toLowerCase();
             return (
@@ -385,7 +397,7 @@ export default function TransactionsPage() {
               onClick={() => setShowAllTags((v) => !v)}
               className="rounded-md px-2 py-0.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
             >
-              {showAllTags ? "Show less" : `+${allTags.length - 12} more`}
+              {showAllTags ? tr("showLess") : tr("more", { count: allTags.length - 12 })}
             </button>
           ) : null}
           {tagActive ? (
@@ -394,7 +406,7 @@ export default function TransactionsPage() {
               onClick={() => setQuery("")}
               className="rounded-md px-2 py-0.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
             >
-              Clear
+              {tr("clear")}
             </button>
           ) : null}
         </div>
@@ -416,10 +428,10 @@ export default function TransactionsPage() {
           <div className="flex flex-col gap-5">
             {tagActive && activeTag ? (
               <StatCard
-                label={`Tag · #${activeTag}`}
+                label={tr("tag", { tag: activeTag })}
                 value={<MoneyAmount value={tagNet} currency={currency} colored signed />}
                 accent={tagNet < 0 ? "negative" : "positive"}
-                delta={{ label: `${rows.length} ${rows.length === 1 ? "movement" : "movements"}` }}
+                delta={{ label: tr("movementCount", { count: rows.length }) }}
               />
             ) : null}
             <UpcomingMovement currency={currency} onTransactionClick={setDetailTx} />
@@ -432,10 +444,10 @@ export default function TransactionsPage() {
             <div className="overflow-hidden rounded-[var(--card-radius)] border bg-card px-5 pt-3 pb-1 shadow-card">
               {filter === "INVESTMENT" ? (
                 investments.isLoading ? (
-                  <div className="py-10 text-center text-sm text-muted-foreground">Loading…</div>
+                  <div className="py-10 text-center text-sm text-muted-foreground">{tr("loading")}</div>
                 ) : investmentRows.length === 0 ? (
                   <div className="py-12 text-center text-sm text-muted-foreground">
-                    No investment movements yet.
+                    {tr("noInvestments")}
                   </div>
                 ) : (
                   <DayGroupedList
@@ -453,10 +465,10 @@ export default function TransactionsPage() {
                           </span>
                           <div className="flex min-w-0 flex-1 flex-col">
                             <span className="truncate font-medium">
-                              {INVESTMENT_SIDE_LABELS[t.side]} {t.ticker?.symbol ?? ""}
+                              {investmentSides[t.side]} {t.ticker?.symbol ?? ""}
                             </span>
                             <span className="truncate text-xs text-muted-foreground">
-                              {t.ticker?.name ?? "Investment"}
+                              {t.ticker?.name ?? tr("investment")}
                             </span>
                           </div>
                           <span
@@ -474,10 +486,10 @@ export default function TransactionsPage() {
                   />
                 )
               ) : isLoading ? (
-                <div className="py-10 text-center text-sm text-muted-foreground">Loading…</div>
+                <div className="py-10 text-center text-sm text-muted-foreground">{tr("loading")}</div>
               ) : rows.length === 0 ? (
                 <div className="py-12 text-center text-sm text-muted-foreground">
-                  No transactions for this filter.
+                  {tr("noTransactions")}
                 </div>
               ) : (
                 <DayGroupedList
@@ -494,28 +506,26 @@ export default function TransactionsPage() {
                       />
                       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                         <span className="flex items-center gap-1.5 truncate font-medium capitalize">
-                          {t.category?.name || "Transaction"}
+                          {t.category?.name || tr("transaction")}
                           {!t.category ? (
                             <span
                               className="inline-flex shrink-0 cursor-help rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                               role="button"
-                              aria-label="Needs category"
-                              title="Needs category"
+                              aria-label={tr("needsCategory")}
+                              title={tr("needsCategory")}
                               tabIndex={0}
                               onClick={(event) => {
                                 event.stopPropagation();
-                                toast.warning("Category missing", {
-                                  description:
-                                    "Open the transaction, choose a category under Edit → Category, then save it.",
+                                toast.warning(tr("categoryMissing"), {
+                                  description: tr("categoryMissingHelp"),
                                 });
                               }}
                               onKeyDown={(event) => {
                                 if (event.key !== "Enter" && event.key !== " ") return;
                                 event.preventDefault();
                                 event.stopPropagation();
-                                toast.warning("Category missing", {
-                                  description:
-                                    "Open the transaction, choose a category under Edit → Category, then save it.",
+                                toast.warning(tr("categoryMissing"), {
+                                  description: tr("categoryMissingHelp"),
                                 });
                               }}
                             >
@@ -525,7 +535,7 @@ export default function TransactionsPage() {
                           {t.recurringExpenseId ? (
                             <Repeat
                               className="size-3.5 shrink-0 text-muted-foreground"
-                              aria-label="Recurring"
+                              aria-label={tr("recurring")}
                             />
                           ) : null}
                         </span>
@@ -549,21 +559,30 @@ export default function TransactionsPage() {
 
             {hasMore ? (
               <div className="flex justify-center">
-                <Button onClick={() => setLimit((l) => l + pageSize)}>Load more</Button>
+                <Button onClick={() => setLimit((l) => l + pageSize)}>{tr("loadMore")}</Button>
               </div>
             ) : null}
           </div>
         }
       />
 
-      {liveDetailTx ? (
+      {activeDetailTx ? (
         <TransactionDetailDialog
-          transaction={liveDetailTx}
+          transaction={activeDetailTx}
           open
           onOpenChange={(o) => {
-            if (!o) setDetailTx(null);
+            if (o) return;
+            if (linkedTransactionId) {
+              const params = new URLSearchParams(searchParams.toString());
+              params.delete("transaction");
+              params.delete("edit");
+              router.replace(params.size ? `/transactions?${params}` : "/transactions", { scroll: false });
+            } else {
+              setDetailTx(null);
+            }
           }}
           currency={currency}
+          defaultEditing={!!linkedTransactionId && searchParams.get("edit") === "1"}
         />
       ) : null}
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { Eye, EyeOff, TrendingUp } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -23,8 +24,8 @@ import {
   formatMoney,
   formatNumber,
   formatPercent,
-  INVESTMENT_SIDE_LABELS,
 } from "@/lib/format";
+import { useLocaleLabels } from "@/hooks/use-locale-labels";
 import { cn } from "@/lib/utils";
 
 type RecentTx = DashboardData["recentTransactions"][number];
@@ -45,10 +46,6 @@ const PERIODS = [
   { value: "1Y", label: "1Y" },
   { value: "Max", label: "Max" },
 ] as const;
-const CHART_MODES: { value: ChartMode; label: string; mobileLabel: string }[] = [
-  { value: "total", label: "Total", mobileLabel: "Total" },
-  { value: "composition", label: "Composition", mobileLabel: "Assets" },
-];
 const PERIOD_DAYS: Record<string, number> = { "1M": 30, "3M": 90, "1Y": 365 };
 
 /** Resolves the oldest date included by the selected overview period. */
@@ -152,6 +149,12 @@ function KpiDeltaLine({ delta }: { delta: KpiDelta }) {
 
 /** Renders the overview dashboard for net worth, cashflow, and recent activity. */
 export default function OverviewPage() {
+  const tr = useTranslations("overviewPage");
+  const { investmentSides } = useLocaleLabels();
+  const chartModes: { value: ChartMode; label: string; mobileLabel: string }[] = [
+    { value: "total", label: tr("total"), mobileLabel: tr("total") },
+    { value: "composition", label: tr("composition"), mobileLabel: tr("assets") },
+  ];
   const { data, isLoading } = useDashboard(12);
   const investmentTx = useInvestmentTransactions({ limit: 5 });
   const accounts = useAccounts();
@@ -201,7 +204,7 @@ export default function OverviewPage() {
     const previous = [...(nwHistory.data ?? [])]
       .reverse()
       .find((p) => p.date < currentMonthStartISO());
-    const missing: KpiDelta = { label: "No previous month data", tone: "muted" };
+    const missing: KpiDelta = { label: tr("noPreviousMonth"), tone: "muted" };
     if (!previous) {
       return {
         investments: missing,
@@ -218,16 +221,16 @@ export default function OverviewPage() {
       investments: {
         prefix: investmentsPct == null ? "" : `${formatPercent(investmentsPct)} · `,
         amountText: signedMoney(investmentsDelta, currency),
-        suffix: " this month",
+        suffix: tr("thisMonth"),
         tone: investmentsDelta >= 0 ? "positive" : "negative",
       },
       debts: {
         amountText: signedMoney(debtsDelta, currency),
-        suffix: " this month",
+        suffix: tr("thisMonth"),
         tone: debtsDelta <= 0 ? "positive" : "negative",
       },
     } satisfies Record<"investments" | "debts", KpiDelta>;
-  }, [nwHistory.data, investments, debts, currency]);
+  }, [nwHistory.data, investments, debts, currency, tr]);
 
   const liquiditySnapshotHistory = useMemo<TrendPoint[]>(() => {
     const liquidityAccountIds = new Set(
@@ -251,18 +254,18 @@ export default function OverviewPage() {
       .reverse()
       .find((point) => point.date < currentMonthStartISO());
     if (!latest || !previous) {
-      return { label: "No previous month data", tone: "muted" };
+      return { label: tr("noPreviousMonth"), tone: "muted" };
     }
     if (latest.date < currentMonthStartISO()) {
-      return { label: "No current month snapshot", tone: "muted" };
+      return { label: tr("noCurrentMonth"), tone: "muted" };
     }
     const delta = latest.total - previous.total;
     return {
       amountText: signedMoney(delta, currency),
-      suffix: " this month",
+      suffix: tr("thisMonth"),
       tone: delta >= 0 ? "positive" : "negative",
     };
-  }, [liquiditySnapshotHistory, currency]);
+  }, [liquiditySnapshotHistory, currency, tr]);
 
   const kpiSparklines = useMemo(() => {
     const points = nwHistory.data ?? [];
@@ -294,7 +297,7 @@ export default function OverviewPage() {
       <Card className={cn("col-span-12 flex flex-col gap-0 p-5 animate-fu lg:col-span-8")}>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="text-xs font-medium text-muted-foreground">Net worth</p>
+            <p className="text-xs font-medium text-muted-foreground">{tr("netWorth")}</p>
             <div className="mt-1.5 flex items-start gap-2.5">
               {isLoading ? (
                 <span className="font-mono text-4xl font-semibold tracking-tight tabular-nums">
@@ -314,14 +317,14 @@ export default function OverviewPage() {
                       type="button"
                       onClick={togglePrivacyMode}
                       className="mt-1 inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                      aria-label={shouldHidePrivateNumbers ? "Show amounts" : "Hide amounts"}
+                      aria-label={shouldHidePrivateNumbers ? tr("showAmounts") : tr("hideAmounts")}
                     >
                       <PrivacyIcon className="size-4.5" />
                     </button>
                   }
                 />
                 <TooltipContent>
-                  {shouldHidePrivateNumbers ? "Show amounts" : "Hide amounts"}
+                  {shouldHidePrivateNumbers ? tr("showAmounts") : tr("hideAmounts")}
                 </TooltipContent>
               </Tooltip>
             </div>
@@ -331,14 +334,14 @@ export default function OverviewPage() {
                 amount={nwDelta.abs}
                 currency={currency}
                 period={period}
-                label="Change"
+                label={tr("change")}
                 className="mt-2"
               />
             ) : null}
           </div>
           <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:items-end">
             <div className="grid grid-cols-2 gap-0.5 rounded-lg bg-muted p-0.5 sm:flex">
-              {CHART_MODES.map((m) => (
+              {chartModes.map((m) => (
                 <button
                   key={m.value}
                   type="button"
@@ -370,7 +373,7 @@ export default function OverviewPage() {
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  {p.label}
+                  {p.value === "Max" ? tr("max") : p.label}
                 </button>
               ))}
             </div>
@@ -402,7 +405,7 @@ export default function OverviewPage() {
 
       {/* Allocation */}
       <Card className={cn("col-span-12 gap-0 p-5 animate-fu lg:col-span-4")}>
-        <p className="font-display text-base font-semibold">Allocation</p>
+        <p className="font-display text-base font-semibold">{tr("allocation")}</p>
         <div className="mt-2">
           <AllocationChart allocation={allocation} currency={currency} isLoading={isLoading} />
         </div>
@@ -411,7 +414,7 @@ export default function OverviewPage() {
       {/* KPI row — Investments · Liquidity · Debts · Cash flow + Savings */}
       <Card className={cn("col-span-6 gap-0 p-5 animate-fu lg:col-span-3")}>
         <div className="flex items-center justify-between gap-3">
-          <p className="text-xs font-medium text-muted-foreground">Investments</p>
+          <p className="text-xs font-medium text-muted-foreground">{tr("investments")}</p>
           <MiniSparkline values={kpiSparklines.investments} color="var(--positive)" />
         </div>
         <p className="mt-2.5 font-mono text-2xl font-semibold tabular-nums">
@@ -421,7 +424,7 @@ export default function OverviewPage() {
       </Card>
       <Card className={cn("col-span-6 gap-0 p-5 animate-fu lg:col-span-3")}>
         <div className="flex items-center justify-between gap-3">
-          <p className="text-xs font-medium text-muted-foreground">Liquidity</p>
+          <p className="text-xs font-medium text-muted-foreground">{tr("liquidity")}</p>
           <MiniSparkline
             values={snapshotTrendValues(liquiditySnapshotHistory)}
             color="var(--chart-3)"
@@ -434,7 +437,7 @@ export default function OverviewPage() {
       </Card>
       <Card className={cn("col-span-6 gap-0 p-5 animate-fu lg:col-span-3")}>
         <div className="flex items-center justify-between gap-3">
-          <p className="text-xs font-medium text-muted-foreground">Debts</p>
+          <p className="text-xs font-medium text-muted-foreground">{tr("debts")}</p>
           <MiniSparkline values={kpiSparklines.debts} color="var(--negative)" />
         </div>
         <p
@@ -454,19 +457,19 @@ export default function OverviewPage() {
           "col-span-6 gap-0 border-0 bg-sidebar p-5 text-sidebar-accent-foreground shadow-card ring-0 animate-fu lg:col-span-3",
         )}
       >
-        <span className="text-xs font-medium text-sidebar-foreground">Monthly cash flow</span>
+        <span className="text-xs font-medium text-sidebar-foreground">{tr("monthlyCashFlow")}</span>
         <p className="mt-2.5 font-mono text-2xl font-semibold tabular-nums text-primary">
           {monthlySavings >= 0 ? "+" : ""}
           <MoneyAmount value={monthlySavings} currency={currency} />
         </p>
-        <span className="mt-1 text-xs text-sidebar-foreground">Savings rate {savingsRate}%</span>
+        <span className="mt-1 text-xs text-sidebar-foreground">{tr("savingsRate", { rate: savingsRate })}</span>
       </Card>
 
       {/* Income vs expenses — the row height is driven by the category card on
           the right; the chart is absolutely positioned so it adds no intrinsic
           height and simply fills whatever height that gives. */}
       <Card className={cn("col-span-12 flex flex-col gap-0 p-5 animate-fu lg:col-span-7")}>
-        <p className="font-display text-base font-semibold">Income vs expenses</p>
+        <p className="font-display text-base font-semibold">{tr("incomeVsExpenses")}</p>
         <div className="relative mt-4 min-h-[240px] flex-1 sm:min-h-[260px]">
           <div className="absolute inset-0">
             <CashFlowChart
@@ -482,17 +485,17 @@ export default function OverviewPage() {
       {/* Expenses by category */}
       <CategoryBreakdownCard
         className="col-span-12 p-5 animate-fu lg:col-span-5"
-        title="Expenses by category"
-        subtitle="This month"
+        title={tr("expensesByCategory")}
+        subtitle={tr("thisMonthLabel")}
         items={expenseByCategory}
         total={expenseTotal}
-        totalLabel="Total expenses"
+        totalLabel={tr("totalExpenses")}
         currency={currency}
-        emptyText="No expenses yet."
+        emptyText={tr("noExpenses")}
         action={
           expenseByCategory.length > 6 ? (
             <Link href="/cashflow" className="text-sm font-semibold text-positive">
-              View all →
+              {tr("viewAll")}
             </Link>
           ) : null
         }
@@ -501,16 +504,16 @@ export default function OverviewPage() {
       {/* Recent expenses & income */}
       <Card className={cn("col-span-12 gap-0 p-5 animate-fu lg:col-span-6")}>
         <div className="flex items-center justify-between">
-          <p className="font-display text-base font-semibold">Recent movements</p>
+          <p className="font-display text-base font-semibold">{tr("recentMovements")}</p>
           <Link href="/transactions" className="text-sm font-semibold text-positive">
-            View all →
+            {tr("viewAll")}
           </Link>
         </div>
         <div className="mt-2">
           {isLoading ? (
-            <p className="py-4 text-sm text-muted-foreground">Loading…</p>
+            <p className="py-4 text-sm text-muted-foreground">{tr("loading")}</p>
           ) : (data?.recentTransactions ?? []).length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">No transactions yet.</p>
+            <p className="py-8 text-center text-sm text-muted-foreground">{tr("noTransactions")}</p>
           ) : (
             <DayGroupedList
               items={data?.recentTransactions.slice(0, 5) ?? []}
@@ -521,7 +524,7 @@ export default function OverviewPage() {
                   <CategoryIcon name={t.category?.name} emoji={t.category?.emoji} className="size-9 rounded-full text-lg" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium capitalize">
-                      {t.category?.name || "Transaction"}
+                      {t.category?.name || tr("transaction")}
                     </p>
                     {t.note ? (
                       <p className="truncate text-xs text-muted-foreground">{t.note}</p>
@@ -544,17 +547,17 @@ export default function OverviewPage() {
       {/* Recent investment movements */}
       <Card className={cn("col-span-12 gap-0 p-5 animate-fu lg:col-span-6")}>
         <div className="flex items-center justify-between">
-          <p className="font-display text-base font-semibold">Recent investments</p>
+          <p className="font-display text-base font-semibold">{tr("recentInvestments")}</p>
           <Link href="/investments" className="text-sm font-semibold text-positive">
-            View all →
+            {tr("viewAll")}
           </Link>
         </div>
         <div className="mt-2">
           {investmentTx.isLoading ? (
-            <p className="py-4 text-sm text-muted-foreground">Loading…</p>
+            <p className="py-4 text-sm text-muted-foreground">{tr("loading")}</p>
           ) : (investmentTx.data ?? []).length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">
-              No investment movements yet.
+              {tr("noInvestmentMovements")}
             </p>
           ) : (
             <DayGroupedList
@@ -572,12 +575,12 @@ export default function OverviewPage() {
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-medium">
-                        {INVESTMENT_SIDE_LABELS[t.side]} {t.ticker?.symbol ?? ""}
+                        {investmentSides[t.side]} {t.ticker?.symbol ?? ""}
                       </p>
                       <p className="truncate text-xs text-muted-foreground">
                         {t.ticker?.name ? `${t.ticker.name} · ` : ""}
                         <span className="font-mono">
-                          Qty <PrivateNumber text={formatNumber(t.quantity, 4)} /> @{" "}
+                          {tr("quantity")} <PrivateNumber text={formatNumber(t.quantity, 4)} /> @{" "}
                           <MoneyAmount value={t.price} currency={txCurrency} />
                         </span>
                       </p>

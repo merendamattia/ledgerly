@@ -143,7 +143,22 @@ test("temporary-password users are blocked until they change credentials", async
   const changedCookie = changed.headers.get("set-cookie");
   if (changedCookie) memberCookie = changedCookie.split(";", 1)[0];
   expect((await request("/api/settings", {}, otherSessionCookie)).status).toBe(401);
-  expect((await request("/api/settings", {}, memberCookie)).status).toBe(200);
+  const unresolvedSettings = await request("/api/settings", {}, memberCookie);
+  expect(unresolvedSettings.status).toBe(200);
+  expect((await unresolvedSettings.json() as { locale: string | null }).locale).toBeNull();
+
+  const selectedLanguage = await request(
+    "/api/settings",
+    {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ locale: "it" }),
+    },
+    memberCookie,
+  );
+  expect(selectedLanguage.status).toBe(200);
+  expect((await selectedLanguage.json() as { locale: string | null }).locale).toBe("it");
+  expect((await prisma.settings.findUniqueOrThrow({ where: { userId: memberId } })).locale).toBe("it");
 });
 
 test("release acknowledgement is scoped to the authenticated user", async () => {

@@ -25,6 +25,7 @@ import { dashboardRoutes } from "./routes/dashboard.ts";
 import { databaseRoutes } from "./routes/database.ts";
 import { usersRoutes } from "./routes/users.ts";
 import { integrationsRoutes } from "./routes/integrations.ts";
+import { notificationsRoutes } from "./routes/notifications.ts";
 
 // The Hono app is the backend's only HTTP surface. Routes are transport-only:
 // they validate input, delegate to services, and shape responses. All domain
@@ -37,7 +38,7 @@ app.use(
   cors({
     origin: config.FRONTEND_URL,
     credentials: true,
-    allowHeaders: ["Content-Type", "Authorization", "x-cron-secret"],
+    allowHeaders: ["Content-Type", "Authorization", "Idempotency-Key", "x-cron-secret"],
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   }),
 );
@@ -83,6 +84,7 @@ const routes = app
   .route("/categories", categoriesRoutes)
   .route("/expenses", expensesRoutes)
   .route("/integrations", integrationsRoutes)
+  .route("/notifications", notificationsRoutes)
   .route("/recurring-expenses", recurringRoutes)
   .route("/expenses/import", importRoutes)
   .route("/tickers", tickersRoutes)

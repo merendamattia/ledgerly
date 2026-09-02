@@ -27,12 +27,13 @@ import { TagInput, TagChips } from "@/components/tag-input";
 import { MoneyAmount } from "@/components/money-amount";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useCategories } from "@/hooks/use-categories";
+import { useLocaleLabels } from "@/hooks/use-locale-labels";
 import {
   useDeleteTransaction,
   useUpdateTransaction,
   type Transaction,
 } from "@/hooks/use-expenses";
-import { formatDate, DIRECTION_LABELS } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 
 /**
  * Renders a controlled detail dialog for viewing, editing, or deleting a transaction.
@@ -88,6 +89,7 @@ function DetailContent({
   const [amount, setAmount] = useState(String(tx.amount));
   const [note, setNote] = useState(tx.note ?? "");
   const categories = useCategories(direction);
+  const { directions } = useLocaleLabels();
   const update = useUpdateTransaction();
   const del = useDeleteTransaction();
 
@@ -143,7 +145,7 @@ function DetailContent({
               <FieldLabel htmlFor="detail-direction">Direction</FieldLabel>
               <Select
                 value={direction}
-                items={DIRECTION_LABELS}
+                items={directions}
                 onValueChange={(v) => {
                   setDirection((v ?? "EXPENSE") as typeof direction);
                   setCategoryId("");
@@ -153,8 +155,8 @@ function DetailContent({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="EXPENSE">Expense</SelectItem>
-                  <SelectItem value="INCOME">Income</SelectItem>
+                  <SelectItem value="EXPENSE">{directions.EXPENSE}</SelectItem>
+                  <SelectItem value="INCOME">{directions.INCOME}</SelectItem>
                 </SelectContent>
               </Select>
             </Field>
@@ -242,7 +244,7 @@ function DetailContent({
           <TagChips note={tx.note} />
           <dl className="grid grid-cols-[5rem_1fr] gap-x-6 gap-y-2.5 text-sm">
             <dt className="text-muted-foreground">Direction</dt>
-            <dd>{DIRECTION_LABELS[tx.direction]}</dd>
+            <dd>{directions[tx.direction]}</dd>
             <dt className="text-muted-foreground">Date</dt>
             <dd>{formatDate(tx.date)}</dd>
             <dt className="text-muted-foreground">Category</dt>

@@ -1,6 +1,7 @@
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Sparkline } from "@/components/charts/sparkline";
 import { MoneyAmount } from "@/components/money-amount";
+import { useTranslations } from "next-intl";
 
 /**
  * Renders year-to-date cumulative savings with current-month delta and sparkline.
@@ -16,18 +17,19 @@ export function AccumulatedCard({
   series: number[];
   currency: string;
 }) {
+  const t = useTranslations("cashflow");
   const positive = monthDelta >= 0;
   return (
     <Card className="h-full gap-0 p-6">
       <CardHeader className="px-0">
-        <CardTitle className="font-display text-sm font-semibold">Accumulated savings</CardTitle>
+        <CardTitle className="font-display text-sm font-semibold">{t("accumulatedSavings")}</CardTitle>
       </CardHeader>
       <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-2">
         <span className="flex items-baseline gap-1.5">
           <span className="font-mono text-3xl font-semibold tabular-nums">
             <MoneyAmount value={total} currency={currency} />
           </span>
-          <span className="text-xs font-medium text-muted-foreground">YTD</span>
+          <span className="text-xs font-medium text-muted-foreground">{t("ytd")}</span>
         </span>
         <span
           className={
@@ -37,7 +39,7 @@ export function AccumulatedCard({
           }
         >
           {positive ? "+" : ""}
-          <MoneyAmount value={Math.abs(monthDelta)} currency={currency} /> this month
+          <MoneyAmount value={Math.abs(monthDelta)} currency={currency} /> {t("thisMonth")}
         </span>
       </div>
       <div className="mt-auto pt-4">

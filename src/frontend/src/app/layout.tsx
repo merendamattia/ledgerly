@@ -1,8 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
+import { cookies } from "next/headers";
 import "./globals.css";
 import { Providers } from "./providers";
 import { Toaster } from "@/components/ui/sonner";
+import { DEFAULT_LOCALE, isLocale, LOCALE_COOKIE } from "@/i18n/config";
 
 // "Modern ledger" type system: Hanken Grotesk for UI/body, Space Grotesk for
 // display headings, JetBrains Mono for every figure (tabular).
@@ -47,18 +49,21 @@ export const viewport: Viewport = {
 };
 
 /** Renders the root HTML shell, fonts, global providers, and toast host. */
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const hint = (await cookies()).get(LOCALE_COOKIE)?.value;
+  const initialLocale = isLocale(hint) ? hint : DEFAULT_LOCALE;
+
   return (
     <html
-      lang="en"
+      lang={initialLocale}
       className={`${sans.variable} ${display.variable} ${mono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
-        <Providers>{children}</Providers>
+        <Providers initialLocale={initialLocale}>{children}</Providers>
         <Toaster
           richColors
           position="bottom-center"

@@ -2209,7 +2209,7 @@ export function EChartsBarChart<TData extends Record<string, unknown>>({
             className="text-primary bg-background flex items-center justify-center gap-2 rounded-md border px-2 py-0.5 text-sm"
           >
             <div className="border-border border-t-primary h-3 w-3 animate-spin rounded-full border" />
-            <span>Loading</span>
+            <span className="text-positive">Loading</span>
           </motion.div>
         </div>
       )}

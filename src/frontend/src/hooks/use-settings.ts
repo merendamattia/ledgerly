@@ -12,10 +12,11 @@ type AcknowledgeReleaseInput = InferRequestType<
 /**
  * Loads application settings such as the base currency.
  */
-export function useSettings() {
+export function useSettings(enabled = true) {
   return useQuery({
     queryKey: queryKeys.settings,
     queryFn: async () => unwrap<Settings>(await api.settings.$get()),
+    enabled,
   });
 }
 
@@ -27,7 +28,10 @@ export function useUpdateSettings() {
   return useMutation({
     mutationFn: async (json: UpdateSettingsInput) =>
       unwrap<Settings>(await api.settings.$put({ json })),
-    onSuccess: () => invalidateLedgerQueries(qc, [queryKeys.settings, queryKeys.dashboard]),
+    onSuccess: (settings) => {
+      qc.setQueryData(queryKeys.settings, settings);
+      invalidateLedgerQueries(qc, [queryKeys.dashboard]);
+    },
   });
 }
 

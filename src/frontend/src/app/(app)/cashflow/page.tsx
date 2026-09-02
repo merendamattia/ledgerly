@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { CashFlowChart } from "@/components/charts/cashflow-chart";
 import { BalanceCard } from "@/components/cashflow/balance-card";
@@ -13,11 +14,16 @@ import { resolvePeriod, trailingRange, ytdRange } from "@/components/cashflow/pe
 import { useExpenses, type Transaction } from "@/hooks/use-expenses";
 import { useSettings } from "@/hooks/use-settings";
 
+function CashFlowLoading() {
+  const t = useTranslations("cashflow");
+  return <p className="py-12 text-center text-sm text-muted-foreground">{t("loading")}</p>;
+}
+
 const CashFlowSankey = dynamic(
   () => import("@/components/charts/cashflow-sankey").then((mod) => mod.CashFlowSankey),
   {
     ssr: false,
-    loading: () => <p className="py-12 text-center text-sm text-muted-foreground">Loading cash flow...</p>,
+    loading: CashFlowLoading,
   },
 );
 
@@ -35,11 +41,11 @@ const isInvestmentTx = (t: Transaction) =>
 const spendingTx = (tx: Transaction[]) => tx.filter((t) => !isInvestmentTx(t));
 
 /** Groups transactions of one direction by category, sorted from high to low. */
-function byCategory(tx: Transaction[], dir: "INCOME" | "EXPENSE") {
+function byCategory(tx: Transaction[], dir: "INCOME" | "EXPENSE", fallback: string) {
   const map = new Map<string, number>();
   for (const t of tx) {
     if (t.direction !== dir) continue;
-    const name = t.category?.name ?? (dir === "INCOME" ? "Other income" : "Uncategorized");
+    const name = t.category?.name ?? fallback;
     map.set(name, (map.get(name) ?? 0) + t.amount);
   }
   return [...map.entries()].map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
@@ -61,11 +67,17 @@ function monthBuckets(tx: Transaction[]) {
 
 /** Renders the cashflow analytics page for the selected period. */
 export default function CashFlowPage() {
+  const t = useTranslations("cashflow");
   const { period } = useCashflowPeriod();
   const settings = useSettings();
   const currency = settings.data?.baseCurrency ?? "EUR";
 
-  const rp = useMemo(() => resolvePeriod(period), [period]);
+  const rp = useMemo(() => {
+    const resolved = resolvePeriod(period);
+    if (period === "this-year") return { ...resolved, label: t("thisYear") };
+    if (period === "12m") return { ...resolved, label: t("last12Months"), prevLabel: t("previous12Months") };
+    return resolved;
+  }, [period, t]);
   const trailing = useMemo(() => trailingRange(rp.to, 12), [rp.to]);
   const ytd = useMemo(() => ytdRange(), []);
 
@@ -97,8 +109,8 @@ export default function CashFlowPage() {
   const prevExpense = sumOf(prevSpendTx, "EXPENSE");
   const prevLiquidNet = prevIncome - prevExpense - prevInvestment;
 
-  const expenseCats = useMemo(() => byCategory(spendTx, "EXPENSE"), [spendTx]);
-  const incomeCats = useMemo(() => byCategory(tx, "INCOME"), [tx]);
+  const expenseCats = useMemo(() => byCategory(spendTx, "EXPENSE", t("uncategorized")), [spendTx, t]);
+  const incomeCats = useMemo(() => byCategory(tx, "INCOME", t("otherIncome")), [tx, t]);
 
   const trendSeries = useMemo(() => monthBuckets(trend.data ?? []), [trend.data]);
 
@@ -126,7 +138,7 @@ export default function CashFlowPage() {
       <div className="grid grid-cols-1 gap-4 md:gap-5 lg:grid-cols-12">
         <div className="lg:col-span-5">
           <BalanceCard
-            subtitle={`Net savings · ${rp.label}`}
+            subtitle={t("netSavingsPeriod", { period: rp.label })}
             net={netSavings}
             income={income}
             expense={expense}
@@ -137,13 +149,13 @@ export default function CashFlowPage() {
         </div>
         <div className="lg:col-span-4">
           <ComparisonCard
-            prevLabel={`vs ${rp.prevLabel}`}
+            prevLabel={t("versus", { period: rp.prevLabel })}
             currency={currency}
             rows={[
-              { label: "Income", prev: prevIncome, curr: income, goodWhenUp: true },
-              { label: "Expenses", prev: prevExpense, curr: expense, goodWhenUp: false },
+              { label: t("income"), prev: prevIncome, curr: income, goodWhenUp: true },
+              { label: t("expenses"), prev: prevExpense, curr: expense, goodWhenUp: false },
               {
-                label: "Net savings",
+                label: t("netSavings"),
                 prev: prevLiquidNet + prevInvestment,
                 curr: netSavings,
                 goodWhenUp: true,
@@ -165,10 +177,10 @@ export default function CashFlowPage() {
             instead of leaving whitespace below. */}
         <Card className="flex flex-col gap-0 p-6 lg:col-span-7">
           <CardHeader className="px-0">
-            <CardTitle className="font-display font-semibold">Monthly trend</CardTitle>
+            <CardTitle className="font-display font-semibold">{t("monthlyTrend")}</CardTitle>
           </CardHeader>
           {trendSeries.length === 0 && !trend.isLoading ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">No data in range.</p>
+            <p className="py-8 text-center text-sm text-muted-foreground">{t("noData")}</p>
           ) : (
             <div className="relative mt-4 min-h-[240px] flex-1 sm:min-h-[280px]">
               <div className="absolute inset-0">
@@ -198,31 +210,31 @@ export default function CashFlowPage() {
           <CardHeader className="flex flex-col gap-2 px-0 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <div className="flex items-center gap-2.5">
-                <CardTitle className="font-display font-semibold">Cash flow</CardTitle>
+                <CardTitle className="font-display font-semibold">{t("title")}</CardTitle>
                 <span className="rounded-md bg-accent px-2 py-0.5 text-xs font-semibold text-accent-foreground">
                   {rp.label}
                 </span>
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
-                How income splits into net savings, investing and spending
+                {t("description")}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
               <span className="flex items-center gap-1.5">
                 <span className="size-2.5 rounded-[3px] bg-positive" />
-                Inflow
+                {t("inflow")}
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="size-2.5 rounded-[3px] bg-primary" />
-                Net savings
+                {t("netSavings")}
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="size-2.5 rounded-[3px] bg-accent-gold" />
-                Investments
+                {t("investments")}
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="size-2.5 rounded-[3px] bg-negative" />
-                Spending
+                {t("spending")}
               </span>
             </div>
           </CardHeader>
@@ -230,7 +242,7 @@ export default function CashFlowPage() {
             <CashFlowSankey
               income={income}
               expense={expense}
-              investments={investment > 0 ? [{ label: "Investments", value: investment }] : []}
+              investments={investment > 0 ? [{ label: t("investments"), value: investment }] : []}
               sources={incomeCats.map((c) => ({ label: c.name, value: c.value }))}
               expenses={expenseCats.map((c) => ({ label: c.name, value: c.value }))}
               currency={currency}

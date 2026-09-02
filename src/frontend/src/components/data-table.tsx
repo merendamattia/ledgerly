@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import {
   Table,
   TableBody,
@@ -42,6 +43,7 @@ export function DataTable<T>({
   emptyState?: ReactNode;
   onRowClick?: (row: T) => void;
 }) {
+  const t = useTranslations("common");
   return (
     <Table>
       <TableHeader>
@@ -68,7 +70,7 @@ export function DataTable<T>({
           <TableRow>
             <TableCell colSpan={columns.length} className="h-32 text-center">
               {emptyState ?? (
-                <span className="text-sm text-muted-foreground">No data yet.</span>
+                <span className="text-sm text-muted-foreground">{t("noData")}</span>
               )}
             </TableCell>
           </TableRow>

@@ -217,17 +217,19 @@ export const createTransactionSchema = z.object({
 
 export const updateTransactionSchema = createTransactionSchema.partial();
 
-// Wallet automations can only create expenses. Keep this payload deliberately
-// narrow so integration credentials cannot be used as a general transaction API.
+// The Shortcut forwards its complete Wallet input. The worker, not the phone,
+// interprets this opaque object into Ledgerly's strict transaction schema.
 export const integrationTransactionSchema = z
-  .object({
-    categoryId: z.string().min(1).nullable().optional(),
-    date: z.coerce.date(),
-    amount: z.number().positive(),
-    direction: z.literal("EXPENSE"),
-    note: z.string().trim().min(1).max(280),
-  })
-  .strict();
+  .record(z.string().min(1).max(100), z.json())
+  .refine((payload) => JSON.stringify(payload).length <= 64_000, "Wallet payload is too large");
+
+export const pushSubscriptionSchema = z.object({
+  endpoint: z.string().url().max(2_048),
+  keys: z.object({
+    p256dh: z.string().min(1).max(512),
+    auth: z.string().min(1).max(512),
+  }),
+}).strict();
 
 // One row from a Budjet CSV import. `category` is the verbatim (lowercase) name;
 // the import service resolves it to a Category id (creating it if missing).
@@ -344,7 +346,10 @@ export const upsertPillarSchema = z.object({
 
 // --- Settings ---------------------------------------------------------------
 export const updateSettingsSchema = z.object({
-  baseCurrency: z.string().trim().length(3).toUpperCase(),
+  baseCurrency: z.string().trim().length(3).toUpperCase().optional(),
+  locale: z.enum(["en", "it"]).optional(),
+}).strict().refine((settings) => Object.keys(settings).length > 0, {
+  message: "At least one setting is required",
 });
 
 export const acknowledgeReleaseSchema = z

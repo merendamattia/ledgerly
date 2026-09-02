@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { useQueryClient } from "@tanstack/react-query";
 import { LogOut, MoreHorizontal } from "lucide-react";
 import {
@@ -29,9 +30,11 @@ const TAB_CLASS =
 function TabInner({
   active,
   item,
+  label,
 }: {
   active: boolean;
-  item: Pick<AppNavItem, "label" | "shortLabel" | "icon">;
+  item: Pick<AppNavItem, "icon">;
+  label: string;
 }) {
   const Icon = item.icon;
   return (
@@ -52,7 +55,7 @@ function TabInner({
           active ? "text-primary" : "text-sidebar-foreground",
         )}
       >
-        {item.shortLabel ?? item.label}
+        {label}
       </span>
     </>
   );
@@ -60,6 +63,7 @@ function TabInner({
 
 /** Renders the smartphone navigation dock and its secondary-route sheet. */
 export function AppBottomNav() {
+  const t = useTranslations("nav");
   const pathname = usePathname();
   const router = useRouter();
   const { data: session } = useSession();
@@ -80,7 +84,7 @@ export function AppBottomNav() {
   return (
     <nav
       data-slot="app-bottom-nav"
-      aria-label="Primary"
+      aria-label={t("primary")}
       className="fixed inset-x-3 bottom-3 z-40 rounded-2xl border border-sidebar-border bg-sidebar/95 px-1 pb-[calc(env(safe-area-inset-bottom)+0.25rem)] text-sidebar-foreground shadow-lg backdrop-blur-xl lg:hidden"
     >
       <ul className="flex items-stretch">
@@ -89,7 +93,11 @@ export function AppBottomNav() {
           return (
             <li key={item.href} className="flex min-w-0 flex-1">
               <Link href={item.href} aria-current={active ? "page" : undefined} className={TAB_CLASS}>
-                <TabInner active={active} item={item} />
+                <TabInner
+                  active={active}
+                  item={item}
+                  label={t(item.shortLabelKey ?? item.labelKey)}
+                />
               </Link>
             </li>
           );
@@ -98,16 +106,17 @@ export function AppBottomNav() {
         <li className="flex min-w-0 flex-1">
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger
-              render={<button type="button" aria-label="More" className={TAB_CLASS} />}
+              render={<button type="button" aria-label={t("more")} className={TAB_CLASS} />}
             >
               <TabInner
                 active={moreActive}
-                item={{ label: "More", icon: MoreHorizontal }}
+                item={{ icon: MoreHorizontal }}
+                label={t("more")}
               />
             </SheetTrigger>
             <SheetContent side="bottom" className="pb-safe overflow-y-auto">
               <SheetHeader>
-                <SheetTitle>More</SheetTitle>
+                <SheetTitle>{t("more")}</SheetTitle>
                 {session?.user.email ? (
                   <p className="truncate text-xs text-muted-foreground">{session.user.email}</p>
                 ) : null}
@@ -126,7 +135,7 @@ export function AppBottomNav() {
                       )}
                     >
                       <item.icon className="size-4 text-muted-foreground" />
-                      {item.label}
+                      {t(item.labelKey)}
                     </Link>
                   );
                 })}
@@ -136,7 +145,7 @@ export function AppBottomNav() {
                   className="flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-destructive-ink outline-none transition-colors hover:bg-destructive/10 focus-visible:ring-3 focus-visible:ring-destructive/30"
                 >
                   <LogOut className="size-4" />
-                  Sign out
+                  {t("signOut")}
                 </button>
               </div>
             </SheetContent>

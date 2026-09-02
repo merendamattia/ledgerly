@@ -21,7 +21,7 @@ import {
   useDeleteInvestmentTx,
   type InvestmentTransaction,
 } from "@/hooks/use-investments";
-import { INVESTMENT_SIDE_LABELS } from "@/lib/format";
+import { useLocaleLabels } from "@/hooks/use-locale-labels";
 
 /** Renders the view/edit/delete dialog for a single investment movement. */
 export function InvestmentTxDialog({
@@ -35,6 +35,7 @@ export function InvestmentTxDialog({
 }) {
   const update = useUpdateInvestmentTx();
   const del = useDeleteInvestmentTx();
+  const { investmentSides } = useLocaleLabels();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -43,7 +44,7 @@ export function InvestmentTxDialog({
           <>
             <DialogHeader>
               <DialogTitle>
-                {INVESTMENT_SIDE_LABELS[tx.side]} {tx.ticker?.symbol ?? ""}
+                {investmentSides[tx.side]} {tx.ticker?.symbol ?? ""}
               </DialogTitle>
               <DialogDescription>Edit or delete this movement.</DialogDescription>
             </DialogHeader>

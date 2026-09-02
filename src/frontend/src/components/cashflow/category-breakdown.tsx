@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -36,12 +37,13 @@ export function CategoryBreakdown({
   currency: string;
   periodLabel: string;
 }) {
+  const t = useTranslations("cashflow");
   const [mode, setMode] = useState<Mode>("expense");
   const isIncome = mode === "income";
   const items = isIncome ? income : expenses;
   const total = isIncome ? incomeTotal : expenseTotal;
-  const title = isIncome ? "Where money comes from" : "Where money goes";
-  const totalLabel = isIncome ? "Total income" : "Total expenses";
+  const title = isIncome ? t("whereFrom") : t("whereGoes");
+  const totalLabel = isIncome ? t("totalIncome") : t("totalExpenses");
   const max = items.reduce((m, c) => Math.max(m, c.value), 0);
 
   const toggle = (
@@ -56,7 +58,7 @@ export function CategoryBreakdown({
             mode === m ? "bg-card text-foreground shadow-card" : "text-muted-foreground",
           )}
         >
-          {m === "expense" ? "Expenses" : "Income"}
+          {m === "expense" ? t("expenses") : t("income")}
         </button>
       ))}
     </div>
@@ -68,7 +70,7 @@ export function CategoryBreakdown({
         <DialogTrigger
           render={
             <button type="button" className="text-sm font-semibold text-positive">
-              View all →
+              {t("viewAll")}
             </button>
           }
         />
@@ -76,7 +78,7 @@ export function CategoryBreakdown({
           <DialogHeader>
             <DialogTitle>{title}</DialogTitle>
             <DialogDescription>
-              <MoneyAmount value={total} currency={currency} /> across {items.length} categories
+              <MoneyAmount value={total} currency={currency} /> {t("acrossCategories", { count: items.length })}
             </DialogDescription>
           </DialogHeader>
           <div className="max-h-[60dvh] overflow-y-auto pr-1">
@@ -98,7 +100,7 @@ export function CategoryBreakdown({
       action={action}
       maxRows={MAX_ROWS}
       aggregateOther
-      emptyText="No data in range."
+      emptyText={t("noData")}
       className="h-full"
     />
   );

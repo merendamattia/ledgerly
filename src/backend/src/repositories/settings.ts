@@ -19,7 +19,7 @@ export const settingsRepository = {
     return settings.baseCurrency;
   },
 
-  async update(userId: string, data: { baseCurrency?: string }) {
+  async update(userId: string, data: { baseCurrency?: string; locale?: "en" | "it" }) {
     const settings = await this.get(userId);
     return prisma.settings.update({ where: { id: settings.id }, data });
   },

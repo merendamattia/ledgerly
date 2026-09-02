@@ -13,8 +13,6 @@ let otherUserId = "";
 let sessionCookie = "";
 let token = "";
 let tokenCreatedAt = "";
-let categoryId = "";
-let otherCategoryId = "";
 
 async function signIn(): Promise<string> {
   const response = await auth.handler(
@@ -51,16 +49,6 @@ beforeAll(async () => {
   await prisma.user.update({ where: { id: otherUserId }, data: { mustChangePassword: false } });
   await provisionUser(otherUserId);
 
-  categoryId = (
-    await prisma.category.create({
-      data: { userId: ownerId, name: `Owner category ${suffix}`, kind: "EXPENSE" },
-    })
-  ).id;
-  otherCategoryId = (
-    await prisma.category.create({
-      data: { userId: otherUserId, name: `Other category ${suffix}`, kind: "EXPENSE" },
-    })
-  ).id;
   sessionCookie = await signIn();
 });
 
@@ -69,7 +57,7 @@ afterAll(async () => {
   if (otherUserId) await prisma.user.delete({ where: { id: otherUserId } }).catch(() => undefined);
 });
 
-test("a user can generate a token and record an expense through the integration endpoint", async () => {
+test("a user can generate a token and queue raw Wallet data idempotently", async () => {
   const generated = await request("/api/integrations/token", { method: "POST" });
   expect(generated.status).toBe(201);
   const generatedBody = (await generated.json()) as {
@@ -98,23 +86,36 @@ test("a user can generate a token and record an expense through the integration 
       "content-type": "application/json",
     },
     body: JSON.stringify({
-      amount: 12.5,
-      date: "2026-09-01",
-      direction: "EXPENSE",
-      note: "Test merchant",
+      merchant: "Test merchant",
+      amount: "€12.50",
+      transactionDate: "1 September 2026",
     }),
   }, "");
-  expect(transactionResponse.status).toBe(201);
-
-  const transaction = await prisma.transaction.findFirstOrThrow({
-    where: { userId: ownerId, note: "Test merchant" },
+  expect(transactionResponse.status).toBe(202);
+  const queued = (await transactionResponse.json()) as { id: string; status: string; duplicate: boolean };
+  expect(queued.status).toBe("QUEUED");
+  expect(queued.duplicate).toBe(false);
+  const importRow = await prisma.appleWalletImport.findUniqueOrThrow({ where: { id: queued.id } });
+  expect(importRow.userId).toBe(ownerId);
+  expect(importRow.rawPayload).toEqual({
+    merchant: "Test merchant",
+    amount: "€12.50",
+    transactionDate: "1 September 2026",
   });
-  expect(transaction.amount.toString()).toBe("12.5");
-  expect(transaction.direction).toBe("EXPENSE");
+
+  const retry = await request("/api/integrations/transactions", {
+    method: "POST",
+    headers: { authorization: `Bearer ${generatedBody.token}`, "content-type": "application/json" },
+    body: JSON.stringify({ transactionDate: "1 September 2026", amount: "€12.50", merchant: "Test merchant" }),
+  }, "");
+  expect(retry.status).toBe(202);
+  expect((await retry.json()) as { id: string; duplicate: boolean }).toEqual(
+    expect.objectContaining({ id: queued.id, duplicate: true }),
+  );
 });
 
 test("missing, malformed and unknown tokens are rejected without widening session routes", async () => {
-  const before = await prisma.transaction.count({ where: { userId: ownerId } });
+  const before = await prisma.appleWalletImport.count({ where: { userId: ownerId } });
   const cases = [
     {},
     { authorization: "Basic not-a-bearer-token" },
@@ -129,10 +130,7 @@ test("missing, malformed and unknown tokens are rejected without widening sessio
         method: "POST",
         headers: { "content-type": "application/json", ...headers },
         body: JSON.stringify({
-          amount: 9,
-          date: "2026-09-01",
-          direction: "EXPENSE",
-          note: "Rejected merchant",
+          merchant: "Rejected merchant",
         }),
       },
       "",
@@ -152,68 +150,27 @@ test("missing, malformed and unknown tokens are rejected without widening sessio
     "",
   );
   expect(tokenManagement.status).toBe(401);
-  expect(await prisma.transaction.count({ where: { userId: ownerId } })).toBe(before);
+  expect(await prisma.appleWalletImport.count({ where: { userId: ownerId } })).toBe(before);
 });
 
-test("a token cannot use another user's category or a client-provided user id", async () => {
-  const before = await prisma.transaction.count({ where: { userId: ownerId } });
-  const otherBefore = await prisma.transaction.count({ where: { userId: otherUserId } });
-  const crossOwnerCategory = await request(
+test("raw owner-like fields cannot change the token-derived owner", async () => {
+  const otherBefore = await prisma.appleWalletImport.count({ where: { userId: otherUserId } });
+  const response = await request(
     "/api/integrations/transactions",
     {
       method: "POST",
       headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
       body: JSON.stringify({
-        amount: 20,
-        date: "2026-09-01",
-        direction: "EXPENSE",
-        note: "Cross-owner category",
-        categoryId: otherCategoryId,
-      }),
-    },
-    "",
-  );
-  expect(crossOwnerCategory.status).toBe(404);
-
-  const clientOwner = await request(
-    "/api/integrations/transactions",
-    {
-      method: "POST",
-      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
-      body: JSON.stringify({
-        amount: 21,
-        date: "2026-09-01",
-        direction: "EXPENSE",
-        note: "Client owner",
+        merchant: "Owner boundary",
         userId: otherUserId,
       }),
     },
     "",
   );
-  expect(clientOwner.status).toBe(400);
-  expect(await prisma.transaction.count({ where: { userId: ownerId } })).toBe(before);
-  expect(await prisma.transaction.count({ where: { userId: otherUserId } })).toBe(otherBefore);
-
-  const validCategory = await request(
-    "/api/integrations/transactions",
-    {
-      method: "POST",
-      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
-      body: JSON.stringify({
-        amount: 22,
-        date: "2026-09-01",
-        direction: "EXPENSE",
-        note: "Owner category",
-        categoryId,
-      }),
-    },
-    "",
-  );
-  expect(validCategory.status).toBe(201);
-  const created = await prisma.transaction.findFirstOrThrow({
-    where: { userId: ownerId, note: "Owner category" },
-  });
-  expect(created.categoryId).toBe(categoryId);
+  expect(response.status).toBe(202);
+  const body = (await response.json()) as { id: string };
+  expect((await prisma.appleWalletImport.findUniqueOrThrow({ where: { id: body.id } })).userId).toBe(ownerId);
+  expect(await prisma.appleWalletImport.count({ where: { userId: otherUserId } })).toBe(otherBefore);
 });
 
 test("rotation invalidates the previous token immediately and keeps only a verifier", async () => {
@@ -234,10 +191,7 @@ test("rotation invalidates the previous token immediately and keeps only a verif
       method: "POST",
       headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
       body: JSON.stringify({
-        amount: 30,
-        date: "2026-09-01",
-        direction: "EXPENSE",
-        note: "Old token",
+        merchant: "Old token",
       }),
     },
     "",
@@ -250,15 +204,12 @@ test("rotation invalidates the previous token immediately and keeps only a verif
       method: "POST",
       headers: { authorization: `Bearer ${rotatedBody.token}`, "content-type": "application/json" },
       body: JSON.stringify({
-        amount: 31,
-        date: "2026-09-01",
-        direction: "EXPENSE",
-        note: "New token",
+        merchant: "New token",
       }),
     },
     "",
   );
-  expect(newToken.status).toBe(201);
+  expect(newToken.status).toBe(202);
 
   token = rotatedBody.token;
   const stored = await prisma.personalApiToken.findUnique({ where: { userId: ownerId } });
@@ -276,10 +227,7 @@ test("revocation removes the token and blocks further transaction writes", async
       method: "POST",
       headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
       body: JSON.stringify({
-        amount: 40,
-        date: "2026-09-01",
-        direction: "EXPENSE",
-        note: "Revoked token",
+        merchant: "Revoked token",
       }),
     },
     "",
@@ -289,5 +237,9 @@ test("revocation removes the token and blocks further transaction writes", async
   const status = await request("/api/integrations/token");
   expect(status.status).toBe(200);
   expect((await status.json()) as { token: unknown }).toEqual({ token: null });
-  expect(await prisma.transaction.findFirst({ where: { userId: ownerId, note: "Revoked token" } })).toBeNull();
+  expect(
+    await prisma.appleWalletImport.findFirst({
+      where: { userId: ownerId, rawPayload: { equals: { merchant: "Revoked token" } } },
+    }),
+  ).toBeNull();
 });

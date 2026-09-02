@@ -1,5 +1,7 @@
 // Formatting helpers shared across the UI.
 
+import type { Locale } from "@/i18n/config";
+
 /**
  * Decimal places for a money/number figure: 0 from 1000 up, 2 below. Large
  * numbers with two decimals read poorly on mobile, so we trim at the thousand.
@@ -7,42 +9,46 @@
 const fractionDigits = (value: number): number => (Math.abs(value) >= 1000 ? 0 : 2);
 
 const moneyFormatters = new Map<string, Intl.NumberFormat>();
-const numberFormatters = new Map<number, Intl.NumberFormat>();
+const numberFormatters = new Map<string, Intl.NumberFormat>();
 const compactMoneyFormatters = new Map<string, Intl.NumberFormat>();
+const dateFormatters = new Map<string, Intl.DateTimeFormat>();
+
+const intlLocales: Record<Locale, { number: string; date: string }> = {
+  en: { number: "en-US", date: "en-GB" },
+  it: { number: "it-IT", date: "it-IT" },
+};
+
+let activeLocale: Locale = "en";
+
+/** Updates the locale used by presentation-only formatting helpers. */
+export function setFormatLocale(locale: Locale): void {
+  activeLocale = locale;
+}
 
 function cachedFormatter(
   cache: Map<string, Intl.NumberFormat>,
   key: string,
   options: Intl.NumberFormatOptions,
 ): Intl.NumberFormat {
-  let formatter = cache.get(key);
+  const locale = intlLocales[activeLocale].number;
+  const localeKey = `${activeLocale}:${key}`;
+  let formatter = cache.get(localeKey);
   if (!formatter) {
-    formatter = new Intl.NumberFormat("en-US", options);
-    cache.set(key, formatter);
+    formatter = new Intl.NumberFormat(locale, options);
+    cache.set(localeKey, formatter);
   }
   return formatter;
 }
 
-const dateFormatter = new Intl.DateTimeFormat("en-GB", {
-  day: "2-digit",
-  month: "short",
-  year: "numeric",
-});
-const dateTimeFormatter = new Intl.DateTimeFormat("en-GB", {
-  day: "2-digit",
-  month: "short",
-  year: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-});
-const longDateFormatter = new Intl.DateTimeFormat("en-GB", {
-  weekday: "long",
-  day: "numeric",
-  month: "long",
-  year: "numeric",
-});
-const shortMonthFormatter = new Intl.DateTimeFormat("en-GB", { month: "short" });
-const monthYearFormatter = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" });
+function cachedDateFormatter(key: string, options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+  const localeKey = `${activeLocale}:${key}`;
+  let formatter = dateFormatters.get(localeKey);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat(intlLocales[activeLocale].date, options);
+    dateFormatters.set(localeKey, formatter);
+  }
+  return formatter;
+}
 
 /** Format a currency value using Ledgerly's compact decimal rules. */
 export function formatMoney(value: number, currency = "EUR"): string {
@@ -57,10 +63,11 @@ export function formatMoney(value: number, currency = "EUR"): string {
 /** Format a plain number, trimming decimals for large magnitudes by default. */
 export function formatNumber(value: number, maximumFractionDigits?: number): string {
   const digits = maximumFractionDigits ?? fractionDigits(value);
-  let formatter = numberFormatters.get(digits);
+  const key = `${activeLocale}:${digits}`;
+  let formatter = numberFormatters.get(key);
   if (!formatter) {
-    formatter = new Intl.NumberFormat("en-US", { maximumFractionDigits: digits });
-    numberFormatters.set(digits, formatter);
+    formatter = new Intl.NumberFormat(intlLocales[activeLocale].number, { maximumFractionDigits: digits });
+    numberFormatters.set(key, formatter);
   }
   return formatter.format(value);
 }
@@ -124,13 +131,19 @@ export function formatPercent(value: number): string {
 /** Human-readable calendar date, e.g. "14 Jun 2026". */
 export function formatDate(value: string | Date): string {
   const date = typeof value === "string" ? new Date(value) : value;
-  return dateFormatter.format(date);
+  return cachedDateFormatter("date", { day: "2-digit", month: "short", year: "numeric" }).format(date);
 }
 
 /** Human-readable date and time for logs and cron run metadata. */
 export function formatDateTime(value: string | Date): string {
   const date = typeof value === "string" ? new Date(value) : value;
-  return dateTimeFormatter.format(date);
+  return cachedDateFormatter("date-time", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
 }
 
 /**
@@ -154,15 +167,22 @@ export function todayISO(): string {
 /** Numeric date, e.g. "14/06/2026" — compact, used in transaction/list rows. */
 export function numericDate(value: string | Date): string {
   const d = typeof value === "string" ? new Date(value) : value;
-  const day = String(d.getDate()).padStart(2, "0");
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  return `${day}/${month}/${d.getFullYear()}`;
+  return cachedDateFormatter("numeric", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(d);
 }
 
 /** Long, uppercase day label, e.g. "FRIDAY 19 JUNE 2026" — used as list day headers. */
 export function longDate(value: string | Date): string {
   const d = typeof value === "string" ? new Date(value) : value;
-  return longDateFormatter.format(d).toUpperCase();
+  return cachedDateFormatter("long", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(d).toLocaleUpperCase(intlLocales[activeLocale].date);
 }
 
 /**
@@ -195,7 +215,7 @@ export function groupByDay<T>(
 export function shortDate(value: string | Date): string {
   const d = typeof value === "string" ? new Date(value) : value;
   const day = String(d.getDate()).padStart(2, "0");
-  const month = shortMonthFormatter.format(d);
+  const month = cachedDateFormatter("short-month", { month: "short" }).format(d);
   const yy = String(d.getFullYear()).slice(-2);
   return `${day} ${month} '${yy}`;
 }
@@ -203,7 +223,7 @@ export function shortDate(value: string | Date): string {
 /** Compact month label with year, e.g. "Jun '26" — used on month-bucketed charts. */
 export function monthLabel(value: string | Date): string {
   const d = typeof value === "string" ? new Date(value) : value;
-  const month = shortMonthFormatter.format(d);
+  const month = cachedDateFormatter("short-month", { month: "short" }).format(d);
   const yy = String(d.getFullYear()).slice(-2);
   return `${month} '${yy}`;
 }
@@ -211,7 +231,7 @@ export function monthLabel(value: string | Date): string {
 /** Long month label, e.g. "June 2026" — used by period pickers. */
 export function formatMonthYear(value: string | Date): string {
   const d = typeof value === "string" ? new Date(value) : value;
-  return monthYearFormatter.format(d);
+  return cachedDateFormatter("month-year", { month: "long", year: "numeric" }).format(d);
 }
 
 /** Local date as an ISO yyyy-mm-dd string (avoids UTC off-by-one). */
@@ -237,37 +257,6 @@ export function monthsForRange(key: ChartRange): number {
       return 36;
   }
 }
-
-/**
- * Human-readable labels for transaction direction. Selects must render these,
- * never the raw INCOME/EXPENSE key. See "The Select Label Rule" in DESIGN.md.
- */
-export const DIRECTION_LABELS: Record<string, string> = {
-  INCOME: "Income",
-  EXPENSE: "Expense",
-};
-
-/** Human-readable labels for investment asset types shown in selects. */
-export const TICKER_TYPE_LABELS: Record<string, string> = {
-  ETF: "ETF",
-  EQUITY: "Equity",
-  CRYPTO: "Crypto",
-  BOND: "Bond",
-  COMMODITY: "Commodity",
-};
-
-/** Human-readable labels for investment movement sides shown in selects. */
-export const INVESTMENT_SIDE_LABELS: Record<string, string> = {
-  BUY: "Buy",
-  SELL: "Sell",
-};
-
-/** Human-readable labels for the cash-account sections shown in selects. */
-export const CASH_CATEGORY_LABELS: Record<string, string> = {
-  LIQUIDITY: "Liquidity",
-  CREDIT: "Credits",
-  OTHER_ASSET: "Other assets",
-};
 
 export type DatePreset = "this-month" | "last-month" | "this-year" | "all";
 

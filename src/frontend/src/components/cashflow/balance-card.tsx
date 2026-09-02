@@ -1,5 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { MoneyAmount } from "@/components/money-amount";
+import { useTranslations } from "next-intl";
 
 // Ink "spotlight" card matching the design: net result up top in lime, the
 // income/expense split (signed, colored) below, and a savings-rate chip at the
@@ -28,6 +29,7 @@ export function BalanceCard({
   savingsRate: number;
   currency: string;
 }) {
+  const t = useTranslations("cashflow");
   return (
     <Card className="h-full gap-0 border-0 bg-sidebar p-6 text-sidebar-accent-foreground shadow-card ring-0">
       <span className="text-xs font-medium tracking-wide text-sidebar-foreground">{subtitle}</span>
@@ -44,7 +46,7 @@ export function BalanceCard({
         <div className="min-w-0">
           <div className="flex items-center gap-1.5 text-xs text-sidebar-foreground">
             <span className="size-2 rounded-[3px]" style={{ background: GREEN }} />
-            Income
+            {t("income")}
           </div>
           <div className="mt-1.5 font-mono text-base font-semibold tabular-nums xl:text-xl" style={{ color: GREEN }}>
             <MoneyAmount value={income} currency={currency} signed />
@@ -53,7 +55,7 @@ export function BalanceCard({
         <div className="min-w-0">
           <div className="flex items-center gap-1.5 text-xs text-sidebar-foreground">
             <span className="size-2 rounded-[3px]" style={{ background: RED }} />
-            Expenses
+            {t("expenses")}
           </div>
           <div className="mt-1.5 font-mono text-base font-semibold tabular-nums xl:text-xl" style={{ color: RED }}>
             −<MoneyAmount value={expense} currency={currency} />
@@ -62,7 +64,7 @@ export function BalanceCard({
         <div className="min-w-0">
           <div className="flex items-center gap-1.5 text-xs text-sidebar-foreground">
             <span className="size-2 rounded-[3px]" style={{ background: ORANGE }} />
-            Investments
+            {t("investments")}
           </div>
           <div className="mt-1.5 font-mono text-base font-semibold tabular-nums xl:text-xl" style={{ color: ORANGE }}>
             <MoneyAmount value={investment} currency={currency} signed />

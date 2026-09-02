@@ -6,6 +6,7 @@ import {
   formatMoney,
   formatMonthYear,
   formatNumber,
+  setFormatLocale,
 } from "./format";
 
 test("formatMoney trims cents for large amounts and keeps small cents", () => {
@@ -43,4 +44,13 @@ test("date labels stay stable for dense UI rows and pickers", () => {
 
 test("compactMoney uses compact currency labels for chart axes", () => {
   expect(compactMoney(45_000, "EUR")).toBe("€45K");
+});
+
+test("money, numbers and dates follow the active application locale", () => {
+  setFormatLocale("it");
+  expect(formatMoney(12345.67, "EUR")).toBe("12.346\u00a0€");
+  expect(formatNumber(12345.67, 2)).toBe("12.345,67");
+  expect(formatDate("2026-06-14")).toBe("14 giu 2026");
+  expect(formatMonthYear("2026-06-01")).toBe("giugno 2026");
+  setFormatLocale("en");
 });

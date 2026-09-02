@@ -24,6 +24,8 @@ export const queryKeys = {
   cashflowMatrix: ["dashboard", "cashflow-matrix"] as const,
   settings: ["settings"] as const,
   integrationToken: ["integrations", "token"] as const,
+  notifications: ["notifications"] as const,
+  pushNotifications: ["notifications", "push"] as const,
   users: ["users"] as const,
   accounts: ["accounts"] as const,
   categories: (kind?: string) => (kind ? (["categories", kind] as const) : (["categories"] as const)),

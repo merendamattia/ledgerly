@@ -41,6 +41,9 @@ model User {
   rebalanceGroups        RebalanceGroup[]
   pillars                Pillar[]
   personalApiToken       PersonalApiToken?
+  appleWalletImports     AppleWalletImport[]
+  notifications          Notification[]
+  pushSubscriptions      PushSubscription[]
 
   @@map("user")
 }
@@ -136,6 +139,15 @@ enum CronTrigger {
   MANUAL
 }
 
+enum AppleWalletImportStatus {
+  PENDING
+  QUEUED
+  RUNNING
+  RETRYING
+  COMPLETED
+  FAILED
+}
+
 /// The cadence unit of a recurring expense (paired with an integer count, e.g.
 /// 30 + DAY = "every 30 days", 2 + WEEK, 1 + MONTH).
 enum RecurInterval {
@@ -153,13 +165,15 @@ enum RecurEndMode {
 
 /// User-owned settings. A row is provisioned for every authenticated user.
 model Settings {
-  id           String   @id @default(cuid())
-  userId       String   @unique
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  baseCurrency String   @default("EUR")
-  lastSeenReleaseVersion String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                       String   @id @default(cuid())
+  userId                   String   @unique
+  user                     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  baseCurrency             String   @default("EUR")
+  locale                   String?
+  pushNotificationsEnabled Boolean  @default(false)
+  lastSeenReleaseVersion   String?
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
 }
 
 /// One active, user-owned token for narrow external integrations.
@@ -173,6 +187,65 @@ model PersonalApiToken {
   createdAt DateTime @default(now())
 
   @@map("personal_api_token")
+}
+
+/// Durable handoff for one raw transaction received from an Apple Wallet Shortcut.
+model AppleWalletImport {
+  id             String                  @id @default(cuid())
+  userId         String
+  user           User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rawPayload     Json
+  idempotencyKey String
+  status         AppleWalletImportStatus @default(PENDING)
+  queueJobId     String?                 @unique
+  attempts       Int                     @default(0)
+  queuedAt       DateTime?
+  startedAt      DateTime?
+  heartbeatAt    DateTime?
+  completedAt    DateTime?
+  failedAt       DateTime?
+  lastError      String?
+  transactionId  String?                 @unique
+  transaction    Transaction?            @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+
+  @@unique([userId, idempotencyKey])
+  @@index([userId, createdAt])
+  @@index([status, heartbeatAt])
+  @@map("apple_wallet_import")
+}
+
+/// Persistent in-app notification. Presentation copy is localized by the frontend.
+model Notification {
+  id            String       @id @default(cuid())
+  userId        String
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind          String
+  transactionId String?
+  transaction   Transaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+  readAt        DateTime?
+  createdAt     DateTime     @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
+  @@map("notification")
+}
+
+/// One browser Push API subscription owned by one Ledgerly user.
+model PushSubscription {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpointHash String   @unique
+  endpoint     String
+  p256dh       String
+  auth         String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
+  @@map("push_subscription")
 }
 
 /// Liquid account (bank, cash, ...).
@@ -371,18 +444,20 @@ model Category {
 
 /// An expense/income movement (in base currency).
 model Transaction {
-  id                 String            @id @default(cuid())
+  id                 String             @id @default(cuid())
   userId             String
-  user               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   categoryId         String?
-  category           Category?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  date               DateTime          @db.Date
-  amount             Decimal           @db.Decimal(20, 2)
+  category           Category?          @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  date               DateTime           @db.Date
+  amount             Decimal            @db.Decimal(20, 2)
   direction          TxDirection
   note               String?
   recurringExpenseId String?
-  recurringExpense   RecurringExpense? @relation(fields: [recurringExpenseId], references: [id], onDelete: SetNull)
-  createdAt          DateTime          @default(now())
+  recurringExpense   RecurringExpense?  @relation(fields: [recurringExpenseId], references: [id], onDelete: SetNull)
+  appleWalletImport  AppleWalletImport?
+  notifications      Notification[]
+  createdAt          DateTime           @default(now())
 
   @@index([date])
   @@index([categoryId])

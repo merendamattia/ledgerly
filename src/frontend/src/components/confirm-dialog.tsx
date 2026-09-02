@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ComponentProps, type ReactElement, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,7 +20,7 @@ export function ConfirmDialog({
   trigger,
   title,
   description,
-  confirmLabel = "Confirm",
+  confirmLabel,
   confirmVariant = "default",
   onConfirm,
 }: {
@@ -31,6 +32,7 @@ export function ConfirmDialog({
   onConfirm: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const t = useTranslations("common");
 
   /** Closes the dialog and invokes the confirmed action. */
   function confirm() {
@@ -47,9 +49,9 @@ export function ConfirmDialog({
           {description ? <AlertDialogDescription>{description}</AlertDialogDescription> : null}
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
           <AlertDialogAction variant={confirmVariant} onClick={confirm}>
-            {confirmLabel}
+            {confirmLabel ?? t("confirm")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

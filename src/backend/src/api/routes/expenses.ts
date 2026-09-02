@@ -55,6 +55,11 @@ export const expensesRoutes = new Hono<AppEnv>()
     const transactions = await transactionRepository.list(c.get("user").id, filters);
     return c.json(transactions.map(serializeTransaction));
   })
+  .get("/:id", async (c) => {
+    const transaction = await transactionRepository.findById(c.get("user").id, c.req.param("id"));
+    if (!transaction) throw new NotFoundError("Transaction not found");
+    return c.json(serializeTransaction(transaction));
+  })
   .post("/", zValidator("json", createTransactionSchema), async (c) => {
     const input = c.req.valid("json");
     const transaction = await createTransaction(c.get("user").id, input);

@@ -11,7 +11,8 @@ import {
   useAddManualAsset,
   type SearchCandidate,
 } from "@/hooks/use-investments";
-import { formatMoney, TICKER_TYPE_LABELS } from "@/lib/format";
+import { formatMoney } from "@/lib/format";
+import { useLocaleLabels } from "@/hooks/use-locale-labels";
 import { cn } from "@/lib/utils";
 
 export type TickerType = "EQUITY" | "ETF" | "CRYPTO" | "BOND" | "COMMODITY";
@@ -50,6 +51,7 @@ export function TickerSearch({
   /** Pre-fills the search box (e.g. with a raw symbol from a CSV import). */
   initialTerm?: string;
 }) {
+  const { tickerTypes } = useLocaleLabels();
   const [term, setTerm] = useState(initialTerm);
   const [debounced, setDebounced] = useState(initialTerm);
   const [resolving, setResolving] = useState<string | null>(null);
@@ -172,7 +174,7 @@ export function TickerSearch({
                         TYPE_TINT[c.type] ?? "bg-muted text-muted-foreground",
                       )}
                     >
-                      {c.type}
+                      {tickerTypes[c.type] ?? c.type}
                     </span>
                     {c.exchange ? (
                       <span className="truncate text-[11px] text-muted-foreground">{c.exchange}</span>
@@ -224,6 +226,7 @@ function ManualAssetForm({
     price: number,
   ) => void;
 }) {
+  const { tickerTypes } = useLocaleLabels();
   const looksLikeIsin = ISIN_RE.test(initialTerm.trim().toUpperCase());
   const addManual = useAddManualAsset();
   const [symbol, setSymbol] = useState(initialTerm.trim().toUpperCase());
@@ -273,10 +276,10 @@ function ManualAssetForm({
           onChange={(e) => setType(e.target.value as TickerType)}
           className="h-9 rounded-md border bg-background px-2 text-sm"
         >
-          <option value="BOND">{TICKER_TYPE_LABELS.BOND}</option>
-          <option value="COMMODITY">{TICKER_TYPE_LABELS.COMMODITY}</option>
-          <option value="EQUITY">{TICKER_TYPE_LABELS.EQUITY}</option>
-          <option value="ETF">{TICKER_TYPE_LABELS.ETF}</option>
+          <option value="BOND">{tickerTypes.BOND}</option>
+          <option value="COMMODITY">{tickerTypes.COMMODITY}</option>
+          <option value="EQUITY">{tickerTypes.EQUITY}</option>
+          <option value="ETF">{tickerTypes.ETF}</option>
         </select>
         <Input className="text-center uppercase" placeholder="EUR" maxLength={3} value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} />
         <Input type="number" step="any" placeholder="Price" value={price} onChange={(e) => setPrice(e.target.value)} />

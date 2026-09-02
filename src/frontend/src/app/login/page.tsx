@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { signIn } from "@/lib/auth-client";
@@ -19,6 +20,7 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 
 /** Renders the email/password login page. */
 export default function LoginPage() {
+  const t = useTranslations("auth");
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -31,7 +33,7 @@ export default function LoginPage() {
     const { error } = await signIn.email({ email, password });
     setPending(false);
     if (error) {
-      toast.error(error.message ?? "Invalid credentials");
+      toast.error(error.message ?? t("invalidCredentials"));
       return;
     }
     router.replace("/");
@@ -47,17 +49,16 @@ export default function LoginPage() {
           <AppLogo />
           <div className="max-w-lg">
             <h1 className="max-w-md font-display text-5xl leading-[1.02] font-semibold tracking-[-0.035em] text-balance">
-              Your finances, in one clear view.
+              {t("heroTitle")}
             </h1>
             <p className="mt-5 max-w-md text-base leading-relaxed text-muted-foreground text-pretty">
-              Track net worth, investments and cash flow from a private console built around your
-              own data.
+              {t("heroDescription")}
             </p>
           </div>
           <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm font-medium text-muted-foreground">
-            <span>Self-hosted</span>
-            <span>Admin-managed</span>
-            <span>Private by design</span>
+            <span>{t("selfHosted")}</span>
+            <span>{t("adminManaged")}</span>
+            <span>{t("privateByDesign")}</span>
           </div>
         </div>
 
@@ -65,14 +66,14 @@ export default function LoginPage() {
           <AppLogo className="mb-10 md:hidden" />
           <Card className="w-full border-border/70 bg-card shadow-none">
             <CardHeader>
-              <CardTitle className="text-2xl">Welcome back</CardTitle>
-              <CardDescription>Sign in to open your personal finance console.</CardDescription>
+              <CardTitle className="text-2xl">{t("welcomeBack")}</CardTitle>
+              <CardDescription>{t("signInDescription")}</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit}>
                 <FieldGroup>
                   <Field>
-                    <FieldLabel htmlFor="email">Email</FieldLabel>
+                    <FieldLabel htmlFor="email">{t("email")}</FieldLabel>
                     <Input
                       id="email"
                       type="email"
@@ -83,7 +84,7 @@ export default function LoginPage() {
                     />
                   </Field>
                   <Field>
-                    <FieldLabel htmlFor="password">Password</FieldLabel>
+                    <FieldLabel htmlFor="password">{t("password")}</FieldLabel>
                     <Input
                       id="password"
                       type="password"
@@ -95,7 +96,7 @@ export default function LoginPage() {
                   </Field>
                   <Button type="submit" size="lg" disabled={pending} className="w-full">
                     {pending ? <Spinner data-icon="inline-start" /> : null}
-                    Sign in
+                    {t("signIn")}
                   </Button>
                 </FieldGroup>
               </form>

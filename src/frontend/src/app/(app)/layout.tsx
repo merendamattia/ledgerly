@@ -4,11 +4,15 @@ import { AppTopbar } from "@/components/app-topbar";
 import { SearchProvider } from "@/components/search-context";
 import { CashflowPeriodProvider } from "@/components/cashflow/period-context";
 import { ReleaseAnnouncement } from "@/components/release-announcement";
+import { cookies } from "next/headers";
+import { DEFAULT_LOCALE, getMessages, isLocale, LOCALE_COOKIE } from "@/i18n/config";
 
 /**
  * Renders the authenticated app shell with topbar, content, and bottom navigation.
  */
-export default function AppLayout({ children }: { children: React.ReactNode }) {
+export default async function AppLayout({ children }: { children: React.ReactNode }) {
+  const hint = (await cookies()).get(LOCALE_COOKIE)?.value;
+  const messages = getMessages(isLocale(hint) ? hint : DEFAULT_LOCALE);
   return (
     <AuthGuard>
       <ReleaseAnnouncement />
@@ -19,7 +23,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               href="#main-content"
               className="sr-only fixed top-2 left-2 z-50 rounded-lg bg-foreground px-3 py-2 text-background focus:not-sr-only"
             >
-              Skip to content
+              {messages.nav.skipContent}
             </a>
             <AppTopbar />
             <main

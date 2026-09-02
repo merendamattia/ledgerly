@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { DIRECTION_LABELS } from "@/lib/format";
+import { useLocaleLabels } from "@/hooks/use-locale-labels";
 import { useParseImport, useCommitImport, type ImportRow } from "@/hooks/use-import";
 
 // Shared column template: a labeled stack on phones, an aligned grid from sm up.
@@ -65,6 +65,7 @@ const ImportRowEditor = memo(function ImportRowEditor({
   onChange: (index: number, patch: Partial<ImportRow>) => void;
   onRemove: (index: number) => void;
 }) {
+  const { directions } = useLocaleLabels();
   return (
     <div
       className={cn(
@@ -75,15 +76,15 @@ const ImportRowEditor = memo(function ImportRowEditor({
       <Cell label="Type">
         <Select
           value={row.direction}
-          items={DIRECTION_LABELS}
+          items={directions}
           onValueChange={(v) => onChange(index, { direction: (v ?? "EXPENSE") as ImportRow["direction"] })}
         >
           <SelectTrigger className="w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="EXPENSE">Expense</SelectItem>
-            <SelectItem value="INCOME">Income</SelectItem>
+            <SelectItem value="EXPENSE">{directions.EXPENSE}</SelectItem>
+            <SelectItem value="INCOME">{directions.INCOME}</SelectItem>
           </SelectContent>
         </Select>
       </Cell>

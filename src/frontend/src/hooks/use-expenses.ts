@@ -51,6 +51,16 @@ export function useExpenses(filters: TransactionFilters = {}, enabled = true) {
   });
 }
 
+/** Loads one user-owned transaction for notification deep links. */
+export function useTransaction(id: string, enabled = true) {
+  return useQuery({
+    queryKey: [...queryKeys.expensesRoot, id],
+    queryFn: async () =>
+      unwrap<Transaction>(await api.expenses[":id"].$get({ param: { id } })),
+    enabled: enabled && !!id,
+  });
+}
+
 /** Loads the complete result for a bounded period or another analytical slice. */
 export function useCompleteExpenses(filters: TransactionFilters = {}, enabled = true) {
   return useQuery({

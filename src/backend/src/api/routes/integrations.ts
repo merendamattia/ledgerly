@@ -2,8 +2,7 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { ConflictError } from "../../core/errors.ts";
 import { personalApiTokenRepository } from "../../repositories/personalApiToken.ts";
-import { createTransaction } from "../../services/transactions.ts";
-import { serializeTransaction } from "../../utils/serialize.ts";
+import { queueAppleWalletImport } from "../../services/appleWalletImport.ts";
 import { integrationTransactionSchema } from "../../schemas/index.ts";
 import { requireAuth, requireIntegrationToken } from "../middlewares/auth.ts";
 import type { AppEnv } from "../types.ts";
@@ -38,7 +37,11 @@ export const integrationsRoutes = new Hono<AppEnv>()
     requireIntegrationToken,
     zValidator("json", integrationTransactionSchema),
     async (c) => {
-      const transaction = await createTransaction(c.get("integrationUserId"), c.req.valid("json"));
-      return c.json(serializeTransaction(transaction), 201);
+      const queued = await queueAppleWalletImport(
+        c.get("integrationUserId"),
+        c.req.valid("json"),
+        c.req.header("Idempotency-Key"),
+      );
+      return c.json(queued, 202);
     },
   );
