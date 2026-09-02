@@ -1,9 +1,10 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { BellRing, Copy, KeyRound, RotateCw, ShieldCheck, Smartphone, Trash2 } from "lucide-react";
+import { BellRing, Copy, Info, KeyRound, RotateCw, ShieldCheck, Smartphone, Trash2 } from "lucide-react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -26,9 +27,7 @@ import {
 } from "@/hooks/use-notifications";
 import { formatDate } from "@/lib/format";
 
-const SHORTCUT_LINK = "https://www.icloud.com/shortcuts/a90eb7d1e7db4e79a00382b15e450102";
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001").replace(/\/+$/, "");
-const INTEGRATION_ENDPOINT = `${API_BASE_URL}/api/integrations/transactions`;
+const SHORTCUT_LINK = "https://www.icloud.com/shortcuts/e1bb4215d5114373974f736a2b266f8c";
 
 function CopyableValue({ label, value, success }: { label: string; value: string; success: string }) {
   const t = useTranslations("advanced");
@@ -225,7 +224,6 @@ export function AdvancedSettingsCard() {
             </div>
           </div>
           <CopyableValue label={t("shortcutLink")} value={SHORTCUT_LINK} success={t("shortcutCopied")} />
-          <CopyableValue label={t("apiEndpoint")} value={INTEGRATION_ENDPOINT} success={t("endpointCopied")} />
 
           {secret ? <OneTimeSecret secret={secret} onDismiss={() => setSecret(null)} /> : null}
           {requestFailed || status.isError ? (
@@ -270,7 +268,22 @@ export function AdvancedSettingsCard() {
             <li>{t("setupAutomation")}</li>
             <li>{t("setupRun")}</li>
           </ol>
-          <p className="text-xs leading-5 text-muted-foreground">{t("walletNote")}</p>
+          <figure className="mx-auto w-full max-w-[18rem]">
+            <Image
+              src="/images/iphone-wallet-automation.png"
+              alt={t("automationScreenshotAlt")}
+              width={1179}
+              height={1343}
+              sizes="(max-width: 640px) 72vw, 288px"
+              className="h-auto w-full rounded-lg border"
+            />
+            <figcaption className="mt-2 text-xs leading-5 text-muted-foreground">{t("automationScreenshotCaption")}</figcaption>
+          </figure>
+          <Alert className="border-primary/25 bg-muted/35">
+            <Info />
+            <AlertTitle>{t("walletNoteTitle")}</AlertTitle>
+            <AlertDescription>{t("walletNote")}</AlertDescription>
+          </Alert>
         </section>
         <Separator />
         <NotificationSettings />
