@@ -1,3 +1,10 @@
+## [2.3.2](https://github.com/merendamattia/ledgerly/compare/v2.3.1...v2.3.2) (2026-09-02)
+
+
+### Bug Fixes
+
+* **frontend:** update Shortcut link ([c5a7c3f](https://github.com/merendamattia/ledgerly/commit/c5a7c3fd95a9dca527b24fdd0c1695a100db1137))
+
 ## [2.3.1](https://github.com/merendamattia/ledgerly/compare/v2.3.0...v2.3.1) (2026-09-02)
 
 
