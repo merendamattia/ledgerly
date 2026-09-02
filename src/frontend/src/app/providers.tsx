@@ -29,8 +29,11 @@ function LocaleProvider({
   const settings = useSettings(canLoadSettings);
   const locale = isLocale(settings.data?.locale) ? settings.data.locale : initialLocale;
 
+  // Formatting helpers are used during descendant render, so update their locale
+  // before those descendants run rather than after commit.
+  setFormatLocale(locale);
+
   useEffect(() => {
-    setFormatLocale(locale);
     document.documentElement.lang = locale;
     document.cookie = `${LOCALE_COOKIE}=${locale}; Path=/; Max-Age=31536000; SameSite=Lax`;
   }, [locale]);

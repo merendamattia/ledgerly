@@ -36,8 +36,8 @@ import {
   formatNumber,
   formatPercent,
   formatDate,
-  INVESTMENT_SIDE_LABELS,
 } from "@/lib/format";
+import { useLocaleLabels } from "@/hooks/use-locale-labels";
 import { cn } from "@/lib/utils";
 
 /**
@@ -292,6 +292,7 @@ function MovementRow({
   onCancel: () => void;
   onDone: () => void;
 }) {
+  const { investmentSides } = useLocaleLabels();
   const update = useUpdateInvestmentTx();
   const del = useDeleteInvestmentTx();
 
@@ -354,7 +355,7 @@ function MovementRow({
           isBuy ? "bg-positive/10 text-positive" : "bg-negative/10 text-negative-ink",
         )}
       >
-        {INVESTMENT_SIDE_LABELS[tx.side] ?? tx.side}
+        {investmentSides[tx.side] ?? tx.side}
       </span>
       <span className="min-w-0">
         <span className="block font-mono text-xs tabular-nums">

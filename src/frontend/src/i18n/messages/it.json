@@ -175,6 +175,7 @@
     "emptyDescription": "Le nuove importazioni Apple Pay appariranno qui.",
     "importedTitle": "Movimento Apple Pay importato",
     "expenseAdded": "È stata aggiunta una nuova spesa da {amount}. Clicca per aggiungere la categoria.",
+    "incomeAdded": "È stata aggiunta una nuova entrata da {amount}. Clicca per aggiungere la categoria.",
     "transactionReady": "Il movimento è pronto da controllare.",
     "badgeLabel": "Notifiche, {count} non lette"
   },

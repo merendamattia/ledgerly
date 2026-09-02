@@ -176,6 +176,7 @@
     "emptyDescription": "New Apple Pay imports will appear here.",
     "importedTitle": "Apple Pay transaction imported",
     "expenseAdded": "A new expense of {amount} was added. Click to add a category.",
+    "incomeAdded": "A new income of {amount} was added. Click to add a category.",
     "transactionReady": "The transaction is ready to review.",
     "badgeLabel": "Notifications, {count} unread"
   },

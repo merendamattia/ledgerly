@@ -258,37 +258,6 @@ export function monthsForRange(key: ChartRange): number {
   }
 }
 
-/**
- * Human-readable labels for transaction direction. Selects must render these,
- * never the raw INCOME/EXPENSE key. See "The Select Label Rule" in DESIGN.md.
- */
-export const DIRECTION_LABELS: Record<string, string> = {
-  INCOME: "Income",
-  EXPENSE: "Expense",
-};
-
-/** Human-readable labels for investment asset types shown in selects. */
-export const TICKER_TYPE_LABELS: Record<string, string> = {
-  ETF: "ETF",
-  EQUITY: "Equity",
-  CRYPTO: "Crypto",
-  BOND: "Bond",
-  COMMODITY: "Commodity",
-};
-
-/** Human-readable labels for investment movement sides shown in selects. */
-export const INVESTMENT_SIDE_LABELS: Record<string, string> = {
-  BUY: "Buy",
-  SELL: "Sell",
-};
-
-/** Human-readable labels for the cash-account sections shown in selects. */
-export const CASH_CATEGORY_LABELS: Record<string, string> = {
-  LIQUIDITY: "Liquidity",
-  CREDIT: "Credits",
-  OTHER_ASSET: "Other assets",
-};
-
 export type DatePreset = "this-month" | "last-month" | "this-year" | "all";
 
 /** From/to ISO bounds for a transactions-list quick preset (empty string = unset). */

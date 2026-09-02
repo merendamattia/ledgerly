@@ -18,7 +18,7 @@ import { MoneyAmount } from "@/components/money-amount";
 import { usePillars, useUpsertPillar, type Pillar } from "@/hooks/use-rebalance";
 import { useAccounts, type Account } from "@/hooks/use-accounts";
 import type { DashboardData } from "@/hooks/use-dashboard";
-import { CASH_CATEGORY_LABELS } from "@/lib/format";
+import { useLocaleLabels } from "@/hooks/use-locale-labels";
 import { cn } from "@/lib/utils";
 
 type Holding = DashboardData["netWorth"]["holdings"][number];
@@ -249,6 +249,7 @@ function PillarDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const { cashCategories } = useLocaleLabels();
   const [name, setName] = useState(pillar?.name ?? DEFAULT_NAMES[position - 1]);
   const [selected, setSelected] = useState<Selection[]>(
     (pillar?.members ?? []).map((m) =>
@@ -397,7 +398,7 @@ function PillarDialog({
                         {check(checked)}
                         <span className="min-w-0 flex-1 truncate">{a.name}</span>
                         <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                          {CASH_CATEGORY_LABELS[a.category] ?? a.category}
+                          {cashCategories[a.category] ?? a.category}
                         </span>
                         <MoneyAmount
                           value={a.balance}

@@ -38,7 +38,8 @@ import {
   useCommitInvestmentImport,
   type ParsedInvestmentRow,
 } from "@/hooks/use-investment-import";
-import { INVESTMENT_SIDE_LABELS, formatMoney } from "@/lib/format";
+import { formatMoney } from "@/lib/format";
+import { useLocaleLabels } from "@/hooks/use-locale-labels";
 
 type Side = "BUY" | "SELL";
 // A preview row: the parsed CSV row plus the (defaulted, editable) side.
@@ -87,6 +88,7 @@ const PreviewRowEditor = memo(function PreviewRowEditor({
   onChange: (index: number, patch: Partial<PreviewRow>) => void;
   onRemove: (index: number) => void;
 }) {
+  const { investmentSides } = useLocaleLabels();
   return (
     <div
       className={cn(
@@ -103,15 +105,15 @@ const PreviewRowEditor = memo(function PreviewRowEditor({
       <Cell label="Side">
         <Select
           value={row.side}
-          items={INVESTMENT_SIDE_LABELS}
+          items={investmentSides}
           onValueChange={(v) => onChange(index, { side: (v ?? "BUY") as Side })}
         >
           <SelectTrigger className="w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="BUY">Buy</SelectItem>
-            <SelectItem value="SELL">Sell</SelectItem>
+            <SelectItem value="BUY">{investmentSides.BUY}</SelectItem>
+            <SelectItem value="SELL">{investmentSides.SELL}</SelectItem>
           </SelectContent>
         </Select>
       </Cell>

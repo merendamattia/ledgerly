@@ -1,4 +1,5 @@
 import webpush from "web-push";
+import { getMessages, type Locale } from "../../../frontend/src/i18n/config.ts";
 import { config } from "../core/config.ts";
 import { logger } from "../core/logger.ts";
 import { notificationRepository } from "../repositories/notification.ts";
@@ -13,23 +14,18 @@ type TransactionPushInput = {
 };
 
 export function transactionPushCopy(input: TransactionPushInput) {
-  const italian = input.locale === "it";
-  const amount = new Intl.NumberFormat(italian ? "it-IT" : "en-US", {
+  const locale: Locale = input.locale === "it" ? "it" : "en";
+  const amount = new Intl.NumberFormat(locale === "it" ? "it-IT" : "en-US", {
     style: "currency",
     currency: input.currency,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(Math.abs(input.amount));
-  const expense = input.direction === "EXPENSE";
-  return italian
-    ? {
-        title: expense ? "Nuova spesa aggiunta" : "Nuova entrata aggiunta",
-        body: `È stata aggiunta una nuova ${expense ? "spesa" : "entrata"} da ${amount}. Clicca per aggiungere la categoria.`,
-      }
-    : {
-        title: expense ? "New expense added" : "New income added",
-        body: `A new ${expense ? "expense" : "income"} of ${amount} was added. Click to add a category.`,
-      };
+  const messages = getMessages(locale).notifications;
+  return {
+    title: messages.importedTitle,
+    body: (input.direction === "EXPENSE" ? messages.expenseAdded : messages.incomeAdded).replace("{amount}", amount),
+  };
 }
 
 if (config.VAPID_PUBLIC_KEY && config.VAPID_PRIVATE_KEY) {
