@@ -131,7 +131,7 @@ amount posted by the card issuer.
 | `bun run dev:backend`   | Run the backend only                    |
 | `bun run dev:frontend`  | Run the frontend only                   |
 | `bun run dev:worker`    | Run the Apple Wallet worker only        |
-| `bun run docker:build` | Build Docker images with a four-worker cap |
+| `bun run docker:build` | Build Docker images with a three-worker cap |
 | `bun run db:migrate`    | Create/apply a Prisma migration (dev)   |
 | `bun run db:seed`       | Seed system cron job definitions         |
 
@@ -156,13 +156,13 @@ environment variables.
 For local or CI builds, create the capped BuildKit builder once, then use `bun run docker:build`:
 
 ```bash
-docker buildx create --name ledgerly-max4 --driver docker-container \
+docker buildx create --name ledgerly-max3 --driver docker-container \
   --buildkitd-config docker/buildkitd.toml --use --bootstrap
 bun run docker:build
 ```
 
-The builder caps BuildKit solver parallelism at four and Compose also caps concurrent service
-build calls at four.
+The builder caps BuildKit solver parallelism at three and Compose also caps concurrent service
+build calls at three.
 
 - Backend: `src/backend/Dockerfile` runs `prisma migrate deploy` and the seed command on start.
 - Worker: the backend image runs a separate BullMQ process with configurable concurrency (default 1).
