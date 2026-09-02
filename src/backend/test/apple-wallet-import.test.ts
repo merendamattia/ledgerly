@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { prisma } from "../src/core/db.ts";
 import { notificationRepository } from "../src/repositories/notification.ts";
-import { queueAppleWalletImport } from "../src/services/appleWalletImport.ts";
+import { queueAppleWalletImport, recoverQueuedAppleWalletImports } from "../src/services/appleWalletImport.ts";
 import { processAppleWalletImport } from "../src/services/appleWalletWorker.ts";
 
 const suffix = `${Date.now()}-${process.pid}`;
@@ -38,7 +38,7 @@ afterAll(async () => {
   await prisma.user.delete({ where: { id: otherUserId } }).catch(() => undefined);
 });
 
-test("queue handoff persists QUEUED before enqueue and records enqueue failure", async () => {
+test("queue handoff persists QUEUED before enqueue and retains work after enqueue failure", async () => {
   const queued = await queueAppleWalletImport(
     userId,
     { merchant: "Queue test", amount: 4.5 },
@@ -65,7 +65,24 @@ test("queue handoff persists QUEUED before enqueue and records enqueue failure",
         where: { userId, rawPayload: { equals: { merchant: "Queue failure", amount: 7 } } },
       })
     ).status,
-  ).toBe("FAILED");
+  ).toBe("QUEUED");
+});
+
+test("worker recovery republishes imports durable-queued before a process crash", async () => {
+  const record = await prisma.appleWalletImport.create({
+    data: {
+      userId,
+      rawPayload: { merchant: "Recover queue" },
+      idempotencyKey: `queue-recovery-${suffix}`,
+      status: "QUEUED",
+      queuedAt: new Date(),
+    },
+  });
+  const recovered: string[] = [];
+  await recoverQueuedAppleWalletImports(async (id) => {
+    recovered.push(id);
+  });
+  expect(recovered).toContain(record.id);
 });
 
 test("worker creates one transaction and notification and ignores duplicate delivery", async () => {

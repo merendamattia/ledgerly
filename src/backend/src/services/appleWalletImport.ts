@@ -36,21 +36,24 @@ export async function queueAppleWalletImport(
   add: Enqueue = enqueue,
 ) {
   const key = idempotencyKey(rawPayload, idempotencyHeader);
-  const pending = await appleWalletImportRepository.createPending(userId, rawPayload, key);
-  if (!pending.created) {
-    return { id: pending.record.id, status: pending.record.status, duplicate: true as const };
-  }
-  const record = pending.record;
+  const queued = await appleWalletImportRepository.createQueued(userId, rawPayload, key);
+  const record = queued.record;
 
   try {
-    const queued = await appleWalletImportRepository.markQueued(record.id);
     await add(record.id);
-    return { id: queued.id, status: queued.status, duplicate: false as const };
+    return { id: record.id, status: record.status, duplicate: !queued.created };
   } catch (error) {
-    await appleWalletImportRepository.failEnqueue(
+    await appleWalletImportRepository.recordEnqueueError(
       record.id,
       error instanceof Error ? error.message : "Queue handoff failed",
     );
     throw error;
   }
+}
+
+/** Re-adds durable work left queued across a process restart. */
+export async function recoverQueuedAppleWalletImports(add: Enqueue = enqueue) {
+  const queued = await appleWalletImportRepository.queuedForRecovery();
+  await Promise.all(queued.map(({ id }) => add(id)));
+  return queued.length;
 }

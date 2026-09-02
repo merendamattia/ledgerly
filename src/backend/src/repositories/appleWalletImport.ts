@@ -4,9 +4,9 @@ import { prisma } from "../core/db.ts";
 const ACTIVE_FOR_CLAIM: AppleWalletImportStatus[] = ["QUEUED", "RETRYING"];
 
 export const appleWalletImportRepository = {
-  async createPending(userId: string, rawPayload: Prisma.InputJsonValue, idempotencyKey: string) {
+  async createQueued(userId: string, rawPayload: Prisma.InputJsonValue, idempotencyKey: string) {
     const result = await prisma.appleWalletImport.createMany({
-      data: { userId, rawPayload, idempotencyKey },
+      data: { userId, rawPayload, idempotencyKey, status: "QUEUED", queuedAt: new Date() },
       skipDuplicates: true,
     });
     const record = await prisma.appleWalletImport.findUniqueOrThrow({
@@ -15,21 +15,15 @@ export const appleWalletImportRepository = {
     return { record, created: result.count === 1 };
   },
 
-  async markQueued(id: string) {
-    const now = new Date();
-    const result = await prisma.appleWalletImport.updateMany({
-      where: { id, status: "PENDING" },
-      data: { status: "QUEUED", queueJobId: id, queuedAt: now, lastError: null },
+  recordEnqueueError(id: string, error: string) {
+    return prisma.appleWalletImport.updateMany({
+      where: { id, status: "QUEUED" },
+      data: { lastError: error.slice(0, 500) },
     });
-    if (result.count !== 1) throw new Error("Apple Wallet import could not be queued");
-    return prisma.appleWalletImport.findUniqueOrThrow({ where: { id } });
   },
 
-  failEnqueue(id: string, error: string) {
-    return prisma.appleWalletImport.updateMany({
-      where: { id, status: { in: ["PENDING", "QUEUED"] } },
-      data: { status: "FAILED", failedAt: new Date(), lastError: error.slice(0, 500) },
-    });
+  queuedForRecovery() {
+    return prisma.appleWalletImport.findMany({ where: { status: "QUEUED" }, select: { id: true } });
   },
 
   async claim(id: string) {
