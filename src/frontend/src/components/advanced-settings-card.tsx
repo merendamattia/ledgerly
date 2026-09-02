@@ -27,7 +27,8 @@ import {
 } from "@/hooks/use-notifications";
 import { formatDate } from "@/lib/format";
 
-const SHORTCUT_LINK = "https://www.icloud.com/shortcuts/558cd615d3184128b915e0781b18f75e";
+const SHORTCUT_LINK =
+  process.env.NEXT_PUBLIC_APPLE_PAY_SHORTCUT_URL ?? "https://www.icloud.com/shortcuts/482dbff891ee48098294df6ac773702f";
 
 function CopyableValue({ label, value, success }: { label: string; value: string; success: string }) {
   const t = useTranslations("advanced");

@@ -174,7 +174,7 @@ Set the environment variables (see [`.env.production.example`](./.env.production
 - Set `DATABASE_URL` from the PostgreSQL resource (internal host, port 5432).
 - Set `REDIS_URL` from the Redis resource (internal host).
 - `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `CRON_SECRET`,
-  `FRONTEND_URL`, `NEXT_PUBLIC_API_URL`.
+  `FRONTEND_URL`, `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_APPLE_PAY_SHORTCUT_URL`.
 - `OPENAI_API_KEY` for the worker; `OPENAI_MODEL` and `OPENAI_REASONING_EFFORT` default to
   `gpt-5.6-luna` and `low`. Worker concurrency defaults to `1`.
 - `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT` to enable Web Push.
