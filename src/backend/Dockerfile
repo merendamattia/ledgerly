@@ -12,6 +12,8 @@ WORKDIR /app
 ENV NODE_ENV=production
 COPY package.json bun.lock ./
 COPY src/backend ./src/backend
+# Push notifications reuse the canonical localized catalogs from the frontend.
+COPY src/frontend/src/i18n ./src/frontend/src/i18n
 # bun installs workspace deps into the workspace folder (no root hoisting), so the
 # backend's node_modules live under src/backend. Copy it AFTER the source so the
 # host COPY (node_modules is dockerignored) doesn't shadow it.
