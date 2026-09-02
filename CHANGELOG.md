@@ -1,3 +1,21 @@
+# [2.3.0](https://github.com/merendamattia/ledgerly/compare/v2.2.0...v2.3.0) (2026-09-02)
+
+
+### Bug Fixes
+
+* **charts:** darken loading labels ([bb8e6f7](https://github.com/merendamattia/ledgerly/commit/bb8e6f75651b1a27d8833ea45498f710d5730c3d))
+* **frontend:** keep segmented labels visible ([2d63ffe](https://github.com/merendamattia/ledgerly/commit/2d63ffe584f9b00c0510aa4051178a0e1b3ad4d7))
+* **i18n:** synchronize localized output ([bf36e5d](https://github.com/merendamattia/ledgerly/commit/bf36e5d5055e1697f25548af1ea7942deaa096b6))
+* **settings:** size Wallet automation preview ([e7cff99](https://github.com/merendamattia/ledgerly/commit/e7cff9976d222466b2e10a77b213d3d2b020cc44))
+* **wallet:** recover queued imports ([32a2654](https://github.com/merendamattia/ledgerly/commit/32a2654ec1697e4d051e681935f1e38dea69ab95))
+
+
+### Features
+
+* **docs:** add guidelines for internationalization in agent rules ([2fc123c](https://github.com/merendamattia/ledgerly/commit/2fc123cdba5d6ddc8113e0249a59fa051e4aa997))
+* **integrations:** simplify Apple Pay flow ([36bed6d](https://github.com/merendamattia/ledgerly/commit/36bed6d0e3d4eed211c797d961f39c00de16a02c))
+* **integrations:** simplify Wallet setup ([f57a7af](https://github.com/merendamattia/ledgerly/commit/f57a7af8d4365c726247b7dcf82e47b4126d951b))
+
 # [2.2.0](https://github.com/merendamattia/ledgerly/compare/v2.1.1...v2.2.0) (2026-09-01)
 
 
