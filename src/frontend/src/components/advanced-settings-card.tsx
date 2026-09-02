@@ -268,7 +268,7 @@ export function AdvancedSettingsCard() {
             <li>{t("setupAutomation")}</li>
             <li>{t("setupRun")}</li>
           </ol>
-          <figure className="mx-auto w-full max-w-[18rem]">
+          <figure className="mx-auto" style={{ width: "100%", maxWidth: 288 }}>
             <Image
               src="/images/iphone-wallet-automation.png"
               alt={t("automationScreenshotAlt")}
