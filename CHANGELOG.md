@@ -1,3 +1,10 @@
+## [2.3.1](https://github.com/merendamattia/ledgerly/compare/v2.3.0...v2.3.1) (2026-09-02)
+
+
+### Bug Fixes
+
+* **deploy:** include Wallet catalogs ([6fcca62](https://github.com/merendamattia/ledgerly/commit/6fcca6262efee7cc5dde9c8c6d358618ea6921ae))
+
 # [2.3.0](https://github.com/merendamattia/ledgerly/compare/v2.2.0...v2.3.0) (2026-09-02)
 
 
