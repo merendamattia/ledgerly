@@ -14,7 +14,7 @@
     "db:generate": "bun --filter ledgerly-backend db:generate",
     "db:deploy": "bun --filter ledgerly-backend db:deploy",
     "db:seed": "bun --filter ledgerly-backend db:seed",
-    "docker:build": "docker compose -f docker-compose.prod.yml --parallel 4 build --builder ledgerly-max4",
+    "docker:build": "docker compose -f docker-compose.prod.yml --parallel 3 build --builder ledgerly-max3",
     "typecheck": "bun --filter ledgerly-backend typecheck",
     "lint": "bun --filter ledgerly-frontend lint",
     "verify": "bun run typecheck && bun run lint && bun run test"
