@@ -62,6 +62,7 @@ services:
       args:
         # Baked into the browser bundle at build time -> public backend URL.
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        NEXT_PUBLIC_APPLE_PAY_SHORTCUT_URL: ${NEXT_PUBLIC_APPLE_PAY_SHORTCUT_URL:-https://www.icloud.com/shortcuts/482dbff891ee48098294df6ac773702f}
     restart: unless-stopped
     depends_on:
       - backend
