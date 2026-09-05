@@ -189,12 +189,32 @@ test("integration failures expose a request id and a redacted diagnostic categor
   expect(JSON.stringify(body)).not.toContain(token);
 });
 
+test("accepts the full bearer value copied into the shared Shortcut prompt", async () => {
+  const response = await request(
+    "/api/integrations/transactions",
+    {
+      method: "POST",
+      headers: {
+        authorization: `Bearer Bearer ${otherToken}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ merchant: "Doubled bearer merchant", amount: "€4.20" }),
+    },
+    "",
+  );
+
+  expect(response.status).toBe(202);
+  const queued = (await response.json()) as { id: string };
+  expect((await prisma.appleWalletImport.findUniqueOrThrow({ where: { id: queued.id } })).userId).toBe(otherUserId);
+});
+
 test("missing, malformed and unknown tokens are rejected without widening session routes", async () => {
   const before = await prisma.appleWalletImport.count({ where: { userId: ownerId } });
   const cases = [
     {},
     { authorization: "Basic not-a-bearer-token" },
     { authorization: "Bearer malformed" },
+    { authorization: "Bearer Bearer malformed" },
     { authorization: "Bearer ledgerly_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
   ];
 
