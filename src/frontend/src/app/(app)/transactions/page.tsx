@@ -535,10 +535,10 @@ export default function TransactionsPage() {
                           {t.reviewRequired ? (
                             <span
                               className="inline-flex shrink-0 rounded-sm text-accent-gold"
-                              aria-hidden="true"
                               title={tr("aiReviewRequired")}
                             >
                               <Sparkles className="size-3.5" aria-hidden="true" />
+                              <span className="sr-only">{tr("aiReviewRequired")}</span>
                             </span>
                           ) : null}
                           {t.recurringExpenseId ? (
