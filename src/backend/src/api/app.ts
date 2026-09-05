@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { HTTPException } from "hono/http-exception";
 import { logger as honoLogger } from "hono/logger";
 import { randomUUID } from "node:crypto";
 import { auth } from "../core/auth.ts";
@@ -68,6 +69,26 @@ app.on(["GET", "POST"], "/auth/*", (c) => {
 
 app.onError((err, c) => {
   const requestId = c.get("requestId");
+  if (
+    c.req.path === "/api/integrations/transactions" &&
+    err instanceof HTTPException &&
+    err.status === 400 &&
+    err.message === "Malformed JSON in request body"
+  ) {
+    logger.warn("Apple Wallet integration payload validation failed", {
+      requestId,
+      integrationUserId: c.get("integrationUserId"),
+      reason: "malformed_json",
+    });
+    return c.json(
+      {
+        error: "Invalid Wallet payload",
+        code: "INTEGRATION_PAYLOAD_INVALID",
+        requestId,
+      },
+      400,
+    );
+  }
   // Domain errors carry their own HTTP status.
   if (err instanceof AppError) {
     return c.json({ error: err.message, requestId }, err.status as 400);

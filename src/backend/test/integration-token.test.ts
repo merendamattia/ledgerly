@@ -189,6 +189,29 @@ test("integration failures expose a request id and a redacted diagnostic categor
   expect(JSON.stringify(body)).not.toContain(token);
 });
 
+test("malformed JSON exposes a correlated payload diagnostic without secrets", async () => {
+  const response = await request(
+    "/api/integrations/transactions",
+    {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: '{"merchant":',
+    },
+    "",
+  );
+  const requestId = response.headers.get("x-request-id");
+  const body = await response.json();
+
+  expect(response.status).toBe(400);
+  expect(body).toEqual({
+    error: "Invalid Wallet payload",
+    code: "INTEGRATION_PAYLOAD_INVALID",
+    requestId,
+  });
+  expect(requestId).toMatch(/^[0-9a-f-]{36}$/);
+  expect(JSON.stringify(body)).not.toContain(token);
+});
+
 test("accepts the full bearer value copied into the shared Shortcut prompt", async () => {
   const response = await request(
     "/api/integrations/transactions",
