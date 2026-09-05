@@ -1,6 +1,8 @@
+import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
 import { auth } from "../../core/auth.ts";
 import { config } from "../../core/config.ts";
+import { logger } from "../../core/logger.ts";
 import { personalApiTokenRepository } from "../../repositories/personalApiToken.ts";
 import type { AppEnv } from "../types.ts";
 
@@ -63,13 +65,32 @@ function readBearerToken(value: string | undefined): string | null {
   return match[1];
 }
 
-/** Authenticates only the narrow external integration surface. */
+function integrationAuthenticationFailure(
+  c: Context<AppEnv>,
+  reason: "missing_authorization" | "invalid_bearer_format" | "unknown_token",
+) {
+  const requestId = c.get("requestId");
+  logger.warn("Apple Wallet integration authentication failed", { requestId, reason });
+  return c.json(
+    {
+      error: "Unauthorized",
+      code: "INTEGRATION_AUTHENTICATION_FAILED",
+      requestId,
+    },
+    401,
+  );
+}
+
+/** Authenticates only the narrow external integration surface. User role is intentionally not consulted. */
 export const requireIntegrationToken = createMiddleware<AppEnv>(async (c, next) => {
-  const token = readBearerToken(c.req.header("Authorization"));
-  if (!token) return c.json({ error: "Unauthorized" }, 401);
+  const authorization = c.req.header("Authorization");
+  if (!authorization) return integrationAuthenticationFailure(c, "missing_authorization");
+
+  const token = readBearerToken(authorization);
+  if (!token) return integrationAuthenticationFailure(c, "invalid_bearer_format");
 
   const record = await personalApiTokenRepository.findUserBySecret(token);
-  if (!record) return c.json({ error: "Unauthorized" }, 401);
+  if (!record) return integrationAuthenticationFailure(c, "unknown_token");
 
   c.set("integrationUserId", record.userId);
   await next();
