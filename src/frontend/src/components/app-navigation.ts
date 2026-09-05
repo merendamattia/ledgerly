@@ -8,6 +8,7 @@ import {
   ListChecks,
   PieChart,
   Settings,
+  ScrollText,
   Table,
   Terminal,
   Upload,
@@ -34,6 +35,7 @@ export const SECONDARY_NAV_ITEMS: AppNavItem[] = [
   { href: "/imports", labelKey: "imports", icon: Upload },
   { href: "/settings", labelKey: "settings", icon: Settings },
   { href: "/database", labelKey: "database", icon: Database, adminOnly: true },
+  { href: "/wallet-requests", labelKey: "walletRequests", icon: ScrollText, adminOnly: true },
   { href: "/dev", labelKey: "developerTools", shortLabelKey: "dev", icon: Terminal, adminOnly: true },
 ];
 

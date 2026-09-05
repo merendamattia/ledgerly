@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { CircleAlert, Pencil, Repeat, Trash2 } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { CircleAlert, Pencil, Repeat, Sparkles, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -30,9 +31,11 @@ import { useCategories } from "@/hooks/use-categories";
 import { useLocaleLabels } from "@/hooks/use-locale-labels";
 import {
   useDeleteTransaction,
+  useMarkTransactionReviewed,
   useUpdateTransaction,
   type Transaction,
 } from "@/hooks/use-expenses";
+import { Spinner } from "@/components/ui/spinner";
 import { formatDate } from "@/lib/format";
 
 /**
@@ -88,10 +91,13 @@ function DetailContent({
   const [date, setDate] = useState(tx.date.slice(0, 10));
   const [amount, setAmount] = useState(String(tx.amount));
   const [note, setNote] = useState(tx.note ?? "");
+  const [reviewed, setReviewed] = useState(!tx.reviewRequired);
   const categories = useCategories(direction);
   const { directions } = useLocaleLabels();
+  const t = useTranslations("transactionDetail");
   const update = useUpdateTransaction();
   const del = useDeleteTransaction();
+  const review = useMarkTransactionReviewed();
 
   const signed = tx.direction === "EXPENSE" ? -tx.amount : tx.amount;
 
@@ -109,7 +115,8 @@ function DetailContent({
       },
       {
         onSuccess: () => {
-          toast.success("Transaction updated");
+          toast.success(t("updated"));
+          setReviewed(true);
           setEditing(false);
         },
         onError: (err) => toast.error(err.message),
@@ -117,23 +124,52 @@ function DetailContent({
     );
   }
 
+  function markReviewed() {
+    review.mutate(tx.id, {
+      onSuccess: () => {
+        setReviewed(true);
+        toast.success(t("reviewed"));
+      },
+      onError: (error) => toast.error(error.message),
+    });
+  }
+
   return (
     <>
       <DialogHeader>
-        <DialogTitle>{editing ? "Edit transaction" : "Transaction"}</DialogTitle>
+        <DialogTitle>{editing ? t("editTitle") : t("title")}</DialogTitle>
         <DialogDescription>
-          {editing ? "Update the details below." : "Review or change this record."}
+          {editing ? t("editDescription") : t("description")}
         </DialogDescription>
       </DialogHeader>
+
+      {tx.reviewRequired && !reviewed ? (
+        <Alert className="border-accent-gold/60 bg-accent-gold/10">
+          <Sparkles />
+          <AlertTitle>{t("aiReviewTitle")}</AlertTitle>
+          <AlertDescription>{t("aiReviewDescription")}</AlertDescription>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="col-start-2 mt-1 w-fit"
+            onClick={markReviewed}
+            disabled={review.isPending}
+          >
+            {review.isPending ? <Spinner data-icon="inline-start" aria-label={t("loading")} /> : null}
+            {t("markReviewed")}
+          </Button>
+        </Alert>
+      ) : null}
 
       {!tx.category ? (
         <Alert variant="destructive">
           <CircleAlert />
-          <AlertTitle>Category missing</AlertTitle>
+          <AlertTitle>{t("categoryMissing")}</AlertTitle>
           <AlertDescription>
             {editing
-              ? "Choose a category in the Category field, then press Save."
-              : "Press Edit, choose a category in the Category field, then press Save."}
+              ? t("categoryMissingEditing")
+              : t("categoryMissingViewing")}
           </AlertDescription>
         </Alert>
       ) : null}
@@ -142,7 +178,7 @@ function DetailContent({
         <form onSubmit={save}>
           <FieldGroup>
             <Field>
-              <FieldLabel htmlFor="detail-direction">Direction</FieldLabel>
+              <FieldLabel htmlFor="detail-direction">{t("direction")}</FieldLabel>
               <Select
                 value={direction}
                 items={directions}
@@ -161,14 +197,14 @@ function DetailContent({
               </Select>
             </Field>
             <Field>
-              <FieldLabel htmlFor="detail-category">Category</FieldLabel>
+              <FieldLabel htmlFor="detail-category">{t("category")}</FieldLabel>
               <Select
                 value={categoryId}
                 items={categories.data?.map((c) => ({ value: c.id, label: c.name })) ?? []}
                 onValueChange={(v) => setCategoryId(v ?? "")}
               >
                 <SelectTrigger id="detail-category">
-                  <SelectValue placeholder="Select a category" />
+                  <SelectValue placeholder={t("selectCategory")} />
                 </SelectTrigger>
                 <SelectContent>
                   {categories.data?.map((c) => (
@@ -180,7 +216,7 @@ function DetailContent({
               </Select>
             </Field>
             <Field>
-              <FieldLabel htmlFor="detail-date">Date</FieldLabel>
+              <FieldLabel htmlFor="detail-date">{t("date")}</FieldLabel>
               <Input
                 id="detail-date"
                 type="date"
@@ -190,7 +226,7 @@ function DetailContent({
               />
             </Field>
             <Field>
-              <FieldLabel htmlFor="detail-amount">Amount</FieldLabel>
+              <FieldLabel htmlFor="detail-amount">{t("amount")}</FieldLabel>
               <Input
                 id="detail-amount"
                 type="number"
@@ -201,19 +237,19 @@ function DetailContent({
               />
             </Field>
             <Field>
-              <FieldLabel htmlFor="detail-note">Note</FieldLabel>
+              <FieldLabel htmlFor="detail-note">{t("note")}</FieldLabel>
               <Input id="detail-note" value={note} onChange={(e) => setNote(e.target.value)} />
             </Field>
             <Field>
-              <FieldLabel>Tags</FieldLabel>
+              <FieldLabel>{t("tags")}</FieldLabel>
               <TagInput note={note} onNoteChange={setNote} />
             </Field>
             <DialogFooter>
               <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
-                Cancel
+                {t("cancel")}
               </Button>
               <Button type="submit" disabled={update.isPending}>
-                Save
+                {t("save")}
               </Button>
             </DialogFooter>
           </FieldGroup>
@@ -231,11 +267,11 @@ function DetailContent({
               />
               {tx.recurringExpenseId ? (
                 <span
-                  title="Recurring"
+                  title={t("recurring")}
                   className="inline-flex items-center gap-1 rounded-md bg-secondary px-1.5 py-0.5 text-[11px] font-medium text-secondary-foreground"
                 >
                   <Repeat className="size-3" />
-                  Recurring
+                  {t("recurring")}
                 </span>
               ) : null}
             </div>
@@ -243,23 +279,23 @@ function DetailContent({
           </div>
           <TagChips note={tx.note} />
           <dl className="grid grid-cols-[5rem_1fr] gap-x-6 gap-y-2.5 text-sm">
-            <dt className="text-muted-foreground">Direction</dt>
+            <dt className="text-muted-foreground">{t("direction")}</dt>
             <dd>{directions[tx.direction]}</dd>
-            <dt className="text-muted-foreground">Date</dt>
+            <dt className="text-muted-foreground">{t("date")}</dt>
             <dd>{formatDate(tx.date)}</dd>
-            <dt className="text-muted-foreground">Category</dt>
+            <dt className="text-muted-foreground">{t("category")}</dt>
             <dd>{tx.category?.name ?? "—"}</dd>
-            <dt className="text-muted-foreground">Note</dt>
+            <dt className="text-muted-foreground">{t("note")}</dt>
             <dd className="break-words">{tx.note || "—"}</dd>
           </dl>
           <DialogFooter>
             <ConfirmDialog
-              title="Delete transaction?"
-              confirmLabel="Delete"
+              title={t("deleteTitle")}
+              confirmLabel={t("delete")}
               onConfirm={() =>
                 del.mutate(tx.id, {
                   onSuccess: () => {
-                    toast.success("Deleted");
+                    toast.success(t("deleted"));
                     onClose();
                   },
                   onError: (e) => toast.error(e.message),
@@ -268,13 +304,13 @@ function DetailContent({
               trigger={
                 <Button variant="outline">
                   <Trash2 data-icon="inline-start" />
-                  Delete
+                  {t("delete")}
                 </Button>
               }
             />
             <Button onClick={() => setEditing(true)}>
               <Pencil data-icon="inline-start" />
-              Edit
+              {t("edit")}
             </Button>
           </DialogFooter>
         </div>

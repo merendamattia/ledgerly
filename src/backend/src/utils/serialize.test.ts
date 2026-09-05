@@ -28,6 +28,8 @@ test("serializeTransaction converts Decimal amount to a number", () => {
     amount: new Prisma.Decimal("80.00"),
     direction: "EXPENSE",
     note: null,
+    reviewRequired: false,
+    reviewedAt: null,
     recurringExpenseId: null,
     createdAt: new Date(),
   });

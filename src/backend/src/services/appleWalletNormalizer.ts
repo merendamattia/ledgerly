@@ -9,7 +9,15 @@ const normalizedTransactionSchema = z.object({
   categoryId: z.string().nullable(),
 });
 
+const responseUsageSchema = z.object({
+  input_tokens: z.number().int().nonnegative(),
+  output_tokens: z.number().int().nonnegative(),
+  total_tokens: z.number().int().nonnegative(),
+}).passthrough();
+
 const responseSchema = z.object({
+  model: z.string().optional(),
+  usage: responseUsageSchema.nullish(),
   output: z.array(
     z.object({
       type: z.string(),
@@ -32,7 +40,48 @@ export type WalletCategory = {
   kind: "INCOME" | "EXPENSE";
 };
 
-export type NormalizedWalletTransaction = z.infer<typeof normalizedTransactionSchema>;
+export type WalletAiUsage = {
+  inputTokens: number | null;
+  outputTokens: number | null;
+  totalTokens: number | null;
+};
+
+export type WalletAiTelemetry = {
+  model: string;
+  usage: WalletAiUsage;
+};
+
+export type WalletAiTelemetryReporter = (telemetry: WalletAiTelemetry) => Promise<void>;
+
+export type NormalizedWalletTransaction = z.infer<typeof normalizedTransactionSchema> & {
+  model: string;
+  usage: WalletAiUsage;
+};
+
+const NORMALIZER_INSTRUCTIONS =
+  "Normalize raw Apple Wallet transaction data into one Ledgerly transaction. Use the merchant name, merchant context, external description, and other reliable Wallet fields together rather than relying on an isolated word. Preserve useful identifying context in note, but make it concise and human-meaningful: remove slogans, marketing copy, duplicated fragments, payment boilerplate, and other noise when they add no accounting value. For example, turn a payload note like 'Eurospin, spesa intelligente' into 'Eurospin' when the slogan is not useful; do not mechanically keep only the first word when a supported qualifier such as a terminal or location distinguishes the transaction. Never invent merchant, amount, date, or other details that are not supported by the payload. Amount must be positive; direction carries the sign. Use the received date only when the payload has no reliable transaction date. Choose categoryId only from the supplied categories and only when a strong merchant context match makes the same-direction category sufficiently confident. The supplied category list is exhaustive: never invent an ID, never use a different-direction category, and when evidence is ambiguous or weak return null rather than guessing.";
+
+const responseMetadataSchema = z.object({
+  model: z.unknown().optional(),
+  usage: z.unknown().optional(),
+}).passthrough();
+
+function readResponseTelemetry(body: unknown, fallbackModel: string): WalletAiTelemetry {
+  const metadata = responseMetadataSchema.safeParse(body);
+  const suppliedModel = metadata.success && typeof metadata.data.model === "string"
+    ? metadata.data.model.trim()
+    : "";
+  const usage = metadata.success ? responseUsageSchema.safeParse(metadata.data.usage) : null;
+
+  return {
+    model: suppliedModel || fallbackModel,
+    usage: {
+      inputTokens: usage?.success ? usage.data.input_tokens : null,
+      outputTokens: usage?.success ? usage.data.output_tokens : null,
+      totalTokens: usage?.success ? usage.data.total_tokens : null,
+    },
+  };
+}
 
 /** Normalizes opaque Apple Wallet data through GPT-5.6 Luna Structured Outputs. */
 export async function normalizeAppleWalletTransaction(input: {
@@ -41,6 +90,7 @@ export async function normalizeAppleWalletTransaction(input: {
   receivedAt: Date;
   baseCurrency: string;
   categories: WalletCategory[];
+  onTelemetry?: WalletAiTelemetryReporter;
 }): Promise<NormalizedWalletTransaction> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("OPENAI_API_KEY is not configured");
@@ -61,8 +111,7 @@ export async function normalizeAppleWalletTransaction(input: {
       input: [
         {
           role: "system",
-          content:
-            "Normalize raw Apple Wallet transaction data into one Ledgerly transaction. Preserve the merchant or useful external description in note. Amount must be positive; direction carries the sign. Use the received date only when the payload has no reliable transaction date. Choose categoryId only from the supplied categories with the same direction. If categorization is uncertain, return null rather than guessing.",
+          content: NORMALIZER_INSTRUCTIONS,
         },
         {
           role: "user",
@@ -86,7 +135,10 @@ export async function normalizeAppleWalletTransaction(input: {
   });
 
   if (!response.ok) throw new Error(`OpenAI request failed with status ${response.status}`);
-  const parsed = responseSchema.parse(await response.json());
+  const body = await response.json();
+  const telemetry = readResponseTelemetry(body, model);
+  await input.onTelemetry?.(telemetry);
+  const parsed = responseSchema.parse(body);
   const content = parsed.output.flatMap((item) => item.content ?? []);
   if (content.some((item) => item.type === "refusal")) throw new Error("OpenAI refused the Wallet payload");
   const text = content.find((item) => item.type === "output_text")?.text;
@@ -97,5 +149,11 @@ export async function normalizeAppleWalletTransaction(input: {
   return {
     ...normalized,
     categoryId: category?.kind === normalized.direction ? category.id : null,
+    model: parsed.model?.trim() || model,
+    usage: {
+      inputTokens: parsed.usage?.input_tokens ?? null,
+      outputTokens: parsed.usage?.output_tokens ?? null,
+      totalTokens: parsed.usage?.total_tokens ?? null,
+    },
   };
 }

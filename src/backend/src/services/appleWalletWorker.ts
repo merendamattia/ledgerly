@@ -4,6 +4,7 @@ import {
   normalizeAppleWalletTransaction,
   type NormalizedWalletTransaction,
   type WalletCategory,
+  type WalletAiTelemetryReporter,
 } from "./appleWalletNormalizer.ts";
 import { sendTransactionPush } from "./webPush.ts";
 
@@ -13,6 +14,7 @@ type Normalize = (input: {
   receivedAt: Date;
   baseCurrency: string;
   categories: WalletCategory[];
+  onTelemetry?: WalletAiTelemetryReporter;
 }) => Promise<NormalizedWalletTransaction>;
 
 /** Claims and processes one queued import. Duplicate delivery is a no-op. */
@@ -28,6 +30,16 @@ export async function processAppleWalletImport(
   const heartbeat = setInterval(() => {
     void appleWalletImportRepository.heartbeat(importId, record.attempts);
   }, 10_000);
+  let telemetryPersisted = false;
+
+  const persistTelemetry: WalletAiTelemetryReporter = async (telemetry) => {
+    const recorded = await appleWalletImportRepository.recordAiTelemetry(
+      importId,
+      record.attempts,
+      telemetry,
+    );
+    telemetryPersisted ||= recorded;
+  };
 
   try {
     const normalized = await normalize({
@@ -36,12 +48,19 @@ export async function processAppleWalletImport(
       receivedAt: record.createdAt,
       baseCurrency: record.user.settings[0]?.baseCurrency ?? "EUR",
       categories: record.user.categories.map(({ id, name, kind }) => ({ id, name, kind })),
+      onTelemetry: persistTelemetry,
     });
+    if (!telemetryPersisted) {
+      await persistTelemetry({ model: normalized.model, usage: normalized.usage });
+    }
     const date = new Date(`${normalized.date}T00:00:00.000Z`);
     if (Number.isNaN(date.getTime())) throw new Error("OpenAI returned an invalid transaction date");
     const completed = await appleWalletImportRepository.complete(importId, record.attempts, {
-      ...normalized,
       date,
+      amount: normalized.amount,
+      direction: normalized.direction,
+      note: normalized.note,
+      categoryId: normalized.categoryId,
     });
     if (!completed) return "IGNORED" as const;
     await invalidateTransactionTagCache();

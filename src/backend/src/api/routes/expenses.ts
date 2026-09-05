@@ -13,7 +13,7 @@ import {
 } from "../../schemas/index.ts";
 import { listTransactionTags } from "../../services/transactionTags.ts";
 import { serializeTransaction } from "../../utils/serialize.ts";
-import { createTransaction } from "../../services/transactions.ts";
+import { createTransaction, reviewTransaction } from "../../services/transactions.ts";
 import { NotFoundError } from "../../core/errors.ts";
 import type { AppEnv } from "../types.ts";
 
@@ -64,6 +64,10 @@ export const expensesRoutes = new Hono<AppEnv>()
     const input = c.req.valid("json");
     const transaction = await createTransaction(c.get("user").id, input);
     return c.json(serializeTransaction(transaction), 201);
+  })
+  .post("/:id/review", async (c) => {
+    const transaction = await reviewTransaction(c.get("user").id, c.req.param("id"));
+    return c.json(serializeTransaction(transaction));
   })
   .put("/:id", zValidator("json", updateTransactionSchema), async (c) => {
     const id = c.req.param("id");

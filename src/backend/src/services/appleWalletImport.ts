@@ -6,6 +6,7 @@ import { appleWalletImportRepository } from "../repositories/appleWalletImport.t
 import { stableJson } from "../utils/stable-json.ts";
 
 type Enqueue = (id: string) => Promise<unknown>;
+export type IntegrationTokenHint = { prefix: string; suffix: string };
 
 export class AppleWalletEnqueueError extends Error {
   constructor(
@@ -44,9 +45,15 @@ export async function queueAppleWalletImport(
   rawPayload: Prisma.InputJsonValue,
   idempotencyHeader?: string,
   add: Enqueue = enqueue,
+  integrationTokenHint?: IntegrationTokenHint,
 ) {
   const key = idempotencyKey(rawPayload, idempotencyHeader);
-  const queued = await appleWalletImportRepository.createQueued(userId, rawPayload, key);
+  const queued = await appleWalletImportRepository.createQueued(
+    userId,
+    rawPayload,
+    key,
+    integrationTokenHint,
+  );
   const record = queued.record;
 
   try {

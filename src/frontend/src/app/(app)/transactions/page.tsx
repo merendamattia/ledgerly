@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { CircleAlert, Repeat } from "lucide-react";
+import { CircleAlert, Repeat, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { MonthYearPicker } from "@/components/month-year-picker";
 import { ActivityPeriodInsights } from "@/components/activity-period-insights";
@@ -530,6 +530,15 @@ export default function TransactionsPage() {
                               }}
                             >
                               <CircleAlert className="size-3.5 text-negative-ink" aria-hidden="true" />
+                            </span>
+                          ) : null}
+                          {t.reviewRequired ? (
+                            <span
+                              className="inline-flex shrink-0 rounded-sm text-accent-gold"
+                              title={tr("aiReviewRequired")}
+                            >
+                              <Sparkles className="size-3.5" aria-hidden="true" />
+                              <span className="sr-only">{tr("aiReviewRequired")}</span>
                             </span>
                           ) : null}
                           {t.recurringExpenseId ? (

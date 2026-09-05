@@ -223,6 +223,30 @@ export const integrationTransactionSchema = z
   .record(z.string().min(1).max(100), z.json())
   .refine((payload) => JSON.stringify(payload).length <= 64_000, "Wallet payload is too large");
 
+export const appleWalletImportStatusSchema = z.enum([
+  "PENDING",
+  "QUEUED",
+  "RUNNING",
+  "RETRYING",
+  "COMPLETED",
+  "FAILED",
+]);
+
+export const walletRequestFiltersSchema = z
+  .object({
+    userId: z.string().trim().min(1).optional(),
+    status: appleWalletImportStatusSchema.optional(),
+    from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD").optional(),
+    to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD").optional(),
+    timezone: z.string().trim().min(1).max(100).default("UTC"),
+    limit: z.coerce.number().int().positive().max(100).default(25),
+    offset: z.coerce.number().int().nonnegative().default(0),
+  })
+  .refine((filters) => !filters.from || !filters.to || filters.from <= filters.to, {
+    message: "The start date must be before the end date",
+    path: ["to"],
+  });
+
 export const pushSubscriptionSchema = z.object({
   endpoint: z.string().url().max(2_048),
   keys: z.object({

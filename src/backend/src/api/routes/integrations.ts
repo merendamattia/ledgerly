@@ -65,6 +65,8 @@ export const integrationsRoutes = new Hono<AppEnv>()
           integrationUserId,
           c.req.valid("json"),
           c.req.header("Idempotency-Key"),
+          undefined,
+          c.get("integrationTokenHint"),
         );
         logger.info("Apple Wallet integration request queued", {
           requestId,

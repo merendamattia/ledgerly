@@ -93,5 +93,6 @@ export const requireIntegrationToken = createMiddleware<AppEnv>(async (c, next) 
   if (!record) return integrationAuthenticationFailure(c, "unknown_token");
 
   c.set("integrationUserId", record.userId);
+  c.set("integrationTokenHint", { prefix: record.prefix, suffix: record.suffix });
   await next();
 });

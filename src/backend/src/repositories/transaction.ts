@@ -127,10 +127,37 @@ export const transactionRepository = {
   },
 
   async update(userId: string, id: string, data: Prisma.TransactionUpdateInput) {
-    if (!(await prisma.transaction.findFirst({ where: { id, userId } }))) return null;
+    const existing = await prisma.transaction.findFirst({
+      where: { id, userId },
+      select: { reviewRequired: true },
+    });
+    if (!existing) return null;
     const transaction = await prisma.transaction.update({
       where: { id },
-      data,
+      data: {
+        ...data,
+        ...(existing.reviewRequired
+          ? { reviewRequired: false, reviewedAt: new Date() }
+          : {}),
+      },
+      include: { category: true },
+    });
+    await invalidateTransactionTagCache();
+    return transaction;
+  },
+
+  async markReviewed(userId: string, id: string) {
+    const existing = await prisma.transaction.findFirst({
+      where: { id, userId },
+      select: { reviewRequired: true },
+    });
+    if (!existing) return null;
+    if (!existing.reviewRequired) {
+      return prisma.transaction.findUnique({ where: { id }, include: { category: true } });
+    }
+    const transaction = await prisma.transaction.update({
+      where: { id },
+      data: { reviewRequired: false, reviewedAt: new Date() },
       include: { category: true },
     });
     await invalidateTransactionTagCache();

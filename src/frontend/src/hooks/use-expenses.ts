@@ -126,6 +126,16 @@ export function useUpdateTransaction() {
   });
 }
 
+/** Marks an AI-imported transaction as reviewed and refreshes transaction data. */
+export function useMarkTransactionReviewed() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: async (id: string) =>
+      unwrap<Transaction>(await api.expenses[":id"].review.$post({ param: { id } })),
+    onSuccess: invalidate,
+  });
+}
+
 /**
  * Deletes one transaction and refreshes affected totals.
  */

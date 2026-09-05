@@ -10,5 +10,6 @@ export type AppEnv = {
     user: AuthUser;
     session: AuthSession;
     integrationUserId: string;
+    integrationTokenHint: { prefix: string; suffix: string };
   };
 };

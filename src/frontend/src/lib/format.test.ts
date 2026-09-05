@@ -3,6 +3,7 @@ import {
   axisBounds,
   compactMoney,
   formatDate,
+  formatDateOnly,
   formatMoney,
   formatMonthYear,
   formatNumber,
@@ -40,6 +41,19 @@ test("formatNumber respects explicit precision", () => {
 test("date labels stay stable for dense UI rows and pickers", () => {
   expect(formatDate("2026-06-14")).toBe("14 Jun 2026");
   expect(formatMonthYear("2026-06-01")).toBe("June 2026");
+});
+
+test("date-only labels preserve the API calendar date outside UTC", () => {
+  const serialized = "2026-09-02T00:00:00.000Z";
+  const newYorkDate = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "America/New_York",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(serialized));
+
+  expect(newYorkDate).toBe("01 Sept 2026");
+  expect(formatDateOnly(serialized)).toBe("02 Sept 2026");
 });
 
 test("compactMoney uses compact currency labels for chart axes", () => {
