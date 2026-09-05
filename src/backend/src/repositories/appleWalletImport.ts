@@ -1,7 +1,7 @@
 import type { AppleWalletImportStatus, Prisma, TxDirection } from "@prisma/client";
 import { prisma } from "../core/db.ts";
 import type { IntegrationTokenHint } from "../services/appleWalletImport.ts";
-import type { WalletAiUsage } from "../services/appleWalletNormalizer.ts";
+import type { WalletAiTelemetry } from "../services/appleWalletNormalizer.ts";
 
 const ACTIVE_FOR_CLAIM: AppleWalletImportStatus[] = ["QUEUED", "RETRYING"];
 
@@ -66,6 +66,11 @@ function adminWhere(filters: AppleWalletImportFilters): Prisma.AppleWalletImport
 
 function serializeAdminTransaction<T extends { amount: unknown }>(transaction: T | null) {
   return transaction ? { ...transaction, amount: Number(transaction.amount) } : null;
+}
+
+function addTokenCounts(previous: number | null, current: number | null) {
+  if (current === null) return previous;
+  return (previous ?? 0) + current;
 }
 
 export const appleWalletImportRepository = {
@@ -140,6 +145,27 @@ export const appleWalletImportRepository = {
     });
   },
 
+  async recordAiTelemetry(id: string, attempt: number, telemetry: WalletAiTelemetry) {
+    return prisma.$transaction(async (tx) => {
+      const current = await tx.appleWalletImport.findFirst({
+        where: { id, status: "RUNNING", attempts: attempt },
+        select: { aiInputTokens: true, aiOutputTokens: true, aiTotalTokens: true },
+      });
+      if (!current) return false;
+
+      const recorded = await tx.appleWalletImport.updateMany({
+        where: { id, status: "RUNNING", attempts: attempt },
+        data: {
+          aiModel: telemetry.model,
+          aiInputTokens: addTokenCounts(current.aiInputTokens, telemetry.usage.inputTokens),
+          aiOutputTokens: addTokenCounts(current.aiOutputTokens, telemetry.usage.outputTokens),
+          aiTotalTokens: addTokenCounts(current.aiTotalTokens, telemetry.usage.totalTokens),
+        },
+      });
+      return recorded.count === 1;
+    });
+  },
+
   retry(id: string, attempt: number, error: string) {
     return prisma.appleWalletImport.updateMany({
       where: { id, status: "RUNNING", attempts: attempt },
@@ -180,8 +206,6 @@ export const appleWalletImportRepository = {
       direction: TxDirection;
       note: string;
       categoryId: string | null;
-      model: string;
-      usage: WalletAiUsage;
     },
   ) {
     return prisma.$transaction(async (tx) => {
@@ -218,10 +242,6 @@ export const appleWalletImportRepository = {
           completedAt: new Date(),
           heartbeatAt: new Date(),
           lastError: null,
-          aiModel: input.model,
-          aiInputTokens: input.usage.inputTokens,
-          aiOutputTokens: input.usage.outputTokens,
-          aiTotalTokens: input.usage.totalTokens,
           normalizedResult: {
             amount: input.amount,
             direction: input.direction,
@@ -243,7 +263,7 @@ export const appleWalletImportRepository = {
       prisma.appleWalletImport.findMany({
         where,
         select: adminImportSelect,
-        orderBy: [{ createdAt: "desc" }],
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: filters.limit ?? 25,
         skip: filters.offset ?? 0,
       }),
