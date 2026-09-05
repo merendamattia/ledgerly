@@ -185,7 +185,7 @@ test("worker records retry state before a later successful attempt", async () =>
   expect(completed.aiTotalTokens).toBe(140);
 });
 
-test("a metered response that fails after normalization retains usage in the failed aggregate", async () => {
+test("a metered response that fails after normalization retains its failed detail", async () => {
   const originalFetch = globalThis.fetch;
   const originalApiKey = process.env.OPENAI_API_KEY;
   const originalModel = process.env.OPENAI_MODEL;
@@ -231,6 +231,13 @@ test("a metered response that fails after normalization retains usage in the fai
     expect(failed.aiInputTokens).toBe(41);
     expect(failed.aiOutputTokens).toBe(17);
     expect(failed.aiTotalTokens).toBe(58);
+    expect(failed.normalizedResult).toEqual({
+      amount: 9,
+      direction: "EXPENSE",
+      date: "2026-99-99",
+      note: "Invalid date café",
+      categoryId: null,
+    });
 
     const aggregate = await appleWalletImportRepository.listAdmin({
       userId,
@@ -244,6 +251,9 @@ test("a metered response that fails after normalization retains usage in the fai
       outputTokens: 17,
       totalTokens: 58,
     });
+
+    const detail = await appleWalletImportRepository.findAdminById(record.id);
+    expect(detail?.normalizedResult).toEqual(failed.normalizedResult);
   } finally {
     globalThis.fetch = originalFetch;
     if (originalApiKey === undefined) delete process.env.OPENAI_API_KEY;

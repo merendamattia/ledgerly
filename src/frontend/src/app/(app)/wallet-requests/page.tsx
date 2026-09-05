@@ -193,10 +193,7 @@ export default function WalletRequestsPage() {
             size="icon-xs"
             aria-label={t("view")}
             title={t("view")}
-            onClick={(event) => {
-              event.stopPropagation();
-              setSelectedId(row.id);
-            }}
+            onClick={() => setSelectedId(row.id)}
           >
             <Eye />
           </Button>
@@ -308,7 +305,6 @@ export default function WalletRequestsPage() {
                 data={rows}
                 getRowKey={(row) => row.id}
                 isLoading={requests.isLoading}
-                onRowClick={(row) => setSelectedId(row.id)}
                 emptyState={<span className="text-sm text-muted-foreground">{t("empty")}</span>}
               />
             </div>

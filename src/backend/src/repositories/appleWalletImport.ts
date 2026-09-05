@@ -1,7 +1,10 @@
 import type { AppleWalletImportStatus, Prisma, TxDirection } from "@prisma/client";
 import { prisma } from "../core/db.ts";
 import type { IntegrationTokenHint } from "../services/appleWalletImport.ts";
-import type { WalletAiTelemetry } from "../services/appleWalletNormalizer.ts";
+import type {
+  NormalizedWalletTransaction,
+  WalletAiTelemetry,
+} from "../services/appleWalletNormalizer.ts";
 
 const ACTIVE_FOR_CLAIM: AppleWalletImportStatus[] = ["QUEUED", "RETRYING"];
 
@@ -164,6 +167,29 @@ export const appleWalletImportRepository = {
       });
       return recorded.count === 1;
     });
+  },
+
+  async recordNormalizedResult(
+    id: string,
+    attempt: number,
+    normalized: Pick<
+      NormalizedWalletTransaction,
+      "amount" | "direction" | "date" | "note" | "categoryId"
+    >,
+  ) {
+    const recorded = await prisma.appleWalletImport.updateMany({
+      where: { id, status: "RUNNING", attempts: attempt },
+      data: {
+        normalizedResult: {
+          amount: normalized.amount,
+          direction: normalized.direction,
+          date: normalized.date,
+          note: normalized.note,
+          categoryId: normalized.categoryId,
+        },
+      },
+    });
+    return recorded.count === 1;
   },
 
   retry(id: string, attempt: number, error: string) {

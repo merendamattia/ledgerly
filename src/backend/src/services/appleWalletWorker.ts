@@ -53,6 +53,12 @@ export async function processAppleWalletImport(
     if (!telemetryPersisted) {
       await persistTelemetry({ model: normalized.model, usage: normalized.usage });
     }
+    const normalizedResultRecorded = await appleWalletImportRepository.recordNormalizedResult(
+      importId,
+      record.attempts,
+      normalized,
+    );
+    if (!normalizedResultRecorded) return "IGNORED" as const;
     const date = new Date(`${normalized.date}T00:00:00.000Z`);
     if (Number.isNaN(date.getTime())) throw new Error("OpenAI returned an invalid transaction date");
     const completed = await appleWalletImportRepository.complete(importId, record.attempts, {
