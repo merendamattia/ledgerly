@@ -1,6 +1,8 @@
+import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
 import { auth } from "../../core/auth.ts";
 import { config } from "../../core/config.ts";
+import { logger } from "../../core/logger.ts";
 import { personalApiTokenRepository } from "../../repositories/personalApiToken.ts";
 import type { AppEnv } from "../types.ts";
 
@@ -55,21 +57,40 @@ export const requireCronOrAuth = createMiddleware<AppEnv>(async (c, next) => {
   await next();
 });
 
-const bearerTokenPattern = /^ledgerly_[A-Za-z0-9_-]{43}$/;
-
 function readBearerToken(value: string | undefined): string | null {
-  const match = value?.match(/^Bearer[ \t]+([^ \t]+)$/i);
-  if (!match || !bearerTokenPattern.test(match[1])) return null;
-  return match[1];
+  // The published Shortcut calls its import answer a bearer token, then adds
+  // the Bearer scheme itself. Accept one repeated scheme for existing copies;
+  // the setup instructions ask new users to paste only the raw secret.
+  const match = value?.match(/^Bearer[ \t]+(?:Bearer[ \t]+)?(ledgerly_[A-Za-z0-9_-]{43})$/i);
+  return match?.[1] ?? null;
 }
 
-/** Authenticates only the narrow external integration surface. */
+function integrationAuthenticationFailure(
+  c: Context<AppEnv>,
+  reason: "missing_authorization" | "invalid_bearer_format" | "unknown_token",
+) {
+  const requestId = c.get("requestId");
+  logger.warn("Apple Wallet integration authentication failed", { requestId, reason });
+  return c.json(
+    {
+      error: "Unauthorized",
+      code: "INTEGRATION_AUTHENTICATION_FAILED",
+      requestId,
+    },
+    401,
+  );
+}
+
+/** Authenticates only the narrow external integration surface. User role is intentionally not consulted. */
 export const requireIntegrationToken = createMiddleware<AppEnv>(async (c, next) => {
-  const token = readBearerToken(c.req.header("Authorization"));
-  if (!token) return c.json({ error: "Unauthorized" }, 401);
+  const authorization = c.req.header("Authorization");
+  if (!authorization) return integrationAuthenticationFailure(c, "missing_authorization");
+
+  const token = readBearerToken(authorization);
+  if (!token) return integrationAuthenticationFailure(c, "invalid_bearer_format");
 
   const record = await personalApiTokenRepository.findUserBySecret(token);
-  if (!record) return c.json({ error: "Unauthorized" }, 401);
+  if (!record) return integrationAuthenticationFailure(c, "unknown_token");
 
   c.set("integrationUserId", record.userId);
   await next();
