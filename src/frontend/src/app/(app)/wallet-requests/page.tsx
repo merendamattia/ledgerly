@@ -33,7 +33,7 @@ import {
   type WalletRequestDetail,
   type WalletRequestList,
 } from "@/hooks/use-wallet-requests";
-import { formatDate, formatDateTime, formatNumber, truncate } from "@/lib/format";
+import { formatDateOnly, formatDateTime, formatNumber, truncate } from "@/lib/format";
 import type { WalletRequestFilters, WalletRequestStatus } from "@/lib/query-keys";
 
 const PAGE = 25;
@@ -455,7 +455,7 @@ function RequestDetail({
                   <span className="font-mono text-xs">{detail.transaction.id}</span>
                 </DetailField>
                 <DetailField label={t("transactionDate")}>
-                  {formatDate(detail.transaction.date)}
+                  {formatDateOnly(detail.transaction.date)}
                 </DetailField>
                 <DetailField label={t("transactionAmount")}>
                   {formatNumber(Number(detail.transaction.amount))}

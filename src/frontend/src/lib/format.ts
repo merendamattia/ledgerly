@@ -134,6 +134,17 @@ export function formatDate(value: string | Date): string {
   return cachedDateFormatter("date", { day: "2-digit", month: "short", year: "numeric" }).format(date);
 }
 
+/** Formats a serialized date-only value without shifting its calendar day. */
+export function formatDateOnly(value: string): string {
+  const date = new Date(`${value.slice(0, 10)}T00:00:00.000Z`);
+  return cachedDateFormatter("date-only", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(date);
+}
+
 /** Human-readable date and time for logs and cron run metadata. */
 export function formatDateTime(value: string | Date): string {
   const date = typeof value === "string" ? new Date(value) : value;
