@@ -309,6 +309,7 @@
     "aiReviewDescription": "Check the imported details and confirm them before treating this transaction as verified.",
     "markReviewed": "Mark as reviewed",
     "reviewed": "AI transaction marked as reviewed",
+    "loading": "Loading",
     "categoryMissing": "Category missing",
     "categoryMissingEditing": "Choose a category in the Category field, then press Save.",
     "categoryMissingViewing": "Press Edit, choose a category in the Category field, then press Save.",

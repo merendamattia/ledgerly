@@ -156,7 +156,7 @@ function DetailContent({
             onClick={markReviewed}
             disabled={review.isPending}
           >
-            {review.isPending ? <Spinner data-icon="inline-start" /> : null}
+            {review.isPending ? <Spinner data-icon="inline-start" aria-label={t("loading")} /> : null}
             {t("markReviewed")}
           </Button>
         </Alert>

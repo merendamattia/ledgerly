@@ -308,6 +308,7 @@
     "aiReviewDescription": "Controlla i dettagli importati e confermali prima di considerare verificato questo movimento.",
     "markReviewed": "Segna come verificato",
     "reviewed": "Movimento AI segnato come verificato",
+    "loading": "Caricamento",
     "categoryMissing": "Categoria mancante",
     "categoryMissingEditing": "Scegli una categoria nel campo Categoria, poi premi Salva.",
     "categoryMissingViewing": "Premi Modifica, scegli una categoria nel campo Categoria, poi premi Salva.",
