@@ -73,8 +73,8 @@ export const queryKeys = {
     params: { search?: string; limit: number; offset: number },
   ) => ["database", "table", table, params] as const,
   walletRequestsRoot: ["admin", "wallet-requests"] as const,
-  walletRequests: (filters?: WalletRequestFilters) =>
-    [...queryKeys.walletRequestsRoot, filters ?? {}] as const,
+  walletRequests: (filters?: WalletRequestFilters, timezone = "UTC") =>
+    [...queryKeys.walletRequestsRoot, filters ?? {}, timezone] as const,
   walletRequest: (id: string) => [...queryKeys.walletRequestsRoot, id] as const,
 };
 

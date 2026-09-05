@@ -159,6 +159,27 @@ test("admin Wallet request telemetry is protected from non-admin sessions", asyn
   expect(detail.status).toBe(403);
 });
 
+test("date filters use the browser calendar day in its timezone", async () => {
+  const midnightRequest = await prisma.appleWalletImport.create({
+    data: {
+      userId: adminId,
+      rawPayload: { merchant: "Rome midnight" },
+      idempotencyKey: `rome-midnight-${suffix}`,
+      status: "FAILED",
+      createdAt: new Date("2026-09-05T23:30:00.000Z"),
+    },
+  });
+
+  const response = await request(
+    `/api/admin/wallet-requests?status=FAILED&userId=${encodeURIComponent(adminId)}&from=2026-09-06&to=2026-09-06&timezone=Europe%2FRome&limit=10&offset=0`,
+    adminCookie,
+  );
+  expect(response.status).toBe(200);
+  const body = (await response.json()) as { items: Array<{ id: string }>; total: number };
+  expect(body.total).toBe(1);
+  expect(body.items[0]?.id).toBe(midnightRequest.id);
+});
+
 test("the transaction review endpoint clears the AI review marker for its owner", async () => {
   const response = await request(`/api/expenses/${completedTransactionId}/review`, adminCookie, {
     method: "POST",

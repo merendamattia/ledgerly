@@ -296,7 +296,6 @@
     "categoryMissing": "Category missing",
     "categoryMissingHelp": "Open the transaction, choose a category under Edit → Category, then save it.",
     "aiReviewRequired": "AI result needs review",
-    "aiReviewRequiredHelp": "Check the imported details and confirm them before treating this transaction as verified.",
     "recurring": "Recurring",
     "loadMore": "Load more"
   },

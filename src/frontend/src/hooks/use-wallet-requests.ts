@@ -8,12 +8,17 @@ type WalletRequestsApi = typeof api.admin["wallet-requests"];
 export type WalletRequestList = InferResponseType<WalletRequestsApi["$get"], 200>;
 export type WalletRequestDetail = InferResponseType<WalletRequestsApi[":id"]["$get"], 200>;
 
-function toQuery(filters: WalletRequestFilters) {
+function browserTimeZone() {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+}
+
+function toQuery(filters: WalletRequestFilters, timezone: string) {
   return {
     ...(filters.userId ? { userId: filters.userId } : {}),
     ...(filters.status ? { status: filters.status } : {}),
     ...(filters.from ? { from: filters.from } : {}),
     ...(filters.to ? { to: filters.to } : {}),
+    timezone,
     limit: String(filters.limit),
     offset: String(filters.offset),
   };
@@ -21,12 +26,13 @@ function toQuery(filters: WalletRequestFilters) {
 
 /** Loads one paginated, filtered admin Wallet request page. */
 export function useWalletRequests(filters: WalletRequestFilters) {
+  const timezone = browserTimeZone();
   return useQuery({
-    queryKey: queryKeys.walletRequests(filters),
+    queryKey: queryKeys.walletRequests(filters, timezone),
     placeholderData: keepPreviousData,
     queryFn: async () =>
       unwrap<WalletRequestList>(
-        await api.admin["wallet-requests"].$get({ query: toQuery(filters) }),
+        await api.admin["wallet-requests"].$get({ query: toQuery(filters, timezone) }),
       ),
   });
 }

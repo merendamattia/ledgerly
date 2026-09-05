@@ -295,7 +295,6 @@
     "categoryMissing": "Categoria mancante",
     "categoryMissingHelp": "Apri il movimento, scegli una categoria in Modifica → Categoria e salvalo.",
     "aiReviewRequired": "Il risultato AI richiede una verifica",
-    "aiReviewRequiredHelp": "Controlla i dettagli importati e confermali prima di considerare verificato questo movimento.",
     "recurring": "Ricorrente",
     "loadMore": "Carica altro"
   },

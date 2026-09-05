@@ -534,25 +534,9 @@ export default function TransactionsPage() {
                           ) : null}
                           {t.reviewRequired ? (
                             <span
-                              className="inline-flex shrink-0 cursor-help rounded-sm text-accent-gold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                              role="button"
-                              aria-label={tr("aiReviewRequired")}
+                              className="inline-flex shrink-0 rounded-sm text-accent-gold"
+                              aria-hidden="true"
                               title={tr("aiReviewRequired")}
-                              tabIndex={0}
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                toast.warning(tr("aiReviewRequired"), {
-                                  description: tr("aiReviewRequiredHelp"),
-                                });
-                              }}
-                              onKeyDown={(event) => {
-                                if (event.key !== "Enter" && event.key !== " ") return;
-                                event.preventDefault();
-                                event.stopPropagation();
-                                toast.warning(tr("aiReviewRequired"), {
-                                  description: tr("aiReviewRequiredHelp"),
-                                });
-                              }}
                             >
                               <Sparkles className="size-3.5" aria-hidden="true" />
                             </span>

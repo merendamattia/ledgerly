@@ -236,8 +236,9 @@ export const walletRequestFiltersSchema = z
   .object({
     userId: z.string().trim().min(1).optional(),
     status: appleWalletImportStatusSchema.optional(),
-    from: z.coerce.date().optional(),
-    to: z.coerce.date().optional(),
+    from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD").optional(),
+    to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD").optional(),
+    timezone: z.string().trim().min(1).max(100).default("UTC"),
     limit: z.coerce.number().int().positive().max(100).default(25),
     offset: z.coerce.number().int().nonnegative().default(0),
   })
