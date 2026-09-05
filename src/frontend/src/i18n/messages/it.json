@@ -139,7 +139,7 @@
     "noTokenTitle": "Nessun token di automazione",
     "noTokenDescription": "Generane uno per configurare il comando rapido.",
     "generateToken": "Genera token",
-    "setupInstall": "Apri il link iCloud sull'iPhone, aggiungi il comando rapido condiviso e incolla il token personale quando richiesto.",
+    "setupInstall": "Apri il link iCloud sull'iPhone, aggiungi il comando rapido condiviso e incolla solo il token personale (il valore ledgerly_…, senza il prefisso Bearer) quando richiesto.",
     "setupAutomation": "In Comandi rapidi → Automazione, seleziona le carte o i pass Wallet, scegli Esegui immediatamente e attiva Notifica quando viene eseguita.",
     "setupRun": "Aggiungi Esegui comando rapido, scegli Ledgerly - Apple Pay e passa direttamente il movimento Wallet. Non servono Dizionari o associazioni manuali.",
     "automationScreenshotAlt": "Automazione Wallet di Comandi rapidi su iPhone impostata su Esegui immediatamente con Ledgerly - Apple Pay.",

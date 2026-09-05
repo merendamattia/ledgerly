@@ -57,12 +57,12 @@ export const requireCronOrAuth = createMiddleware<AppEnv>(async (c, next) => {
   await next();
 });
 
-const bearerTokenPattern = /^ledgerly_[A-Za-z0-9_-]{43}$/;
-
 function readBearerToken(value: string | undefined): string | null {
-  const match = value?.match(/^Bearer[ \t]+([^ \t]+)$/i);
-  if (!match || !bearerTokenPattern.test(match[1])) return null;
-  return match[1];
+  // The published Shortcut calls its import answer a bearer token, then adds
+  // the Bearer scheme itself. Accept one repeated scheme for existing copies;
+  // the setup instructions ask new users to paste only the raw secret.
+  const match = value?.match(/^Bearer[ \t]+(?:Bearer[ \t]+)?(ledgerly_[A-Za-z0-9_-]{43})$/i);
+  return match?.[1] ?? null;
 }
 
 function integrationAuthenticationFailure(

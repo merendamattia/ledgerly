@@ -110,6 +110,9 @@ Authorization: Bearer <personal-token>
 Content-Type: application/json
 ```
 
+When the shared Shortcut asks for the bearer token, enter only the `ledgerly_…` value; it adds the
+`Bearer` authorization prefix itself.
+
 The request body is the Shortcut's raw Wallet input; no amount, merchant, category, direction, or
 date mapping is required on the phone. Ledgerly persists the request, enqueues it in BullMQ, and a
 dedicated worker uses GPT-5.6 Luna Structured Outputs to create the transaction. Repeated identical
