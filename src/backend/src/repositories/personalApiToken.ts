@@ -77,7 +77,7 @@ export const personalApiTokenRepository = {
   findUserBySecret(secret: string) {
     return prisma.personalApiToken.findUnique({
       where: { tokenHash: hashSecret(secret) },
-      select: { userId: true },
+      select: { userId: true, prefix: true, suffix: true },
     });
   },
 };

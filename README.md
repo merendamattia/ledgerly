@@ -116,6 +116,17 @@ dedicated worker uses GPT-5.6 Luna Structured Outputs to create the transaction.
 payloads are idempotent; callers may also send an `Idempotency-Key` header. The minimal Wallet
 `Run Immediately` setup is documented in Settings → Advanced.
 
+Wallet categorization is conservative: the worker can choose only from the user's own same-direction
+categories and leaves the transaction uncategorized when the merchant context is ambiguous. The same
+AI pass cleans the note by removing promotional text and boilerplate while preserving useful merchant
+context. Every Wallet-created transaction is marked for review, including transactions that received
+an AI category; confirm it from Activity or edit it before treating the result as verified.
+
+Administrators can use **Wallet requests** to inspect the raw request, normalized result, processing
+status, linked transaction, model, and exact input/output/total token usage. The view supports user,
+status, and date filters plus aggregate token totals. It stores and displays only a non-secret token
+prefix/suffix hint; personal Bearer tokens and the OpenAI key are never exposed there.
+
 After import, Ledgerly stores an in-app notification linked directly to the new transaction. Web
 Push is optional: configure `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT`, then enable
 notifications in Settings. After enabling them, use **Send test notification** in Settings → Advanced

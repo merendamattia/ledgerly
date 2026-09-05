@@ -24,3 +24,10 @@ export async function createTransaction(userId: string, input: CreateTransaction
     category: input.categoryId ? { connect: { id: input.categoryId } } : undefined,
   });
 }
+
+/** Marks one owned AI-imported transaction as reviewed by its user. */
+export async function reviewTransaction(userId: string, transactionId: string) {
+  const transaction = await transactionRepository.markReviewed(userId, transactionId);
+  if (!transaction) throw new NotFoundError("Transaction not found");
+  return transaction;
+}

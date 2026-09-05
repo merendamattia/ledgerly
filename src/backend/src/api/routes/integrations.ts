@@ -41,6 +41,8 @@ export const integrationsRoutes = new Hono<AppEnv>()
         c.get("integrationUserId"),
         c.req.valid("json"),
         c.req.header("Idempotency-Key"),
+        undefined,
+        c.get("integrationTokenHint"),
       );
       return c.json(queued, 202);
     },

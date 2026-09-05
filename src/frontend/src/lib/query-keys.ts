@@ -13,6 +13,23 @@ export interface TransactionFilters {
   offset?: number;
 }
 
+export type WalletRequestStatus =
+  | "PENDING"
+  | "QUEUED"
+  | "RUNNING"
+  | "RETRYING"
+  | "COMPLETED"
+  | "FAILED";
+
+export interface WalletRequestFilters {
+  userId?: string;
+  status?: WalletRequestStatus;
+  from?: string;
+  to?: string;
+  limit: number;
+  offset: number;
+}
+
 /**
  * Centralized query keys for cache reads and invalidation.
  */
@@ -55,6 +72,10 @@ export const queryKeys = {
     table: string,
     params: { search?: string; limit: number; offset: number },
   ) => ["database", "table", table, params] as const,
+  walletRequestsRoot: ["admin", "wallet-requests"] as const,
+  walletRequests: (filters?: WalletRequestFilters) =>
+    [...queryKeys.walletRequestsRoot, filters ?? {}] as const,
+  walletRequest: (id: string) => [...queryKeys.walletRequestsRoot, id] as const,
 };
 
 /**

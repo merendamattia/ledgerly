@@ -9,6 +9,13 @@ const userId = `wallet-import-${suffix}`;
 const otherUserId = `wallet-import-other-${suffix}`;
 let categoryId = "";
 
+function walletTelemetry() {
+  return {
+    model: "gpt-5.6-luna",
+    usage: { inputTokens: 101, outputTokens: 23, totalTokens: 124 },
+  };
+}
+
 beforeAll(async () => {
   await prisma.user.create({
     data: {
@@ -46,8 +53,12 @@ test("queue handoff persists QUEUED before enqueue and retains work after enqueu
     async (id) => {
       expect((await prisma.appleWalletImport.findUniqueOrThrow({ where: { id } })).status).toBe("QUEUED");
     },
+    { prefix: "ledgerly_ab", suffix: "wxyz" },
   );
   expect(queued.status).toBe("QUEUED");
+  const queuedRecord = await prisma.appleWalletImport.findUniqueOrThrow({ where: { id: queued.id } });
+  expect(queuedRecord.integrationTokenPrefix).toBe("ledgerly_ab");
+  expect(queuedRecord.integrationTokenSuffix).toBe("wxyz");
 
   await expect(
     queueAppleWalletImport(
@@ -103,6 +114,7 @@ test("worker creates one transaction and notification and ignores duplicate deli
     date: "2026-09-01",
     note: "Worker café",
     categoryId,
+    ...walletTelemetry(),
   });
   expect(await processAppleWalletImport(record.id, 1, 3, normalize)).toBe("COMPLETED");
   expect(await processAppleWalletImport(record.id, 1, 3, normalize)).toBe("IGNORED");
@@ -111,6 +123,19 @@ test("worker creates one transaction and notification and ignores duplicate deli
   expect(completed.status).toBe("COMPLETED");
   expect(completed.attempts).toBe(1);
   expect(completed.transactionId).not.toBeNull();
+  expect(completed.aiModel).toBe("gpt-5.6-luna");
+  expect(completed.aiInputTokens).toBe(101);
+  expect(completed.aiOutputTokens).toBe(23);
+  expect(completed.aiTotalTokens).toBe(124);
+  expect(completed.normalizedResult).toEqual(expect.objectContaining({
+    note: "Worker café",
+    categoryId,
+  }));
+  const importedTransaction = await prisma.transaction.findUniqueOrThrow({
+    where: { id: completed.transactionId! },
+  });
+  expect(importedTransaction.reviewRequired).toBe(true);
+  expect(importedTransaction.reviewedAt).toBeNull();
   expect(await prisma.transaction.count({ where: { userId, note: "Worker café" } })).toBe(1);
   expect(
     await prisma.notification.count({
@@ -144,6 +169,7 @@ test("worker records retry state before a later successful attempt", async () =>
     date: "2026-09-01",
     note: "Retry café",
     categoryId,
+    ...walletTelemetry(),
   }));
   const completed = await prisma.appleWalletImport.findUniqueOrThrow({ where: { id: record.id } });
   expect(completed.status).toBe("COMPLETED");
@@ -170,6 +196,7 @@ test("worker reclaims a stale RUNNING lease after a crash", async () => {
     date: "2026-09-01",
     note: "Recovered café",
     categoryId,
+    ...walletTelemetry(),
   }));
   const completed = await prisma.appleWalletImport.findUniqueOrThrow({ where: { id: record.id } });
   expect(completed.status).toBe("COMPLETED");

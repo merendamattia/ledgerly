@@ -14,11 +14,15 @@ let ownerCookie = "";
 let otherCookie = "";
 let notificationId = "";
 let transactionId = "";
+let signInCount = 0;
 
 async function signIn(email: string) {
   const response = await auth.handler(new Request("http://localhost:3001/api/auth/sign-in/email", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: {
+      "content-type": "application/json",
+      "x-forwarded-for": `198.18.0.${++signInCount}`,
+    },
     body: JSON.stringify({ email, password }),
   }));
   expect(response.status).toBe(200);

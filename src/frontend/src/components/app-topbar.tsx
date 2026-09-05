@@ -60,6 +60,7 @@ const PAGE_META: Record<string, PageMeta> = {
   "/imports": { titleKey: "imports", subtitleKey: "importsSubtitle" },
   "/settings": { titleKey: "settings", subtitleKey: "settingsSubtitle" },
   "/database": { titleKey: "database", subtitleKey: "databaseSubtitle" },
+  "/wallet-requests": { titleKey: "walletRequests", subtitleKey: "walletRequestsSubtitle" },
   "/dev": { titleKey: "developerTools", subtitleKey: "developerToolsSubtitle" },
 };
 

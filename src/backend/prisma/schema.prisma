@@ -191,27 +191,36 @@ model PersonalApiToken {
 
 /// Durable handoff for one raw transaction received from an Apple Wallet Shortcut.
 model AppleWalletImport {
-  id             String                  @id @default(cuid())
-  userId         String
-  user           User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  rawPayload     Json
-  idempotencyKey String
-  status         AppleWalletImportStatus @default(PENDING)
-  queueJobId     String?                 @unique
-  attempts       Int                     @default(0)
-  queuedAt       DateTime?
-  startedAt      DateTime?
-  heartbeatAt    DateTime?
-  completedAt    DateTime?
-  failedAt       DateTime?
-  lastError      String?
-  transactionId  String?                 @unique
-  transaction    Transaction?            @relation(fields: [transactionId], references: [id], onDelete: SetNull)
-  createdAt      DateTime                @default(now())
-  updatedAt      DateTime                @updatedAt
+  id                       String                  @id @default(cuid())
+  userId                   String
+  user                     User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rawPayload               Json
+  idempotencyKey           String
+  status                   AppleWalletImportStatus @default(PENDING)
+  queueJobId               String?                 @unique
+  attempts                 Int                     @default(0)
+  queuedAt                 DateTime?
+  startedAt                DateTime?
+  heartbeatAt              DateTime?
+  completedAt              DateTime?
+  failedAt                 DateTime?
+  lastError                String?
+  aiModel                  String?
+  aiInputTokens            Int?
+  aiOutputTokens           Int?
+  aiTotalTokens            Int?
+  normalizedResult         Json?
+  integrationTokenPrefix   String?
+  integrationTokenSuffix   String?
+  transactionId            String?                 @unique
+  transaction              Transaction?            @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+  createdAt                DateTime                @default(now())
+  updatedAt                DateTime                @updatedAt
 
   @@unique([userId, idempotencyKey])
   @@index([userId, createdAt])
+  @@index([userId, status, createdAt])
+  @@index([status, createdAt])
   @@index([status, heartbeatAt])
   @@map("apple_wallet_import")
 }
@@ -453,6 +462,8 @@ model Transaction {
   amount             Decimal            @db.Decimal(20, 2)
   direction          TxDirection
   note               String?
+  reviewRequired     Boolean            @default(false)
+  reviewedAt         DateTime?
   recurringExpenseId String?
   recurringExpense   RecurringExpense?  @relation(fields: [recurringExpenseId], references: [id], onDelete: SetNull)
   appleWalletImport  AppleWalletImport?
