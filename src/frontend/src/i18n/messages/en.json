@@ -142,7 +142,7 @@
     "noTokenTitle": "No automation token yet",
     "noTokenDescription": "Generate one for the Shortcut setup.",
     "generateToken": "Generate token",
-    "setupInstall": "Open the iCloud link on your iPhone, add the shared Shortcut, and paste your personal token when asked.",
+    "setupInstall": "Open the iCloud link on your iPhone, add the shared Shortcut, and paste only your personal token (the ledgerly_… value, without the Bearer prefix) when asked.",
     "setupAutomation": "In Shortcuts → Automation, select your Wallet passes or payment cards, choose Run Immediately, and enable Notify When Run.",
     "setupRun": "Add Run Shortcut, choose Ledgerly - Apple Pay, and pass the Wallet transaction input directly. No Dictionary or field mapping is needed.",
     "automationScreenshotAlt": "iPhone Shortcuts Wallet automation set to Run Immediately with Ledgerly - Apple Pay.",

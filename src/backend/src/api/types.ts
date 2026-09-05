@@ -6,6 +6,7 @@ export type AuthSession = (typeof auth.$Infer.Session)["session"];
 
 export type AppEnv = {
   Variables: {
+    requestId: string;
     user: AuthUser;
     session: AuthSession;
     integrationUserId: string;

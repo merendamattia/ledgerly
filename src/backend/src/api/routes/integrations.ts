@@ -1,8 +1,10 @@
 import { Hono } from "hono";
+import type { Context } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { ConflictError } from "../../core/errors.ts";
+import { logger } from "../../core/logger.ts";
 import { personalApiTokenRepository } from "../../repositories/personalApiToken.ts";
-import { queueAppleWalletImport } from "../../services/appleWalletImport.ts";
+import { AppleWalletEnqueueError, queueAppleWalletImport } from "../../services/appleWalletImport.ts";
 import { integrationTransactionSchema } from "../../schemas/index.ts";
 import { requireAuth, requireIntegrationToken } from "../middlewares/auth.ts";
 import type { AppEnv } from "../types.ts";
@@ -35,15 +37,62 @@ export const integrationsRoutes = new Hono<AppEnv>()
   .post(
     "/transactions",
     requireIntegrationToken,
-    zValidator("json", integrationTransactionSchema),
-    async (c) => {
-      const queued = await queueAppleWalletImport(
-        c.get("integrationUserId"),
-        c.req.valid("json"),
-        c.req.header("Idempotency-Key"),
-        undefined,
-        c.get("integrationTokenHint"),
+    zValidator("json", integrationTransactionSchema, (result, c) => {
+      if (result.success) return;
+
+      const appContext = c as unknown as Context<AppEnv>;
+
+      logger.warn("Apple Wallet integration payload validation failed", {
+        requestId: appContext.get("requestId"),
+        integrationUserId: appContext.get("integrationUserId"),
+        issues: result.error.issues.map(({ code, path, message }) => ({ code, path, message })),
+      });
+      return appContext.json(
+        {
+          error: "Invalid Wallet payload",
+          code: "INTEGRATION_PAYLOAD_INVALID",
+          requestId: appContext.get("requestId"),
+        },
+        400,
       );
-      return c.json(queued, 202);
+    }),
+    async (c) => {
+      const requestId = c.get("requestId");
+      const integrationUserId = c.get("integrationUserId");
+
+      try {
+        const queued = await queueAppleWalletImport(
+          integrationUserId,
+          c.req.valid("json"),
+          c.req.header("Idempotency-Key"),
+          undefined,
+          c.get("integrationTokenHint"),
+        );
+        logger.info("Apple Wallet integration request queued", {
+          requestId,
+          integrationUserId,
+          importId: queued.id,
+          status: queued.status,
+          duplicate: queued.duplicate,
+        });
+        return c.json(queued, 202);
+      } catch (error) {
+        if (!(error instanceof AppleWalletEnqueueError)) throw error;
+
+        logger.error("Apple Wallet integration queue handoff failed", {
+          requestId,
+          integrationUserId,
+          importId: error.importId,
+          error: error.message,
+        });
+        return c.json(
+          {
+            error: "Apple Wallet import could not be queued",
+            code: "INTEGRATION_QUEUE_FAILED",
+            requestId,
+          },
+          503,
+        );
+      }
     },
   );

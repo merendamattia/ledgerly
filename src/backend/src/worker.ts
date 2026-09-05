@@ -28,8 +28,12 @@ const recovered = await recoverQueuedImports();
 const recoveryTimer = setInterval(() => void recoverQueuedImports(), 30_000);
 
 worker.on("completed", (job, result) => logger.info("Apple Wallet import processed", { jobId: job.id, result }));
-worker.on("failed", (job) => {
-  logger.warn("Apple Wallet import attempt failed", { jobId: job?.id });
+worker.on("failed", (job, error) => {
+  logger.warn("Apple Wallet import attempt failed", {
+    jobId: job?.id,
+    importId: job?.data.importId,
+    error: error instanceof Error ? error.message : String(error),
+  });
   if (job?.id && job.failedReason.includes("job stalled more than allowable limit")) {
     void appleWalletImportRepository.failStalled(job.data.importId);
   }
