@@ -11,12 +11,16 @@ let adminId = "";
 let memberId = "";
 let adminCookie = "";
 let memberCookie = "";
+let signInCount = 0;
 
 async function signIn(email: string, password: string): Promise<string> {
   const response = await auth.handler(
     new Request("http://localhost:3001/api/auth/sign-in/email", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        "x-forwarded-for": `10.0.1.${++signInCount}`,
+      },
       body: JSON.stringify({ email, password }),
     }),
   );

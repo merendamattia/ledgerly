@@ -11,15 +11,17 @@ const password = "integration-password-123";
 let ownerId = "";
 let otherUserId = "";
 let sessionCookie = "";
+let otherSessionCookie = "";
 let token = "";
+let otherToken = "";
 let tokenCreatedAt = "";
 
-async function signIn(): Promise<string> {
+async function signIn(email = ownerEmail): Promise<string> {
   const response = await auth.handler(
     new Request("http://localhost:3001/api/auth/sign-in/email", {
       method: "POST",
       headers: { "content-type": "application/json", "x-forwarded-for": "192.0.2.49" },
-      body: JSON.stringify({ email: ownerEmail, password }),
+      body: JSON.stringify({ email, password }),
     }),
   );
   expect(response.status).toBe(200);
@@ -36,20 +38,21 @@ async function request(path: string, init: RequestInit = {}, cookie = sessionCoo
 
 beforeAll(async () => {
   const { user: owner } = await auth.api.createUser({
-    body: { email: ownerEmail, password, name: "Integration Owner" },
+    body: { email: ownerEmail, password, name: "Integration Owner", role: "admin" },
   });
   ownerId = owner.id;
-  await prisma.user.update({ where: { id: ownerId }, data: { mustChangePassword: false } });
+  await prisma.user.update({ where: { id: ownerId }, data: { role: "admin", mustChangePassword: false } });
   await provisionUser(ownerId);
 
   const { user: other } = await auth.api.createUser({
-    body: { email: otherEmail, password, name: "Other Owner" },
+    body: { email: otherEmail, password, name: "Other Owner", role: "user" },
   });
   otherUserId = other.id;
-  await prisma.user.update({ where: { id: otherUserId }, data: { mustChangePassword: false } });
+  await prisma.user.update({ where: { id: otherUserId }, data: { role: "user", mustChangePassword: false } });
   await provisionUser(otherUserId);
 
-  sessionCookie = await signIn();
+  sessionCookie = await signIn(ownerEmail);
+  otherSessionCookie = await signIn(otherEmail);
 });
 
 afterAll(async () => {
@@ -114,6 +117,78 @@ test("a user can generate a token and queue raw Wallet data idempotently", async
   );
 });
 
+test("admin and normal-user tokens accept the same Wallet payload for their own owners", async () => {
+  const admin = await prisma.user.findUniqueOrThrow({ where: { id: ownerId }, select: { role: true } });
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: otherUserId }, select: { role: true } });
+  expect(admin.role).toBe("admin");
+  expect(user.role).toBe("user");
+
+  const generated = await request(
+    "/api/integrations/token",
+    { method: "POST" },
+    otherSessionCookie,
+  );
+  expect(generated.status).toBe(201);
+  otherToken = ((await generated.json()) as { token: string }).token;
+
+  const payload = {
+    merchant: "Role parity merchant",
+    amount: "€12.50",
+    transactionDate: "1 September 2026",
+  };
+  const requests = await Promise.all([
+    request(
+      "/api/integrations/transactions",
+      {
+        method: "POST",
+        headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      },
+      "",
+    ),
+    request(
+      "/api/integrations/transactions",
+      {
+        method: "POST",
+        headers: { authorization: `Bearer ${otherToken}`, "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      },
+      "",
+    ),
+  ]);
+
+  expect(requests.map((response) => response.status)).toEqual([202, 202]);
+  const queuedIds = await Promise.all(
+    requests.map(async (response) => ((await response.json()) as { id: string; status: string }).id),
+  );
+  const rows = await prisma.appleWalletImport.findMany({ where: { id: { in: queuedIds } } });
+  expect(rows).toHaveLength(2);
+  expect(new Set(rows.map((row) => row.userId))).toEqual(new Set([ownerId, otherUserId]));
+});
+
+test("integration failures expose a request id and a redacted diagnostic category", async () => {
+  const response = await request(
+    "/api/integrations/transactions",
+    {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify(["not a Wallet object"]),
+    },
+    "",
+  );
+  const requestId = response.headers.get("x-request-id");
+  const body = await response.json();
+
+  expect(response.status).toBe(400);
+  expect(requestId).toMatch(/^[0-9a-f-]{36}$/);
+  expect(body).toEqual({
+    error: "Invalid Wallet payload",
+    code: "INTEGRATION_PAYLOAD_INVALID",
+    requestId,
+  });
+  expect(JSON.stringify(body)).not.toContain(token);
+});
+
 test("missing, malformed and unknown tokens are rejected without widening session routes", async () => {
   const before = await prisma.appleWalletImport.count({ where: { userId: ownerId } });
   const cases = [
@@ -136,6 +211,9 @@ test("missing, malformed and unknown tokens are rejected without widening sessio
       "",
     );
     expect(response.status).toBe(401);
+    const body = (await response.json()) as { error: string; code: string; requestId: string };
+    expect(body).toMatchObject({ error: "Unauthorized", code: "INTEGRATION_AUTHENTICATION_FAILED" });
+    expect(body.requestId).toMatch(/^[0-9a-f-]{36}$/);
   }
 
   const sessionRoute = await request(

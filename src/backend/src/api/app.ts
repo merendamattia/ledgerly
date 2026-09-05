@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger as honoLogger } from "hono/logger";
+import { randomUUID } from "node:crypto";
 import { auth } from "../core/auth.ts";
 import { config } from "../core/config.ts";
 import { logger } from "../core/logger.ts";
@@ -32,6 +33,12 @@ import { notificationsRoutes } from "./routes/notifications.ts";
 // logic lives in services/, all DB access in repositories/.
 const app = new Hono<AppEnv>().basePath("/api");
 
+app.use("*", async (c, next) => {
+  const requestId = randomUUID();
+  c.set("requestId", requestId);
+  c.header("X-Request-Id", requestId);
+  await next();
+});
 app.use("*", honoLogger());
 app.use(
   "*",
@@ -60,16 +67,23 @@ app.on(["GET", "POST"], "/auth/*", (c) => {
 });
 
 app.onError((err, c) => {
+  const requestId = c.get("requestId");
   // Domain errors carry their own HTTP status.
   if (err instanceof AppError) {
-    return c.json({ error: err.message }, err.status as 400);
+    return c.json({ error: err.message, requestId }, err.status as 400);
   }
   // Prisma "record not found" on update/delete.
   if (typeof err === "object" && err && "code" in err && (err as { code: string }).code === "P2025") {
-    return c.json({ error: "Not found" }, 404);
+    return c.json({ error: "Not found", requestId }, 404);
   }
-  logger.error("Unhandled error", { path: c.req.path, error: String(err) });
-  return c.json({ error: "Internal Server Error" }, 500);
+  const integrationUserId = c.get("integrationUserId");
+  logger.error("Unhandled error", {
+    path: c.req.path,
+    requestId,
+    ...(integrationUserId ? { integrationUserId } : {}),
+    error: String(err),
+  });
+  return c.json({ error: "Internal Server Error", code: "INTERNAL_SERVER_ERROR", requestId }, 500);
 });
 
 app.notFound((c) => c.json({ error: "Not Found" }, 404));

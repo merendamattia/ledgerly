@@ -7,6 +7,16 @@ import { stableJson } from "../utils/stable-json.ts";
 
 type Enqueue = (id: string) => Promise<unknown>;
 
+export class AppleWalletEnqueueError extends Error {
+  constructor(
+    public readonly importId: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = "AppleWalletEnqueueError";
+  }
+}
+
 const enqueue: Enqueue = (id) =>
   appleWalletImportQueue.add(
     "normalize",
@@ -43,11 +53,12 @@ export async function queueAppleWalletImport(
     await add(record.id);
     return { id: record.id, status: record.status, duplicate: !queued.created };
   } catch (error) {
+    const message = error instanceof Error ? error.message : "Queue handoff failed";
     await appleWalletImportRepository.recordEnqueueError(
       record.id,
-      error instanceof Error ? error.message : "Queue handoff failed",
+      message,
     );
-    throw error;
+    throw new AppleWalletEnqueueError(record.id, message);
   }
 }
 
