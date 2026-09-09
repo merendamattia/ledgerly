@@ -1,3 +1,17 @@
+# [2.4.0](https://github.com/merendamattia/ledgerly/compare/v2.3.2...v2.4.0) (2026-09-09)
+
+
+### Bug Fixes
+
+* **integrations:** accept copied bearer token ([eaa9c87](https://github.com/merendamattia/ledgerly/commit/eaa9c87fd1034ca9b2f9baf24a6dc9708d0ccd6b))
+* **integrations:** add role-neutral Wallet diagnostics ([5644c60](https://github.com/merendamattia/ledgerly/commit/5644c6081c775db1d4587512662a03ee8cecf20f))
+* **integrations:** classify malformed Wallet JSON ([b6dc6f1](https://github.com/merendamattia/ledgerly/commit/b6dc6f10eec2f9251a12058e1f07b17f7c185c55))
+
+
+### Features
+
+* **wallet:** convert foreign Wallet amounts ([5687b69](https://github.com/merendamattia/ledgerly/commit/5687b6901d0fbaea38d276f656011d87e0402b67)), closes [#62](https://github.com/merendamattia/ledgerly/issues/62)
+
 ## [2.3.2](https://github.com/merendamattia/ledgerly/compare/v2.3.1...v2.3.2) (2026-09-02)
 
 
