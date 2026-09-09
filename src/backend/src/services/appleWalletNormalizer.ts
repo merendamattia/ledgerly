@@ -3,6 +3,7 @@ import { z } from "zod";
 
 const normalizedTransactionSchema = z.object({
   amount: z.number().positive().max(1_000_000_000_000),
+  sourceCurrency: z.string().regex(/^[A-Z]{3}$/),
   direction: z.enum(["INCOME", "EXPENSE"]),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   note: z.string().trim().min(1).max(280),
@@ -62,7 +63,7 @@ export async function normalizeAppleWalletTransaction(input: {
         {
           role: "system",
           content:
-            "Normalize raw Apple Wallet transaction data into one Ledgerly transaction. Preserve the merchant or useful external description in note. Amount must be positive; direction carries the sign. Use the received date only when the payload has no reliable transaction date. Choose categoryId only from the supplied categories with the same direction. If categorization is uncertain, return null rather than guessing.",
+            "Normalize raw Apple Wallet transaction data into one Ledgerly transaction. Extract sourceCurrency as the uppercase three-letter ISO 4217 currency code actually used by the Wallet transaction. Prefer an explicit currency code, then use the currency symbol together with merchant, country, region, issuer, or other Wallet metadata to resolve it. Disambiguate shared symbols such as $ from that context; never map them to a fixed currency and never infer sourceCurrency solely from baseCurrency. If the payload does not establish one currency, refuse rather than guess. Do not calculate or return an exchange rate; conversion is handled by Ledgerly. Preserve the merchant or useful external description in note. Amount must be positive; direction carries the sign. Use the received date only when the payload has no reliable transaction date. Choose categoryId only from the supplied categories with the same direction. If categorization is uncertain, return null rather than guessing.",
         },
         {
           role: "user",
