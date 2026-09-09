@@ -119,6 +119,11 @@ dedicated worker uses GPT-5.6 Luna Structured Outputs to create the transaction.
 payloads are idempotent; callers may also send an `Idempotency-Key` header. The minimal Wallet
 `Run Immediately` setup is documented in Settings → Advanced.
 
+The worker extracts the transaction's source currency from the Wallet payload. Foreign amounts are
+converted with a date-aware FX rate into the user's base currency before they are
+stored; unresolved currencies or unavailable rates follow the import retry/failure path. The raw
+Wallet payload remains available for audit and debugging.
+
 After import, Ledgerly stores an in-app notification linked directly to the new transaction. Web
 Push is optional: configure `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT`, then enable
 notifications in Settings. After enabling them, use **Send test notification** in Settings → Advanced
