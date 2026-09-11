@@ -142,6 +142,28 @@ test("adds known recurring movements deterministically and bootstraps only resid
   expect(forecast.series.surplus[0].mean).toBe(600);
 });
 
+test("attributes each horizon to simulated savings and returns including recurring flows", () => {
+  const forecast = buildFinancialForecast(
+    baseInput({
+      current: { netWorth: 1_000, investments: 100, marketInvestments: 100, flatInvestments: 0 },
+      observations: [{
+        month: "2026-06", income: 100, expense: 40, contribution: 0,
+        recurringIncome: 100, recurringExpense: 40, recurringContribution: 0,
+      }],
+      recurring: [
+        { month: "2026-07", income: 200, expense: 50, contribution: 0 },
+        { month: "2026-08", income: 300, expense: 100, contribution: 0 },
+      ],
+      portfolioReturns: [0.1],
+    }),
+    { seed: 1, simulations: 1, horizonMonths: 2 },
+  );
+
+  expect(forecast.series.savingsContribution.map((point) => point.p50)).toEqual([150, 350]);
+  expect(forecast.series.investmentReturnContribution.map((point) => point.p50)).toEqual([10, 21]);
+  expect(forecast.series.netWorth.map((point) => point.p50)).toEqual([1_160, 1_371]);
+});
+
 test("flow-adjusted portfolio returns remove buys and retain multi-asset market growth", () => {
   const result = flowAdjustedMonthlyReturns([
     { date: "2026-01-31", value: 1_000, invested: 1_000 },

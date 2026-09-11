@@ -73,6 +73,8 @@ export interface ForecastSeries {
   contribution: PercentilePoint[];
   return: PercentilePoint[];
   surplus: PercentilePoint[];
+  savingsContribution: PercentilePoint[];
+  investmentReturnContribution: PercentilePoint[];
 }
 
 export interface FinancialForecast {
@@ -207,6 +209,7 @@ function emptySeries(): ForecastSeries {
   return {
     netWorth: [], income: [], expense: [], investment: [],
     contribution: [], return: [], surplus: [],
+    savingsContribution: [], investmentReturnContribution: [],
   };
 }
 
@@ -358,6 +361,7 @@ export function buildFinancialForecast(
   const samples = Array.from({ length: horizonMonths }, () => ({
     netWorth: [] as number[], income: [] as number[], expense: [] as number[],
     investment: [] as number[], contribution: [] as number[], return: [] as number[], surplus: [] as number[],
+    savingsContribution: [] as number[], investmentReturnContribution: [] as number[],
   }));
 
   for (let simulation = 0; simulation < simulations; simulation++) {
@@ -395,6 +399,8 @@ export function buildFinancialForecast(
       samples[index].expense.push(expense);
       samples[index].contribution.push(contribution);
       samples[index].surplus.push(surplus);
+      samples[index].savingsContribution.push(cumulativeSurplus);
+      samples[index].investmentReturnContribution.push(cumulativeMarketGain);
       samples[index].return.push(rate);
       samples[index].investment.push(investment);
       samples[index].netWorth.push(netWorth);

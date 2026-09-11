@@ -34,6 +34,7 @@ import {
   DataZoomComponent,
   GridComponent,
   TooltipComponent,
+  MarkLineComponent,
   type DataZoomComponentOption,
   type GridComponentOption,
   type TooltipComponentOption,
@@ -68,13 +69,14 @@ export type {
   TooltipPosition,
   TooltipRoundness,
   TooltipVariant,
+  ResolvedColors,
 };
 
 // Modular registration keeps the bundle lean — only the pieces this chart needs.
 // `DataZoomComponent` bundles both the slider (brush footer) and inside (wheel/drag)
 // zoom. The brush's frame/handles/labels are raw zrender elements, not the
 // graphic component — see syncBrushOverlay.
-echarts.use([LineChart, GridComponent, TooltipComponent, DataZoomComponent]);
+echarts.use([LineChart, GridComponent, TooltipComponent, MarkLineComponent, DataZoomComponent]);
 
 type EChartsInstance = ReturnType<typeof echarts.init>;
 
@@ -82,9 +84,10 @@ type EChartsInstance = ReturnType<typeof echarts.init>;
 // dataZoom, plus the axis options they pull in as dependencies. Narrower than
 // echarts' full EChartsOption, so a misspelled key fails the compile instead of
 // silently reaching setOption.
-type EChartsOption = ComposeOption<
+export type EChartsAreaChartOption = ComposeOption<
   LineSeriesOption | GridComponentOption | TooltipComponentOption | DataZoomComponentOption
 >;
+type EChartsOption = EChartsAreaChartOption;
 
 // Single-entry views of the composed option's array-or-single fields — the
 // modular entry points don't export the axis option types directly.
@@ -182,6 +185,11 @@ export interface EChartsAreaChartProps<TData extends Record<string, unknown>> {
   isLoading?: boolean; // shows the animated loading skeleton
   loadingPoints?: number; // number of points in the loading skeleton
   chartOptions?: Record<string, unknown>; // escape hatch merged over the built ECharts option
+  optionTransform?: (
+    option: EChartsAreaChartOption,
+    resolved: ResolvedColors,
+  ) => EChartsAreaChartOption; // focused adapters may extend the shared option without owning chart lifecycle
+  ariaLabel?: string; // accessible name for the canvas visualization
   children?: ReactNode; // declarative config — <Area>, <XAxis>, <Grid>, <Tooltip>, <Legend>, <Brush>, …
 }
 
@@ -1563,6 +1571,8 @@ export function EChartsAreaChart<TData extends Record<string, unknown>>({
   isLoading = false,
   loadingPoints = LOADING_DEFAULT_POINTS,
   chartOptions,
+  optionTransform,
+  ariaLabel,
   children,
 }: EChartsAreaChartProps<TData>) {
   const rawId = useId();
@@ -2153,7 +2163,10 @@ export function EChartsAreaChart<TData extends Record<string, unknown>>({
 
     const push = (withEntrance: boolean) => {
       const option = buildOption();
-      const merged = chartOptions ? { ...option, ...chartOptions } : option;
+      const transformed = optionTransform && live.resolved
+        ? optionTransform(option, live.resolved)
+        : option;
+      const merged = chartOptions ? { ...transformed, ...chartOptions } : transformed;
       Object.assign(merged, {
         animation: withEntrance,
         animationDuration: REVEAL_DURATION,
@@ -2192,6 +2205,7 @@ export function EChartsAreaChart<TData extends Record<string, unknown>>({
     live,
     buildOption,
     chartOptions,
+    optionTransform,
     isLoading,
     animation,
     effectiveAnimation,
@@ -2315,6 +2329,8 @@ export function EChartsAreaChart<TData extends Record<string, unknown>>({
     <div
       ref={containerRef}
       data-chart={chartId}
+      role={ariaLabel ? "img" : undefined}
+      aria-label={ariaLabel}
       className={`relative flex flex-col text-xs ${className ?? ""}`}
     >
       <style dangerouslySetInnerHTML={{ __html: css }} />

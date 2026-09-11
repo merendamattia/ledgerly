@@ -4,6 +4,15 @@ import { userForecastRepository, type PersistedForecast } from "../repositories/
 import type { ForecastResponse, ForecastSnapshot } from "./forecastContract.ts";
 import { buildForecastSnapshot } from "./forecastSnapshot.ts";
 
+type Enqueue = (queueJobId: string) => Promise<unknown>;
+type SnapshotBuilder = (userId: string) => Promise<ForecastSnapshot>;
+
+const enqueue: Enqueue = (queueJobId) => forecastQueue.add(
+  "generate",
+  { queueJobId },
+  { jobId: queueJobId, attempts: 1, removeOnComplete: 1_000, removeOnFail: 5_000 },
+);
+
 function snapshotOf(record: PersistedForecast | null): ForecastSnapshot | null {
   return record?.payload ? record.payload as unknown as ForecastSnapshot : null;
 }
@@ -31,11 +40,7 @@ export async function requestForecastGeneration(userId: string): Promise<Forecas
   const queueJobId = await userForecastRepository.reserve(userId);
   if (!queueJobId) throw new ConflictError("A forecast generation is already running");
   try {
-    await forecastQueue.add(
-      "generate",
-      { queueJobId },
-      { jobId: queueJobId, attempts: 1, removeOnComplete: 1_000, removeOnFail: 5_000 },
-    );
+    await enqueue(queueJobId);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Forecast queue handoff failed";
     await userForecastRepository.fail(queueJobId, message);
@@ -45,11 +50,14 @@ export async function requestForecastGeneration(userId: string): Promise<Forecas
 }
 
 /** Claims and completes durable forecast work. Only the worker calls this path. */
-export async function processForecastGeneration(queueJobId: string) {
+export async function processForecastGeneration(
+  queueJobId: string,
+  buildSnapshot: SnapshotBuilder = buildForecastSnapshot,
+) {
   const record = await userForecastRepository.claim(queueJobId);
   if (!record) return { skipped: true as const };
   try {
-    const snapshot = await buildForecastSnapshot(record.userId);
+    const snapshot = await buildSnapshot(record.userId);
     const completed = await userForecastRepository.complete(record.userId, queueJobId, snapshot);
     if (completed.count !== 1) throw new Error("Forecast job lost its durable claim");
     return { skipped: false as const, snapshotId: snapshot.id };
@@ -58,4 +66,11 @@ export async function processForecastGeneration(queueJobId: string) {
     await userForecastRepository.fail(queueJobId, message);
     throw error;
   }
+}
+
+/** Re-publishes queued and expired leased work after a worker or Redis restart. */
+export async function recoverForecastGenerations(add: Enqueue = enqueue) {
+  const pending = await userForecastRepository.pendingForRecovery();
+  await Promise.all(pending.map(({ queueJobId }) => add(queueJobId!)));
+  return pending.length;
 }

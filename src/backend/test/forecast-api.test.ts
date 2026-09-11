@@ -37,11 +37,11 @@ const snapshot: ForecastSnapshot = {
     expenses: [point],
     investments: [point],
     contributions: [point],
+    savingsContributions: [point],
+    investmentReturnContributions: [point],
   },
   summary: {
     startingNetWorth: 100,
-    savingsContribution: 10,
-    investmentReturnContribution: 0,
     startingPortfolioValue: 0,
     historicalInvestmentReturnRate: null,
     historicalInvestmentReturnMonths: 0,

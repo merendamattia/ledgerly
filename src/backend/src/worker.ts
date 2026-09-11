@@ -5,9 +5,10 @@ import { appleWalletQueueName, config, forecastQueueName } from "./core/config.t
 import type { ForecastJobData } from "./core/forecastQueue.ts";
 import { logger } from "./core/logger.ts";
 import { appleWalletImportRepository } from "./repositories/appleWalletImport.ts";
+import { userForecastRepository } from "./repositories/userForecast.ts";
 import { recoverQueuedAppleWalletImports } from "./services/appleWalletImport.ts";
 import { processAppleWalletImport } from "./services/appleWalletWorker.ts";
-import { processForecastGeneration } from "./services/forecastGeneration.ts";
+import { processForecastGeneration, recoverForecastGenerations } from "./services/forecastGeneration.ts";
 
 const connection = new Redis(config.REDIS_URL, { maxRetriesPerRequest: null });
 const worker = new Worker<AppleWalletJobData>(
@@ -31,8 +32,21 @@ async function recoverQueuedImports() {
   }
 }
 
+async function recoverQueuedForecasts() {
+  try {
+    return await recoverForecastGenerations();
+  } catch (error) {
+    logger.warn("Forecast queue recovery failed", { error: String(error) });
+    return 0;
+  }
+}
+
 const recovered = await recoverQueuedImports();
-const recoveryTimer = setInterval(() => void recoverQueuedImports(), 30_000);
+const recoveredForecasts = await recoverQueuedForecasts();
+const recoveryTimer = setInterval(() => {
+  void recoverQueuedImports();
+  void recoverQueuedForecasts();
+}, 30_000);
 
 worker.on("completed", (job, result) => logger.info("Apple Wallet import processed", { jobId: job.id, result }));
 worker.on("failed", (job, error) => {
@@ -48,10 +62,17 @@ worker.on("failed", (job, error) => {
 worker.on("error", (error) => logger.error("Apple Wallet worker error", { error: String(error) }));
 forecastWorker.on("failed", (job, error) => {
   logger.warn("Forecast generation failed", { jobId: job?.id, error: String(error) });
+  if (job?.data.queueJobId) {
+    void userForecastRepository.fail(job.data.queueJobId, error.message);
+  }
 });
 forecastWorker.on("error", (error) => logger.error("Forecast worker error", { error: String(error) }));
 
-logger.info("Apple Wallet worker started", { concurrency: config.APPLE_PAY_WORKER_CONCURRENCY, recovered });
+logger.info("Background workers started", {
+  appleWalletConcurrency: config.APPLE_PAY_WORKER_CONCURRENCY,
+  recoveredImports: recovered,
+  recoveredForecasts,
+});
 
 async function shutdown() {
   clearInterval(recoveryTimer);

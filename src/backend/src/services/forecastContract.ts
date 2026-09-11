@@ -32,11 +32,11 @@ export type ForecastSnapshot = {
     expenses: ForecastPoint[];
     investments: ForecastPoint[];
     contributions: ForecastPoint[];
+    savingsContributions: ForecastPoint[];
+    investmentReturnContributions: ForecastPoint[];
   };
   summary: {
     startingNetWorth: number;
-    savingsContribution: number;
-    investmentReturnContribution: number;
     startingPortfolioValue: number;
     historicalInvestmentReturnRate: number | null;
     historicalInvestmentReturnMonths: number;

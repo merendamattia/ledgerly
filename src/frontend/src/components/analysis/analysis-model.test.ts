@@ -41,11 +41,11 @@ function snapshot(months = 240): ForecastSnapshot {
       expenses: points,
       investments: points,
       contributions: points,
+      savingsContributions: points.map((point, index) => ({ ...point, p50: (index + 1) * 10 })),
+      investmentReturnContributions: points.map((point, index) => ({ ...point, p50: index + 1 })),
     },
     summary: {
       startingNetWorth: 95,
-      savingsContribution: 12,
-      investmentReturnContribution: 4,
       startingPortfolioValue: 30,
       historicalInvestmentReturnRate: 0.061,
       historicalInvestmentReturnMonths: 12,
@@ -115,12 +115,23 @@ test("deterministic explanations use persisted endpoint and contribution facts",
     p50: 111,
     p10: 91,
     p90: 131,
-    savingsContribution: 12,
-    investmentReturnContribution: 4,
+    savingsContribution: 120,
+    investmentReturnContribution: 12,
   });
   expect(facts.investments).toEqual({
     start: 30,
     flowAdjustedReturnRate: 0.061,
     observationMonths: 12,
   });
+});
+
+test("deterministic explanations select attribution at the active horizon", () => {
+  expect(forecastExplanationFacts(snapshot(), 1).netWorth).toEqual(expect.objectContaining({
+    savingsContribution: 120,
+    investmentReturnContribution: 12,
+  }));
+  expect(forecastExplanationFacts(snapshot(), 2).netWorth).toEqual(expect.objectContaining({
+    savingsContribution: 240,
+    investmentReturnContribution: 24,
+  }));
 });

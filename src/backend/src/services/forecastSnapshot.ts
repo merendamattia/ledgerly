@@ -48,14 +48,6 @@ export async function buildForecastSnapshot(userId: string): Promise<ForecastSna
     computeCashflowMatrix(userId),
     computeInvestmentHistory(userId, { resolveFxRate: getStoredFxRate }),
   ]);
-  const horizonMonths = forecast.assumptions.horizonMonths;
-  const savingsContribution =
-    (forecast.summary.averageMonthlyIncome - forecast.summary.averageMonthlyExpense) * horizonMonths;
-  const finalInvestments = forecast.summary.finalInvestments?.p50 ?? forecast.summary.startingInvestments;
-  const investmentReturnContribution =
-    finalInvestments
-    - forecast.summary.startingInvestments
-    - forecast.summary.averageMonthlyContribution * horizonMonths;
   const generatedAt = new Date();
 
   return {
@@ -89,11 +81,11 @@ export async function buildForecastSnapshot(userId: string): Promise<ForecastSna
       expenses: forecastPoints(forecast.series.expense),
       investments: forecastPoints(forecast.series.investment),
       contributions: forecastPoints(forecast.series.contribution),
+      savingsContributions: forecastPoints(forecast.series.savingsContribution),
+      investmentReturnContributions: forecastPoints(forecast.series.investmentReturnContribution),
     },
     summary: {
       startingNetWorth: forecast.summary.startingNetWorth,
-      savingsContribution,
-      investmentReturnContribution,
       startingPortfolioValue: forecast.summary.startingInvestments,
       historicalInvestmentReturnRate: forecast.historicalPortfolioReturn?.cagr ?? null,
       historicalInvestmentReturnMonths: forecast.historicalPortfolioReturn?.period.months ?? 0,

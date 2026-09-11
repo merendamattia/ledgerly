@@ -3,6 +3,8 @@ import type { Prisma, UserForecast } from "@prisma/client";
 import { prisma } from "../core/db.ts";
 import type { ForecastSnapshot } from "../services/forecastContract.ts";
 
+const FORECAST_LEASE_MS = 30_000;
+
 export const userForecastRepository = {
   find(userId: string) {
     return prisma.userForecast.findUnique({ where: { userId } });
@@ -22,13 +24,34 @@ export const userForecastRepository = {
     return reserved.count === 1 ? queueJobId : null;
   },
 
-  async claim(queueJobId: string) {
+  async claim(queueJobId: string, now = new Date()) {
+    const staleBefore = new Date(now.getTime() - FORECAST_LEASE_MS);
     const claimed = await prisma.userForecast.updateMany({
-      where: { queueJobId, status: "QUEUED" },
+      where: {
+        queueJobId,
+        OR: [
+          { status: "QUEUED" },
+          { status: "RUNNING", updatedAt: { lte: staleBefore } },
+        ],
+      },
       data: { status: "RUNNING" },
     });
     if (claimed.count === 0) return null;
     return prisma.userForecast.findUnique({ where: { queueJobId } });
+  },
+
+  pendingForRecovery(now = new Date()) {
+    const staleBefore = new Date(now.getTime() - FORECAST_LEASE_MS);
+    return prisma.userForecast.findMany({
+      where: {
+        queueJobId: { not: null },
+        OR: [
+          { status: "QUEUED" },
+          { status: "RUNNING", updatedAt: { lte: staleBefore } },
+        ],
+      },
+      select: { queueJobId: true },
+    });
   },
 
   complete(userId: string, queueJobId: string, snapshot: ForecastSnapshot) {

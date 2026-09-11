@@ -43,6 +43,8 @@ export function sliceForecast(snapshot: ForecastSnapshot, years: ForecastHorizon
       expenses: snapshot.series.expenses.slice(0, months),
       investments: snapshot.series.investments.slice(0, months),
       contributions: snapshot.series.contributions.slice(0, months),
+      savingsContributions: snapshot.series.savingsContributions.slice(0, months),
+      investmentReturnContributions: snapshot.series.investmentReturnContributions.slice(0, months),
     },
   };
 }
@@ -91,15 +93,17 @@ export function buildForecastChartModel(
 export function forecastExplanationFacts(snapshot: ForecastSnapshot, years: ForecastHorizon) {
   const sliced = sliceForecast(snapshot, years);
   const netWorth = sliced.series.netWorth.at(-1);
+  const savingsContribution = sliced.series.savingsContributions.at(-1);
+  const investmentReturnContribution = sliced.series.investmentReturnContributions.at(-1);
   return {
-    netWorth: netWorth
+    netWorth: netWorth && savingsContribution && investmentReturnContribution
       ? {
           start: snapshot.summary.startingNetWorth,
           p50: netWorth.p50,
           p10: netWorth.p10,
           p90: netWorth.p90,
-          savingsContribution: snapshot.summary.savingsContribution,
-          investmentReturnContribution: snapshot.summary.investmentReturnContribution,
+          savingsContribution: savingsContribution.p50,
+          investmentReturnContribution: investmentReturnContribution.p50,
         }
       : null,
     income: sliced.series.income.at(-1),

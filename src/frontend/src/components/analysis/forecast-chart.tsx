@@ -1,28 +1,22 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { LineChart, type LineSeriesOption } from "echarts/charts";
+import { useMemo } from "react";
+import type { LineSeriesOption } from "echarts/charts";
+import type { TooltipComponentOption } from "echarts/components";
 import {
-  GridComponent,
-  LegendComponent,
-  MarkLineComponent,
-  TooltipComponent,
-} from "echarts/components";
-import * as echarts from "echarts/core";
-import { CanvasRenderer } from "echarts/renderers";
-import type { HistoricalPoint, ForecastPoint } from "./analysis-model";
-import { compactMoney, formatMoney, shortDate } from "@/lib/format";
+  EChartsAreaChart,
+  type ChartConfig,
+  type EChartsAreaChartOption,
+  type ResolvedColors,
+} from "@/components/evilcharts/charts/echarts-area-chart";
+import {
+  tooltipIndicatorHtml,
+  tooltipRow,
+  tooltipShell,
+} from "@/components/evilcharts/ui/echarts-tooltip";
 import { usePrivateNumberFormatter } from "@/components/private-number";
-import { cn } from "@/lib/utils";
-
-echarts.use([
-  LineChart,
-  GridComponent,
-  LegendComponent,
-  MarkLineComponent,
-  TooltipComponent,
-  CanvasRenderer,
-]);
+import { compactMoney, formatMoney, shortDate } from "@/lib/format";
+import type { ForecastPoint, HistoricalPoint } from "./analysis-model";
 
 type ChartLabels = {
   observed: string;
@@ -40,18 +34,16 @@ type ForecastLine = LineSeriesOption & {
 type ChartColors = {
   primary: string;
   secondary: string;
-  border: string;
   muted: string;
 };
 
 const DEFAULT_COLORS: ChartColors = {
   primary: "#1C7A4D",
   secondary: "#3A72C4",
-  border: "#DFDCCF",
   muted: "#69695D",
 };
 
-/** Produces the layered ECharts series used by every forecast graph. */
+/** Produces the layered series consumed by the shared ECharts wrapper. */
 export function buildForecastSeries(
   history: HistoricalPoint[],
   forecast: ForecastPoint[],
@@ -68,12 +60,20 @@ export function buildForecastSeries(
     ...forecast.map(value),
   ];
   const blankHistory = Array.from({ length: historyLength }, () => null);
-  const band = (low: keyof ForecastPoint, high: keyof ForecastPoint, stack: string, name: string, opacity: number) => [
+  const band = (
+    low: keyof ForecastPoint,
+    high: keyof ForecastPoint,
+    stack: string,
+    key: "outerBand" | "innerBand",
+    name: string,
+    opacity: number,
+  ): ForecastLine[] => [
     {
-      type: "line" as const,
+      id: `__${key}-base`,
+      type: "line",
       data: [...blankHistory, ...forecast.map((point) => point[low] as number)],
       stack,
-      stackStrategy: "all" as const,
+      stackStrategy: "all",
       symbol: "none",
       silent: true,
       lineStyle: { opacity: 0 },
@@ -81,14 +81,12 @@ export function buildForecastSeries(
       tooltip: { show: false },
     },
     {
+      id: key,
       name,
-      type: "line" as const,
-      data: [
-        ...blankHistory,
-        ...forecast.map((point) => (point[high] as number) - (point[low] as number)),
-      ],
+      type: "line",
+      data: [...blankHistory, ...forecast.map((point) => (point[high] as number) - (point[low] as number))],
       stack,
-      stackStrategy: "all" as const,
+      stackStrategy: "all",
       symbol: "none",
       silent: true,
       lineStyle: { opacity: 0 },
@@ -99,6 +97,7 @@ export function buildForecastSeries(
 
   return [
     {
+      id: "observed",
       name: labels.observed,
       type: "line",
       data: observed,
@@ -114,9 +113,10 @@ export function buildForecastSeries(
         data: [{ name: labels.today, xAxis: Math.max(0, historyLength - 1) }],
       },
     },
-    ...band("p10", "p90", "outer-band", labels.outerBand, 0.12),
-    ...band("p25", "p75", "inner-band", labels.innerBand, 0.2),
+    ...band("p10", "p90", "outer-band", "outerBand", labels.outerBand, 0.12),
+    ...band("p25", "p75", "inner-band", "innerBand", labels.innerBand, 0.2),
     {
+      id: "mean",
       name: labels.mean,
       type: "line",
       data: future((point) => point.mean),
@@ -126,6 +126,7 @@ export function buildForecastSeries(
       itemStyle: { color: colors.secondary },
     },
     {
+      id: "median",
       name: labels.median,
       type: "line",
       data: future((point) => point.p50),
@@ -137,10 +138,6 @@ export function buildForecastSeries(
   ];
 }
 
-function cssToken(element: HTMLElement, name: string, fallback: string): string {
-  return getComputedStyle(element).getPropertyValue(name).trim() || fallback;
-}
-
 function tooltipIndex(params: unknown): number | null {
   const first = Array.isArray(params) ? params[0] : params;
   if (!first || typeof first !== "object" || !("dataIndex" in first)) return null;
@@ -148,14 +145,18 @@ function tooltipIndex(params: unknown): number | null {
   return typeof index === "number" ? index : null;
 }
 
-/** Renders an accessible observed-to-forecast percentile fan with a Today divider. */
+function seriesColor(resolved: ResolvedColors, key: string, fallback: string): string {
+  return resolved.series[key]?.[0] ?? fallback;
+}
+
+/** Renders a forecast fan through Ledgerly's shared lifecycle, theme, legend, and tooltip layer. */
 export function ForecastChart({
   history,
   forecast,
   labels,
   currency,
   ariaLabel,
-  className,
+  className = "h-[280px] w-full sm:h-[340px]",
 }: {
   history: HistoricalPoint[];
   forecast: ForecastPoint[];
@@ -164,86 +165,92 @@ export function ForecastChart({
   ariaLabel: string;
   className?: string;
 }) {
-  const mountRef = useRef<HTMLDivElement>(null);
   const { privateText } = usePrivateNumberFormatter();
+  const dates = useMemo(
+    () => [...history.map((point) => point.date), ...forecast.map((point) => point.date)],
+    [forecast, history],
+  );
+  const data = useMemo(() => dates.map((date) => ({ date })), [dates]);
+  const config = useMemo(() => ({
+    observed: { label: labels.observed, colors: { light: ["var(--positive)"] } },
+    outerBand: { label: labels.outerBand, colors: { light: ["var(--positive)"] } },
+    innerBand: { label: labels.innerBand, colors: { light: ["var(--positive)"] } },
+    mean: { label: labels.mean, colors: { light: ["var(--chart-3)"] } },
+    median: { label: labels.median, colors: { light: ["var(--positive)"] } },
+  }) satisfies ChartConfig, [labels]);
 
-  useEffect(() => {
-    const mount = mountRef.current;
-    if (!mount || history.length === 0) return;
-    const chart = echarts.init(mount, null, { renderer: "canvas" });
-    const colors = {
-      primary: cssToken(mount, "--positive", DEFAULT_COLORS.primary),
-      secondary: cssToken(mount, "--chart-3", DEFAULT_COLORS.secondary),
-      border: cssToken(mount, "--border", DEFAULT_COLORS.border),
-      muted: cssToken(mount, "--muted-foreground", DEFAULT_COLORS.muted),
-    };
-    const dates = [...history.map((point) => point.date), ...forecast.map((point) => point.date)];
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-    chart.setOption({
-      animation: !reduceMotion,
-      animationDuration: 240,
-      grid: { left: 8, right: 12, top: 12, bottom: 48, containLabel: true },
-      legend: {
-        bottom: 0,
-        itemWidth: 12,
-        itemHeight: 6,
-        textStyle: { color: colors.muted, fontSize: 11 },
-        data: [labels.observed, labels.outerBand, labels.innerBand, labels.mean, labels.median],
-      },
-      xAxis: {
-        type: "category",
-        boundaryGap: false,
-        data: dates,
-        axisLine: { lineStyle: { color: colors.border } },
-        axisTick: { show: false },
-        axisLabel: { color: colors.muted, formatter: (value: string) => shortDate(value) },
-      },
-      yAxis: {
-        type: "value",
-        scale: true,
-        splitLine: { lineStyle: { color: colors.border, type: [3, 3] } },
-        axisLabel: {
-          color: colors.muted,
-          formatter: (value: number) => privateText(compactMoney(value, currency), "••••"),
-        },
-      },
+  const optionTransform = useMemo(() => (
+    option: EChartsAreaChartOption,
+    resolved: ResolvedColors,
+  ): EChartsAreaChartOption => {
+    const money = (value: number) => privateText(formatMoney(value, currency));
+    const baseTooltip = option.tooltip as TooltipComponentOption;
+    return {
+      ...option,
       tooltip: {
-        trigger: "axis",
-        confine: true,
+        ...baseTooltip,
         formatter: (params: unknown) => {
           const index = tooltipIndex(params);
           if (index == null) return "";
-          const date = dates[index] ?? "";
-          const heading = `<div style="font-weight:600;margin-bottom:4px">${shortDate(date)}</div>`;
+          const label = shortDate(dates[index] ?? "");
           if (index < history.length) {
             const value = history[index]?.value;
-            return value == null
-              ? heading
-              : `${heading}<div>${labels.observed}: ${privateText(formatMoney(value, currency))}</div>`;
+            const body = value == null ? "" : tooltipRow({
+              indicatorHtml: tooltipIndicatorHtml("observed", 1),
+              labelText: labels.observed,
+              valueText: money(value),
+              dimmed: "",
+            });
+            return tooltipShell({ label, body, roundness: "xl", variant: "default" });
           }
           const point = forecast[index - history.length];
-          if (!point) return heading;
-          return `${heading}<div>${labels.outerBand}: ${privateText(formatMoney(point.p10, currency))} – ${privateText(formatMoney(point.p90, currency))}</div><div>${labels.innerBand}: ${privateText(formatMoney(point.p25, currency))} – ${privateText(formatMoney(point.p75, currency))}</div><div>${labels.median}: ${privateText(formatMoney(point.p50, currency))}</div><div>${labels.mean}: ${privateText(formatMoney(point.mean, currency))}</div>`;
+          if (!point) return "";
+          const rows = [
+            ["outerBand", labels.outerBand, `${money(point.p10)} – ${money(point.p90)}`],
+            ["innerBand", labels.innerBand, `${money(point.p25)} – ${money(point.p75)}`],
+            ["median", labels.median, money(point.p50)],
+            ["mean", labels.mean, money(point.mean)],
+          ] as const;
+          const body = rows.map(([key, labelText, valueText]) => tooltipRow({
+            indicatorHtml: tooltipIndicatorHtml(key, 1),
+            labelText,
+            valueText,
+            dimmed: "",
+          })).join("");
+          return tooltipShell({ label, body, roundness: "xl", variant: "default" });
         },
       },
-      series: buildForecastSeries(history, forecast, labels, colors),
-    });
-
-    const observer = new ResizeObserver(() => chart.resize());
-    observer.observe(mount);
-    return () => {
-      observer.disconnect();
-      chart.dispose();
+      series: buildForecastSeries(history, forecast, labels, {
+        primary: seriesColor(resolved, "observed", DEFAULT_COLORS.primary),
+        secondary: seriesColor(resolved, "mean", DEFAULT_COLORS.secondary),
+        muted: resolved.tokens.mutedForeground,
+      }),
     };
-  }, [ariaLabel, currency, forecast, history, labels, privateText]);
+  }, [currency, dates, forecast, history, labels, privateText]);
 
   return (
-    <div
-      ref={mountRef}
-      role="img"
-      aria-label={ariaLabel}
-      className={cn("h-[280px] w-full sm:h-[340px]", className)}
-    />
+    <EChartsAreaChart
+      config={config}
+      data={data}
+      xDataKey="date"
+      className={className}
+      animationType="left-to-right"
+      ariaLabel={ariaLabel}
+      optionTransform={optionTransform}
+    >
+      <EChartsAreaChart.Grid />
+      <EChartsAreaChart.XAxis dataKey="date" hideDots tickFormatter={shortDate} />
+      <EChartsAreaChart.YAxis
+        hideDots
+        tickFormatter={(value) => privateText(compactMoney(value, currency), "••••")}
+      />
+      <EChartsAreaChart.Tooltip roundness="xl" />
+      <EChartsAreaChart.Legend align="center" verticalAlign="bottom" />
+      <EChartsAreaChart.Area dataKey="observed" variant="none" strokeVariant="solid" />
+      <EChartsAreaChart.Area dataKey="outerBand" variant="solid" strokeWidth={0} />
+      <EChartsAreaChart.Area dataKey="innerBand" variant="solid" strokeWidth={0} />
+      <EChartsAreaChart.Area dataKey="mean" variant="none" strokeVariant="solid" />
+      <EChartsAreaChart.Area dataKey="median" variant="none" strokeVariant="dashed" />
+    </EChartsAreaChart>
   );
 }
