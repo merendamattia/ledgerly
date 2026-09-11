@@ -43,6 +43,21 @@ const DEFAULT_COLORS: ChartColors = {
   muted: "#69695D",
 };
 
+const DATE_ONLY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+function parseForecastCalendarDate(value: string): Date | null {
+  const match = DATE_ONLY_PATTERN.exec(value);
+  if (!match) return null;
+
+  const [, year, month, day] = match;
+  return new Date(Number(year), Number(month) - 1, Number(day));
+}
+
+/** Formats chart calendar dates without letting UTC parsing shift their day locally. */
+export function formatForecastChartDate(value: string): string {
+  return shortDate(parseForecastCalendarDate(value) ?? value);
+}
+
 /** Produces the layered series consumed by the shared ECharts wrapper. */
 export function buildForecastSeries(
   history: HistoricalPoint[],
@@ -192,7 +207,7 @@ export function ForecastChart({
         formatter: (params: unknown) => {
           const index = tooltipIndex(params);
           if (index == null) return "";
-          const label = shortDate(dates[index] ?? "");
+          const label = formatForecastChartDate(dates[index] ?? "");
           if (index < history.length) {
             const value = history[index]?.value;
             const body = value == null ? "" : tooltipRow({
@@ -239,7 +254,7 @@ export function ForecastChart({
       optionTransform={optionTransform}
     >
       <EChartsAreaChart.Grid />
-      <EChartsAreaChart.XAxis dataKey="date" hideDots tickFormatter={shortDate} />
+      <EChartsAreaChart.XAxis dataKey="date" hideDots tickFormatter={formatForecastChartDate} />
       <EChartsAreaChart.YAxis
         hideDots
         tickFormatter={(value) => privateText(compactMoney(value, currency), "••••")}

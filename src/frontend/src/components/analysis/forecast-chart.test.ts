@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { buildForecastSeries } from "./forecast-chart";
+import { buildForecastSeries, formatForecastChartDate } from "./forecast-chart";
 
 test("forecast chart exposes observed, percentile bands, mean, median and Today divider", () => {
   const series = buildForecastSeries(
@@ -38,4 +38,17 @@ test("forecast chart exposes observed, percentile bands, mean, median and Today 
   expect(series.find((item) => item.name === "Observed")?.markLine?.data).toEqual([
     { name: "Today", xAxis: 0 },
   ]);
+});
+
+test("forecast chart preserves date-only calendar days in negative UTC offsets", () => {
+  const previousTimezone = process.env.TZ;
+  process.env.TZ = "America/New_York";
+
+  try {
+    expect(formatForecastChartDate("2040-01-01")).toBe("01 Jan '40");
+    expect(formatForecastChartDate("2040-01-01T00:00:00.000Z")).toBe("31 Dec '39");
+  } finally {
+    if (previousTimezone === undefined) delete process.env.TZ;
+    else process.env.TZ = previousTimezone;
+  }
 });
