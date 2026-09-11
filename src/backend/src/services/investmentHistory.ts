@@ -7,6 +7,8 @@ export interface PortfolioPoint {
   date: string; // yyyy-mm-dd
   value: number; // market value in base currency
   invested: number; // cumulative net cost basis in base currency
+  /** Signed cumulative buy cost minus sale proceeds for forecast flow adjustment. */
+  cashFlow?: number;
 }
 
 /** Keeps only transactions for tickers with at least one persisted price. */
@@ -130,7 +132,12 @@ export async function computeInvestmentHistory(
         value += q * ph[pp].close * fx;
       }
     }
-    points.push({ date: isoDay(day), value, invested: Math.max(0, invested) });
+    points.push({
+      date: isoDay(day),
+      value,
+      invested: Math.max(0, invested),
+      cashFlow: Number.isFinite(invested) ? invested : 0,
+    });
   }
   return points;
 }

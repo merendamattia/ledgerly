@@ -163,12 +163,21 @@ test("adds known recurring movements deterministically and bootstraps only resid
 
 test("flow-adjusted portfolio returns remove buys and retain multi-asset market growth", () => {
   const result = flowAdjustedMonthlyReturns([
-    { date: "2026-01-31", value: 1_000, invested: 1_000 },
-    { date: "2026-02-28", value: 1_500, invested: 1_500 },
-    { date: "2026-03-31", value: 1_650, invested: 1_500 },
+    { date: "2026-01-31", value: 1_000, invested: 1_000, cashFlow: 1_000 },
+    { date: "2026-02-28", value: 1_500, invested: 1_500, cashFlow: 1_500 },
+    { date: "2026-03-31", value: 1_650, invested: 1_500, cashFlow: 1_500 },
   ]);
 
   expect(result).toEqual([{ month: "2026-02", rate: 0 }, { month: "2026-03", rate: 0.1 }]);
+});
+
+test("flow-adjusted returns preserve profit on a full profitable sale", () => {
+  const result = flowAdjustedMonthlyReturns([
+    { date: "2026-01-31", value: 100, invested: 100, cashFlow: 100 },
+    { date: "2026-02-28", value: 0, invested: 0, cashFlow: -50 },
+  ]);
+
+  expect(result).toEqual([{ month: "2026-02", rate: 0.5 }]);
 });
 
 test("price-backed history excludes provider transactions whose ticker has no prices", () => {
@@ -281,6 +290,34 @@ test("does not double count a ledger buy mirrored by categorized cash flow", asy
   expect(forecast.summary.averageMonthlyContribution).toBe(100);
 });
 
+test("uses the signed ledger flow for a buy followed by a larger same-month sale", async () => {
+  const source = <T>(value: T) => async (): Promise<T> => value;
+  const sources: ForecastDataSources = {
+    netWorth: source({
+      baseCurrency: "EUR", total: 100, investments: 100,
+      holdings: [{ provider: "yahoo", priceDate: "2026-06-30", value: 100 }],
+    }),
+    netWorthHistory: source([]),
+    cashflow: source({
+      baseCurrency: "EUR", months: ["2026-06-01"], income: [], expense: [],
+      investment: [{ id: "investments", label: "Investments", values: [100] }],
+    }),
+    transactions: source([]),
+    recurringRules: source([]),
+    investmentHistory: source([]),
+    investmentLedgerHistory: source([
+      { date: "2026-06-30", value: 0, invested: 0, cashFlow: -100 },
+    ]),
+  };
+
+  const forecast = await getFinancialForecast("owner-7", {
+    now: new Date("2026-06-30"), sources, seed: 1, simulations: 1, horizonMonths: 1,
+  });
+
+  expect(forecast.summary.averageMonthlyContribution).toBe(-100);
+  expect(forecast.series.contribution[0].mean).toBe(-100);
+});
+
 test("forecasts portfolio history when regular cash-flow history is empty", async () => {
   const source = <T>(value: T) => async (): Promise<T> => value;
   const sources: ForecastDataSources = {
@@ -305,6 +342,39 @@ test("forecasts portfolio history when regular cash-flow history is empty", asyn
   expect(forecast.status).toBe("ready");
   expect(forecast.assumptions.observationCount).toBe(2);
   expect(forecast.series.return[0].mean).toBe(0.1);
+});
+
+test("uses net-worth history when cash-flow and investment history are empty", async () => {
+  const source = <T>(value: T) => async (): Promise<T> => value;
+  const sources: ForecastDataSources = {
+    netWorth: source({
+      baseCurrency: "EUR", total: 110, investments: 0,
+      holdings: [],
+    }),
+    netWorthHistory: source([
+      {
+        date: "2026-05-31", cash: 100, credits: 0, otherAssets: 0,
+        investments: 0, debts: 0, totalValue: 100,
+      },
+      {
+        date: "2026-06-30", cash: 110, credits: 0, otherAssets: 0,
+        investments: 0, debts: 0, totalValue: 110,
+      },
+    ]),
+    cashflow: source({ baseCurrency: "EUR", months: [], income: [], expense: [], investment: [] }),
+    transactions: source([]),
+    recurringRules: source([]),
+    investmentHistory: source([]),
+  };
+
+  const forecast = await getFinancialForecast("owner-7", {
+    now: new Date("2026-06-30"), sources, seed: 1, simulations: 1, horizonMonths: 1,
+  });
+
+  expect(forecast.status).toBe("ready");
+  expect(forecast.assumptions.observationCount).toBe(2);
+  expect(forecast.assumptions.components).toContain("net_worth_history_drives_non_investment_surplus");
+  expect(forecast.series.surplus[0].mean).toBe(10);
 });
 
 test("mixed priced and unpriced holdings expose the flat fallback", async () => {

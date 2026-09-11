@@ -6,7 +6,7 @@ import { computeCashflowMatrix, type CashflowMatrix } from "./cashflowMatrix.ts"
 import { computeInvestmentHistory, type PortfolioPoint } from "./investmentHistory.ts";
 import { getStoredFxRate } from "./market/fx.ts";
 import { latestStoredPrices } from "./market/quotes.ts";
-import { computeNetWorthHistory } from "./netWorthHistory.ts";
+import { computeNetWorthHistory, type NetWorthPoint } from "./netWorthHistory.ts";
 import { computeNextDate } from "./recurring.ts";
 import { computeNetWorth } from "./valuation.ts";
 
@@ -137,7 +137,7 @@ interface ForecastNetWorth {
 
 export interface ForecastDataSources {
   netWorth(userId: string): Promise<ForecastNetWorth>;
-  netWorthHistory(userId: string): Promise<unknown[]>;
+  netWorthHistory(userId: string): Promise<NetWorthPoint[]>;
   cashflow(userId: string): Promise<CashflowMatrix>;
   transactions(userId: string): Promise<ForecastTransaction[]>;
   recurringRules(userId: string): Promise<ForecastRecurringRule[]>;
@@ -285,12 +285,16 @@ export function flowAdjustedMonthlyReturns(points: PortfolioPoint[]): { month: s
   for (let index = 1; index < monthly.length; index++) {
     const opening = safe(monthly[index - 1].value);
     if (opening <= 0) continue;
-    const flow = safe(monthly[index].invested - monthly[index - 1].invested);
+    const flow = safe(cumulativeCashFlow(monthly[index]) - cumulativeCashFlow(monthly[index - 1]));
     const rawRate = (safe(monthly[index].value) - opening - flow) / opening;
     if (!Number.isFinite(rawRate)) continue;
     result.push({ month: monthly[index].date.slice(0, 7), rate: Math.round(rawRate * 1e12) / 1e12 });
   }
   return result.slice(-LOOKBACK_MONTHS);
+}
+
+function cumulativeCashFlow(point: PortfolioPoint): number {
+  return safe(point.cashFlow ?? point.invested);
 }
 
 function observationAverage(
@@ -452,16 +456,12 @@ function cashflowObservations(
     const index = matrixIndex.get(month);
     const known = recurring.get(month) ?? { income: 0, expense: 0, contribution: 0 };
     const cashflowContribution = index == null ? 0 : contributions[index];
-    const ledgerContribution = ledgerContributions.get(month) ?? 0;
-    const duplicatedBuy = Math.min(
-      Math.max(0, cashflowContribution),
-      Math.max(0, ledgerContribution),
-    );
+    const ledgerContribution = ledgerContributions.get(month);
     return {
       month,
       income: index == null ? 0 : incomes[index],
       expense: index == null ? 0 : expenses[index],
-      contribution: safe(cashflowContribution + ledgerContribution - duplicatedBuy),
+      contribution: ledgerContribution == null ? cashflowContribution : ledgerContribution,
       recurringIncome: known.income,
       recurringExpense: known.expense,
       recurringContribution: known.contribution,
@@ -473,12 +473,41 @@ function portfolioMonthlyContributions(history: PortfolioPoint[]): Map<string, n
   const monthEnds = new Map<string, PortfolioPoint>();
   for (const point of history) monthEnds.set(point.date.slice(0, 7), point);
   const contributions = new Map<string, number>();
-  let previousInvested = 0;
+  let previousCashFlow = 0;
   for (const point of [...monthEnds.values()].sort((a, b) => a.date.localeCompare(b.date))) {
-    contributions.set(point.date.slice(0, 7), safe(point.invested - previousInvested));
-    previousInvested = point.invested;
+    const cashFlow = cumulativeCashFlow(point);
+    contributions.set(point.date.slice(0, 7), safe(cashFlow - previousCashFlow));
+    previousCashFlow = cashFlow;
   }
   return contributions;
+}
+
+function netWorthObservations(history: NetWorthPoint[]): MonthlyForecastObservation[] {
+  const monthEnds = new Map<string, NetWorthPoint>();
+  for (const point of history) monthEnds.set(point.date.slice(0, 7), point);
+
+  let previousNonInvestmentValue: number | null = null;
+  return [...monthEnds.values()]
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map((point) => {
+      const nonInvestmentValue = safe(
+        point.cash + point.credits + point.otherAssets - point.debts,
+      );
+      const change = previousNonInvestmentValue == null
+        ? 0
+        : safe(nonInvestmentValue - previousNonInvestmentValue);
+      previousNonInvestmentValue = nonInvestmentValue;
+      return {
+        month: point.date.slice(0, 7),
+        income: Math.max(0, change),
+        expense: Math.max(0, -change),
+        contribution: 0,
+        recurringIncome: 0,
+        recurringExpense: 0,
+        recurringContribution: 0,
+      };
+    })
+    .slice(-LOOKBACK_MONTHS);
 }
 
 function recurringCashFlow(
@@ -543,6 +572,10 @@ export async function getFinancialForecast(
   else if (returns.length === 0) returnFallback = "flat_insufficient_history";
   else if (hasFlatInvestments) returnFallback = "flat_manual_or_missing_price";
 
+  const cashFlowObservations = cashflowObservations(matrix, transactions, ledgerHistory ?? investmentHistory);
+  const historyObservations = netWorthObservations(netWorthHistory);
+  const observations = cashFlowObservations.length > 0 ? cashFlowObservations : historyObservations;
+  const usesNetWorthHistory = cashFlowObservations.length === 0 && historyObservations.length > 0;
   const componentAssumptions = [
     "cash_surplus_accumulates_in_net_worth",
     "credits_other_assets_and_debts_remain_flat",
@@ -552,6 +585,10 @@ export async function getFinancialForecast(
     "historical_investment_flows_are_removed_at_month_end",
   ];
   if (netWorthHistory.length === 0) componentAssumptions.push("net_worth_history_unavailable");
+  if (usesNetWorthHistory) {
+    componentAssumptions.push("net_worth_history_drives_non_investment_surplus");
+    componentAssumptions.push("net_worth_history_assumes_investment_flows_and_returns_unavailable");
+  }
   if (hasFlatInvestments) componentAssumptions.push("manual_or_unpriced_investments_remain_flat");
 
   return buildFinancialForecast({
@@ -563,7 +600,7 @@ export async function getFinancialForecast(
       marketInvestments,
       flatInvestments,
     },
-    observations: cashflowObservations(matrix, transactions, ledgerHistory ?? investmentHistory),
+    observations,
     recurring: recurringCashFlow(recurringRules, now, horizonMonths),
     portfolioReturns: returns,
     portfolioReturnPeriod: returnObservations.length
