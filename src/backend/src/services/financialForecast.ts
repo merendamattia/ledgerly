@@ -4,6 +4,8 @@ import { transactionRepository } from "../repositories/transaction.ts";
 import { isInvestmentCategoryName } from "../utils/category.ts";
 import { computeCashflowMatrix, type CashflowMatrix } from "./cashflowMatrix.ts";
 import { computeInvestmentHistory, type PortfolioPoint } from "./investmentHistory.ts";
+import { getStoredFxRate } from "./market/fx.ts";
+import { latestStoredPrices } from "./market/quotes.ts";
 import { computeNetWorthHistory } from "./netWorthHistory.ts";
 import { computeNextDate } from "./recurring.ts";
 import { computeNetWorth } from "./valuation.ts";
@@ -140,6 +142,7 @@ export interface ForecastDataSources {
   transactions(userId: string): Promise<ForecastTransaction[]>;
   recurringRules(userId: string): Promise<ForecastRecurringRule[]>;
   investmentHistory(userId: string): Promise<PortfolioPoint[]>;
+  investmentLedgerHistory?(userId: string): Promise<PortfolioPoint[]>;
 }
 
 export interface ForecastOptions {
@@ -155,12 +158,24 @@ export interface LoadForecastOptions extends ForecastOptions {
 }
 
 const defaultSources: ForecastDataSources = {
-  netWorth: computeNetWorth,
-  netWorthHistory: computeNetWorthHistory,
+  netWorth: (userId) => computeNetWorth(userId, {
+    resolveFxRate: getStoredFxRate,
+    resolveLatestPrices: latestStoredPrices,
+  }),
+  netWorthHistory: (userId) => computeNetWorthHistory(userId, {
+    resolveFxRate: getStoredFxRate,
+    providerBackedInvestmentsOnly: true,
+  }),
   cashflow: computeCashflowMatrix,
   transactions: transactionRepository.listAll,
   recurringRules: recurringExpenseRepository.list,
-  investmentHistory: (userId) => computeInvestmentHistory(userId, { providerBackedOnly: true }),
+  investmentHistory: (userId) => computeInvestmentHistory(userId, {
+    providerBackedOnly: true,
+    resolveFxRate: getStoredFxRate,
+  }),
+  investmentLedgerHistory: (userId) => computeInvestmentHistory(userId, {
+    resolveFxRate: getStoredFxRate,
+  }),
 };
 
 function safe(value: number): number {
@@ -173,6 +188,11 @@ function safe(value: number): number {
 function amount(value: unknown): number {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+}
+
+function signedAmount(value: unknown): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? safe(parsed) : 0;
 }
 
 function monthKey(date: Date): string {
@@ -278,7 +298,9 @@ function observationAverage(
   field: "income" | "expense" | "contribution",
 ): number {
   if (observations.length === 0) return 0;
-  return safe(observations.reduce((sum, item) => sum + amount(item[field]), 0) / observations.length);
+  return safe(observations.reduce((sum, item) => (
+    sum + (field === "contribution" ? signedAmount(item[field]) : amount(item[field]))
+  ), 0) / observations.length);
 }
 
 /** Pure seeded Monte Carlo engine. Contributions are added after each month's return. */
@@ -332,6 +354,7 @@ export function buildFinancialForecast(
   const usableReturns = input.portfolioReturns
     .filter(Number.isFinite)
     .map((rate) => Math.max(-1, Math.min(10, rate)));
+  const marketReturnsEnabled = input.returnFallback !== "flat_no_investments";
   const samples = Array.from({ length: horizonMonths }, () => ({
     netWorth: [] as number[], income: [] as number[], expense: [] as number[],
     investment: [] as number[], contribution: [] as number[], return: [] as number[], surplus: [] as number[],
@@ -349,12 +372,14 @@ export function buildFinancialForecast(
       const recurring = recurringByMonth.get(month);
       const residualIncome = Math.max(0, amount(observed.income) - amount(observed.recurringIncome));
       const residualExpense = Math.max(0, amount(observed.expense) - amount(observed.recurringExpense));
-      const residualContribution = Math.max(0, amount(observed.contribution) - amount(observed.recurringContribution));
+      const residualContribution = safe(
+        signedAmount(observed.contribution) - amount(observed.recurringContribution),
+      );
       const income = safe(residualIncome + amount(recurring?.income));
       const expense = safe(residualExpense + amount(recurring?.expense));
       const contribution = safe(residualContribution + amount(recurring?.contribution));
       const surplus = safe(income - expense);
-      const rate = marketInvestments > 0 && usableReturns.length
+      const rate = marketReturnsEnabled && marketInvestments > 0 && usableReturns.length
         ? usableReturns[sampledIndex(random, usableReturns.length)]
         : 0;
       const marketGain = safe(marketInvestments * rate);
@@ -404,6 +429,7 @@ function rowTotals(matrix: CashflowMatrix, rows: CashflowMatrix["income"]): numb
 function cashflowObservations(
   matrix: CashflowMatrix,
   transactions: ForecastTransaction[],
+  investmentHistory: PortfolioPoint[],
 ): MonthlyForecastObservation[] {
   const recurring = new Map<string, { income: number; expense: number; contribution: number }>();
   for (const transaction of transactions) {
@@ -419,18 +445,40 @@ function cashflowObservations(
   const incomes = rowTotals(matrix, matrix.income);
   const expenses = rowTotals(matrix, matrix.expense);
   const contributions = rowTotals(matrix, matrix.investment);
-  return matrix.months.map((month, index) => {
-    const known = recurring.get(month.slice(0, 7)) ?? { income: 0, expense: 0, contribution: 0 };
+  const matrixIndex = new Map(matrix.months.map((month, index) => [month.slice(0, 7), index]));
+  const ledgerContributions = portfolioMonthlyContributions(investmentHistory);
+  const months = new Set([...matrixIndex.keys(), ...ledgerContributions.keys()]);
+  return [...months].sort().map((month) => {
+    const index = matrixIndex.get(month);
+    const known = recurring.get(month) ?? { income: 0, expense: 0, contribution: 0 };
+    const cashflowContribution = index == null ? 0 : contributions[index];
+    const ledgerContribution = ledgerContributions.get(month) ?? 0;
+    const duplicatedBuy = Math.min(
+      Math.max(0, cashflowContribution),
+      Math.max(0, ledgerContribution),
+    );
     return {
-      month: month.slice(0, 7),
-      income: incomes[index],
-      expense: expenses[index],
-      contribution: contributions[index],
+      month,
+      income: index == null ? 0 : incomes[index],
+      expense: index == null ? 0 : expenses[index],
+      contribution: safe(cashflowContribution + ledgerContribution - duplicatedBuy),
       recurringIncome: known.income,
       recurringExpense: known.expense,
       recurringContribution: known.contribution,
     };
   }).slice(-LOOKBACK_MONTHS);
+}
+
+function portfolioMonthlyContributions(history: PortfolioPoint[]): Map<string, number> {
+  const monthEnds = new Map<string, PortfolioPoint>();
+  for (const point of history) monthEnds.set(point.date.slice(0, 7), point);
+  const contributions = new Map<string, number>();
+  let previousInvested = 0;
+  for (const point of [...monthEnds.values()].sort((a, b) => a.date.localeCompare(b.date))) {
+    contributions.set(point.date.slice(0, 7), safe(point.invested - previousInvested));
+    previousInvested = point.invested;
+  }
+  return contributions;
 }
 
 function recurringCashFlow(
@@ -471,13 +519,14 @@ export async function getFinancialForecast(
   const sources = options.sources ?? defaultSources;
   const now = options.now ?? new Date();
   const horizonMonths = options.horizonMonths ?? DEFAULT_HORIZON_MONTHS;
-  const [netWorth, netWorthHistory, matrix, transactions, recurringRules, investmentHistory] = await Promise.all([
+  const [netWorth, netWorthHistory, matrix, transactions, recurringRules, investmentHistory, ledgerHistory] = await Promise.all([
     sources.netWorth(userId),
     sources.netWorthHistory(userId),
     sources.cashflow(userId),
     sources.transactions(userId),
     sources.recurringRules(userId),
     sources.investmentHistory(userId),
+    sources.investmentLedgerHistory?.(userId),
   ]);
   const marketInvestments = netWorth.holdings
     .filter((holding) => holding.provider !== "manual" && holding.priceDate)
@@ -494,7 +543,9 @@ export async function getFinancialForecast(
   const componentAssumptions = [
     "cash_surplus_accumulates_in_net_worth",
     "credits_other_assets_and_debts_remain_flat",
-    "current_fx_rates_apply_to_historical_investment_values",
+    "latest_stored_fx_rates_apply_to_historical_investment_values",
+    "forecast_uses_stored_fx_rates_only",
+    "missing_stored_fx_rates_use_parity",
     "historical_investment_flows_are_removed_at_month_end",
   ];
   if (netWorthHistory.length === 0) componentAssumptions.push("net_worth_history_unavailable");
@@ -509,7 +560,7 @@ export async function getFinancialForecast(
       marketInvestments,
       flatInvestments,
     },
-    observations: cashflowObservations(matrix, transactions),
+    observations: cashflowObservations(matrix, transactions, ledgerHistory ?? investmentHistory),
     recurring: recurringCashFlow(recurringRules, now, horizonMonths),
     portfolioReturns: returns,
     portfolioReturnPeriod: returnObservations.length

@@ -2,8 +2,8 @@ import { settingsRepository } from "../repositories/settings.ts";
 import { cashAccountRepository } from "../repositories/cashAccount.ts";
 import { debtRepository } from "../repositories/debt.ts";
 import { holdingRepository } from "../repositories/holding.ts";
-import { getFxRate } from "./market/fx.ts";
-import { latestPrices } from "./market/quotes.ts";
+import { getFxRate, type FxRateResolver } from "./market/fx.ts";
+import { latestPrices, type LatestPricesResolver } from "./market/quotes.ts";
 
 export interface HoldingValuation {
   holdingId: string;
@@ -37,10 +37,18 @@ export interface NetWorth {
 
 /**
  * Compute the current net worth in the base currency: liquid accounts plus the
- * market value of all holdings. Prices and FX are read cache-first (no provider
- * calls on this path).
+ * market value of all holdings. Price and FX resolvers are injectable for
+ * callers that require database-only reads.
  */
-export async function computeNetWorth(userId: string): Promise<NetWorth> {
+export async function computeNetWorth(
+  userId: string,
+  options: {
+    resolveFxRate?: FxRateResolver;
+    resolveLatestPrices?: LatestPricesResolver;
+  } = {},
+): Promise<NetWorth> {
+  const resolveFxRate = options.resolveFxRate ?? getFxRate;
+  const resolveLatestPrices = options.resolveLatestPrices ?? latestPrices;
   const [baseCurrency, accounts, holdings, debtRows] = await Promise.all([
     settingsRepository.baseCurrency(userId),
     cashAccountRepository.list(userId),
@@ -57,12 +65,12 @@ export async function computeNetWorth(userId: string): Promise<NetWorth> {
     await Promise.all(
       [...currencies].map(async (currency) => [
         currency,
-        await getFxRate(currency, baseCurrency),
+        await resolveFxRate(currency, baseCurrency),
       ] as const),
     ),
   );
 
-  const quoteByTicker = await latestPrices(holdings.map((holding) => holding.tickerId));
+  const quoteByTicker = await resolveLatestPrices(holdings.map((holding) => holding.tickerId));
 
   // Cash accounts converted to base currency, split by category. The account's
   // current cached balance is the live source of truth (snapshots are kept only

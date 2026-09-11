@@ -4,6 +4,12 @@ import { cacheGet, cacheSet } from "../../core/redis.ts";
 
 const FX_TTL_SECONDS = 60 * 60 * 12; // 12h
 
+export type FxRateResolver = (base: string, quote: string) => Promise<number | null>;
+
+interface StoredFxRepository {
+  latest(base: string, quote: string): PromiseLike<{ rate: unknown } | null>;
+}
+
 /**
  * Returns the UTC day immediately after a stored FX bar date.
  */
@@ -59,6 +65,17 @@ export async function getFxRate(base: string, quote: string): Promise<number> {
   const rate = Number(row.rate);
   await cacheSet(key, rate, FX_TTL_SECONDS);
   return rate;
+}
+
+/** Latest persisted rate without cache writes, provider calls, or backfills. */
+export async function getStoredFxRate(
+  base: string,
+  quote: string,
+  repository: StoredFxRepository = fxRepository,
+): Promise<number | null> {
+  if (base === quote) return 1;
+  const row = await repository.latest(base, quote);
+  return row ? Number(row.rate) : null;
 }
 
 /** Rate on or before a date (for historical valuations); falls back to latest. */
