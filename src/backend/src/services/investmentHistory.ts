@@ -22,11 +22,17 @@ function isoDay(d: Date): string {
  * cumulative buys − sells up to that day; the price is the latest close ≤ day.
  * FX uses the current rate (historical FX is not modelled here).
  */
-export async function computeInvestmentHistory(userId: string): Promise<PortfolioPoint[]> {
-  const [txs, baseCurrency] = await Promise.all([
+export async function computeInvestmentHistory(
+  userId: string,
+  options: { providerBackedOnly?: boolean } = {},
+): Promise<PortfolioPoint[]> {
+  const [allTransactions, baseCurrency] = await Promise.all([
     investmentTransactionRepository.listAll(userId),
     settingsRepository.baseCurrency(userId),
   ]);
+  const txs = options.providerBackedOnly
+    ? allTransactions.filter((transaction) => transaction.ticker.provider !== "manual")
+    : allTransactions;
   if (txs.length === 0) return [];
 
   const tickerIds = [...new Set(txs.map((t) => t.tickerId))];
