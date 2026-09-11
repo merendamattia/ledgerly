@@ -125,6 +125,11 @@ AI pass cleans the note by removing promotional text and boilerplate while prese
 context. Every Wallet-created transaction is marked for review, including transactions that received
 an AI category; confirm it from Activity or edit it before treating the result as verified.
 
+The worker extracts the transaction's source currency from the Wallet payload. Foreign amounts are
+converted with a date-aware FX rate into the user's base currency before they are stored; unresolved
+currencies or unavailable rates follow the import retry/failure path. The raw Wallet payload remains
+available for audit and debugging.
+
 Administrators can use **Wallet requests** to inspect the raw request, normalized result, processing
 status, linked transaction, model, and exact input/output/total token usage. The view supports user,
 status, and date filters plus aggregate token totals. It stores and displays only a non-secret token

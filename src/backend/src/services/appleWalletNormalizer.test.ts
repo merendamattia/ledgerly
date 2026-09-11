@@ -30,6 +30,8 @@ test("uses the configured OpenAI model, cleans Wallet slogans, and rejects inven
     expect(body.store).toBe(false);
     expect(body.text.format.type).toBe("json_schema");
     expect(body.text.format.strict).toBe(true);
+    expect(body.text.format.schema.required).toContain("sourceCurrency");
+    expect(body.text.format.schema.properties.sourceCurrency.pattern).toBe("^[A-Z]{3}$");
     expect(body.input[0].content).toContain("merchant context");
     expect(body.input[0].content).toContain("spesa intelligente");
     expect(body.input[0].content).toContain("return null");
@@ -43,6 +45,7 @@ test("uses the configured OpenAI model, cleans Wallet slogans, and rejects inven
           type: "output_text",
           text: JSON.stringify({
             amount: 12.5,
+            sourceCurrency: "EUR",
             direction: "EXPENSE",
             date: "2026-09-01",
             note: "Eurospin",
@@ -63,6 +66,7 @@ test("uses the configured OpenAI model, cleans Wallet slogans, and rejects inven
 
   expect(result.note).toBe("Eurospin");
   expect(result.categoryId).toBeNull();
+  expect(result.sourceCurrency).toBe("EUR");
   expect(result.model).toBe("configured-wallet-model");
   expect(result.usage).toEqual({ inputTokens: 41, outputTokens: 17, totalTokens: 58 });
 });
@@ -79,6 +83,7 @@ test("returns the concise AI note without losing useful merchant context", async
           type: "output_text",
           text: JSON.stringify({
             amount: 48,
+            sourceCurrency: "EUR",
             direction: "EXPENSE",
             date: "2026-09-02",
             note: "Hotel Milano — Terminal 2",
@@ -98,4 +103,79 @@ test("returns the concise AI note without losing useful merchant context", async
 
   expect(result.note).toBe("Hotel Milano — Terminal 2");
   expect(result.usage.totalTokens).toBe(41);
+});
+
+test("keeps a currency resolved from an ambiguous symbol's Wallet context", async () => {
+  process.env.OPENAI_API_KEY = "opaque-test-key";
+  globalThis.fetch = (async (_input, init) => {
+    const body = JSON.parse(String(init?.body));
+    const userInput = JSON.parse(body.input[1].content);
+    expect(userInput.baseCurrency).toBe("EUR");
+    expect(userInput.walletTransaction).toEqual({
+      amount: "$10.00",
+      currencySymbol: "$",
+      merchantCountry: "CA",
+    });
+    expect(body.input[0].content).toContain("sourceCurrency");
+
+    return new Response(JSON.stringify({
+      output: [{
+        type: "message",
+        content: [{
+          type: "output_text",
+          text: JSON.stringify({
+            amount: 10,
+            sourceCurrency: "CAD",
+            direction: "EXPENSE",
+            date: "2026-09-01",
+            note: "Canadian merchant",
+            categoryId: null,
+          }),
+        }],
+      }],
+    }));
+  }) as typeof fetch;
+
+  const result = await normalizeAppleWalletTransaction({
+    userId: "test-user",
+    rawPayload: {
+      amount: "$10.00",
+      currencySymbol: "$",
+      merchantCountry: "CA",
+    },
+    receivedAt: new Date("2026-09-01T12:00:00.000Z"),
+    baseCurrency: "EUR",
+    categories: [],
+  });
+
+  expect(result.sourceCurrency).toBe("CAD");
+});
+
+test("rejects structured Wallet output that omits the source currency", async () => {
+  process.env.OPENAI_API_KEY = "opaque-test-key";
+  globalThis.fetch = (async () => new Response(JSON.stringify({
+    output: [{
+      type: "message",
+      content: [{
+        type: "output_text",
+        text: JSON.stringify({
+          amount: 12.5,
+          direction: "EXPENSE",
+          date: "2026-09-01",
+          note: "Missing currency",
+          categoryId: null,
+        }),
+      }],
+    }],
+  }))) as unknown as typeof fetch;
+
+  await expect(
+    normalizeAppleWalletTransaction({
+      userId: "test-user",
+      rawPayload: { amount: "12.50 EUR" },
+      receivedAt: new Date("2026-09-01T12:00:00.000Z"),
+      baseCurrency: "EUR",
+      categories: [],
+    }),
+  ).rejects.toThrow();
 });

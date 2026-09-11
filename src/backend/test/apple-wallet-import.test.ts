@@ -111,6 +111,7 @@ test("worker creates one transaction and notification and ignores duplicate deli
 
   const normalize = async () => ({
     amount: 12.5,
+    sourceCurrency: "EUR",
     direction: "EXPENSE" as const,
     date: "2026-09-01",
     note: "Worker café",
@@ -145,6 +146,55 @@ test("worker creates one transaction and notification and ignores duplicate deli
   ).toBe(1);
 });
 
+test("worker converts a foreign Wallet amount before persistence", async () => {
+  const fxDate = new Date("2026-09-01T00:00:00.000Z");
+  await prisma.fxRate.upsert({
+    where: { base_quote_date: { base: "JPY", quote: "EUR", date: fxDate } },
+    update: { rate: 0.0067 },
+    create: { base: "JPY", quote: "EUR", date: fxDate, rate: 0.0067 },
+  });
+  const record = await prisma.appleWalletImport.create({
+    data: {
+      userId,
+      rawPayload: { merchant: "Tokyo café", amount: "¥1,500" },
+      idempotencyKey: `foreign-worker-${suffix}`,
+      status: "QUEUED",
+      queueJobId: `foreign-worker-${suffix}`,
+      queuedAt: new Date(),
+    },
+  });
+
+  try {
+    await processAppleWalletImport(record.id, 1, 3, async () => ({
+      amount: 1_500,
+      sourceCurrency: "JPY",
+      direction: "EXPENSE",
+      date: "2026-09-01",
+      note: "Tokyo café",
+      categoryId,
+      ...walletTelemetry(),
+    }));
+
+    const completed = await prisma.appleWalletImport.findUniqueOrThrow({ where: { id: record.id } });
+    const transaction = await prisma.transaction.findUniqueOrThrow({ where: { id: completed.transactionId! } });
+    expect(transaction.amount.toString()).toBe("10.05");
+    expect(completed.normalizedResult).toEqual({
+      amount: 1_500,
+      sourceCurrency: "JPY",
+      convertedAmount: 10.05,
+      baseCurrency: "EUR",
+      direction: "EXPENSE",
+      date: "2026-09-01",
+      note: "Tokyo café",
+      categoryId,
+    });
+  } finally {
+    await prisma.fxRate.delete({
+      where: { base_quote_date: { base: "JPY", quote: "EUR", date: fxDate } },
+    }).catch(() => undefined);
+  }
+});
+
 test("worker records retry state before a later successful attempt", async () => {
   const record = await prisma.appleWalletImport.create({
     data: {
@@ -171,6 +221,7 @@ test("worker records retry state before a later successful attempt", async () =>
 
   await processAppleWalletImport(record.id, 2, 3, async () => ({
     amount: 3,
+    sourceCurrency: "EUR",
     direction: "EXPENSE",
     date: "2026-09-01",
     note: "Retry café",
@@ -212,6 +263,7 @@ test("a metered response that fails after normalization retains its failed detai
           type: "output_text",
           text: JSON.stringify({
             amount: 9,
+            sourceCurrency: "EUR",
             direction: "EXPENSE",
             date: "2026-99-99",
             note: "Invalid date café",
@@ -233,6 +285,7 @@ test("a metered response that fails after normalization retains its failed detai
     expect(failed.aiTotalTokens).toBe(58);
     expect(failed.normalizedResult).toEqual({
       amount: 9,
+      sourceCurrency: "EUR",
       direction: "EXPENSE",
       date: "2026-99-99",
       note: "Invalid date café",
@@ -320,6 +373,7 @@ test("worker reclaims a stale RUNNING lease after a crash", async () => {
 
   await processAppleWalletImport(record.id, 1, 3, async () => ({
     amount: 5,
+    sourceCurrency: "EUR",
     direction: "EXPENSE",
     date: "2026-09-01",
     note: "Recovered café",

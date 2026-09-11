@@ -174,7 +174,7 @@ export const appleWalletImportRepository = {
     attempt: number,
     normalized: Pick<
       NormalizedWalletTransaction,
-      "amount" | "direction" | "date" | "note" | "categoryId"
+      "amount" | "sourceCurrency" | "direction" | "date" | "note" | "categoryId"
     >,
   ) {
     const recorded = await prisma.appleWalletImport.updateMany({
@@ -182,6 +182,7 @@ export const appleWalletImportRepository = {
       data: {
         normalizedResult: {
           amount: normalized.amount,
+          sourceCurrency: normalized.sourceCurrency,
           direction: normalized.direction,
           date: normalized.date,
           note: normalized.note,
@@ -229,6 +230,9 @@ export const appleWalletImportRepository = {
     input: {
       date: Date;
       amount: number;
+      sourceAmount: number;
+      sourceCurrency: string;
+      baseCurrency: string;
       direction: TxDirection;
       note: string;
       categoryId: string | null;
@@ -269,7 +273,10 @@ export const appleWalletImportRepository = {
           heartbeatAt: new Date(),
           lastError: null,
           normalizedResult: {
-            amount: input.amount,
+            amount: input.sourceAmount,
+            sourceCurrency: input.sourceCurrency,
+            convertedAmount: input.amount,
+            baseCurrency: input.baseCurrency,
             direction: input.direction,
             date: input.date.toISOString().slice(0, 10),
             note: input.note,
