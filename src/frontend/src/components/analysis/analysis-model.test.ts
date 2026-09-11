@@ -135,3 +135,20 @@ test("deterministic explanations select attribution at the active horizon", () =
     investmentReturnContribution: 24,
   }));
 });
+
+test("deterministic explanations retain valid zero attribution", () => {
+  const value = snapshot();
+  value.series.savingsContributions = value.series.savingsContributions.map((point) => ({
+    ...point,
+    p50: 0,
+  }));
+  value.series.investmentReturnContributions = value.series.investmentReturnContributions.map((point) => ({
+    ...point,
+    p50: 0,
+  }));
+
+  expect(forecastExplanationFacts(value, 1).netWorth).toEqual(expect.objectContaining({
+    savingsContribution: 0,
+    investmentReturnContribution: 0,
+  }));
+});

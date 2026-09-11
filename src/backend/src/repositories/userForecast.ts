@@ -40,6 +40,13 @@ export const userForecastRepository = {
     return prisma.userForecast.findUnique({ where: { queueJobId } });
   },
 
+  heartbeat(queueJobId: string) {
+    return prisma.userForecast.updateMany({
+      where: { queueJobId, status: "RUNNING" },
+      data: { updatedAt: new Date() },
+    });
+  },
+
   pendingForRecovery(now = new Date()) {
     const staleBefore = new Date(now.getTime() - FORECAST_LEASE_MS);
     return prisma.userForecast.findMany({

@@ -1,5 +1,4 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
-import type { Prisma } from "@prisma/client";
 import { prisma } from "../src/core/db.ts";
 import { userForecastRepository } from "../src/repositories/userForecast.ts";
 import type { ForecastSnapshot } from "../src/services/forecastContract.ts";
@@ -86,4 +85,19 @@ test("worker recovery republishes queued work, reclaims interruption, and permit
     status: "READY",
     snapshotId: `refreshed-${suffix}`,
   }));
+});
+
+test("a renewed running lease is not recovered as stale work", async () => {
+  const jobId = await userForecastRepository.reserve(userId);
+  expect(jobId).not.toBeNull();
+  expect(await userForecastRepository.claim(jobId!)).not.toBeNull();
+  await prisma.userForecast.update({
+    where: { userId },
+    data: { updatedAt: new Date(Date.now() - 60_000) },
+  });
+
+  expect((await userForecastRepository.heartbeat(jobId!)).count).toBe(1);
+  expect(await userForecastRepository.pendingForRecovery()).toHaveLength(0);
+
+  await processForecastGeneration(jobId!, async () => snapshot(`heartbeat-${suffix}`));
 });

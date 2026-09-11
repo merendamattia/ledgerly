@@ -56,6 +56,9 @@ export async function processForecastGeneration(
 ) {
   const record = await userForecastRepository.claim(queueJobId);
   if (!record) return { skipped: true as const };
+  const heartbeat = setInterval(() => {
+    void userForecastRepository.heartbeat(queueJobId);
+  }, 10_000);
   try {
     const snapshot = await buildSnapshot(record.userId);
     const completed = await userForecastRepository.complete(record.userId, queueJobId, snapshot);
@@ -65,6 +68,8 @@ export async function processForecastGeneration(
     const message = error instanceof Error ? error.message : "Forecast generation failed";
     await userForecastRepository.fail(queueJobId, message);
     throw error;
+  } finally {
+    clearInterval(heartbeat);
   }
 }
 
