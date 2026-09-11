@@ -13,3 +13,10 @@ test("only registered locales are accepted", () => {
   expect(isLocale("it")).toBe(true);
   expect(isLocale("fr")).toBe(false);
 });
+
+test("Analysis copy has matching English and Italian catalog keys", () => {
+  expect(Object.keys(getMessages("it").analysis).sort()).toEqual(
+    Object.keys(getMessages("en").analysis).sort(),
+  );
+  expect(getMessages("it").nav.analysis).toBe("Analisi");
+});

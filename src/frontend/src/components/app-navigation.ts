@@ -2,6 +2,7 @@ import type { ComponentType } from "react";
 import type { Messages } from "@/i18n/config";
 import {
   ArrowLeftRight,
+  ChartSpline,
   Database,
   Landmark,
   LayoutGrid,
@@ -29,6 +30,7 @@ export const PRIMARY_NAV_ITEMS: AppNavItem[] = [
 ];
 
 export const SECONDARY_NAV_ITEMS: AppNavItem[] = [
+  { href: "/analysis", labelKey: "analysis", icon: ChartSpline },
   { href: "/accounts", labelKey: "accounts", icon: Landmark },
   { href: "/matrix", labelKey: "matrices", icon: Table },
   { href: "/imports", labelKey: "imports", icon: Upload },
