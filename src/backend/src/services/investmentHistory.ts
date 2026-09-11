@@ -9,6 +9,15 @@ export interface PortfolioPoint {
   invested: number; // cumulative net cost basis in base currency
 }
 
+/** Keeps only transactions for tickers with at least one persisted price. */
+export function priceBackedTransactions<T extends { tickerId: string }>(
+  transactions: T[],
+  prices: { tickerId: string }[],
+): T[] {
+  const pricedTickerIds = new Set(prices.map((price) => price.tickerId));
+  return transactions.filter((transaction) => pricedTickerIds.has(transaction.tickerId));
+}
+
 /**
  * Formats a Date as the yyyy-mm-dd key used by portfolio history points.
  */
@@ -31,16 +40,16 @@ export async function computeInvestmentHistory(
     investmentTransactionRepository.listAll(userId),
     settingsRepository.baseCurrency(userId),
   ]);
-  const txs = options.providerBackedOnly
+  const candidates = options.providerBackedOnly
     ? allTransactions.filter((transaction) => transaction.ticker.provider !== "manual")
     : allTransactions;
-  if (txs.length === 0) return [];
+  if (candidates.length === 0) return [];
 
-  const tickerIds = [...new Set(txs.map((t) => t.tickerId))];
+  const tickerIds = [...new Set(candidates.map((t) => t.tickerId))];
 
   // ticker -> currency, and current FX per currency.
   const currencyOf = new Map<string, string>();
-  for (const t of txs) currencyOf.set(t.tickerId, t.ticker.currency);
+  for (const t of candidates) currencyOf.set(t.tickerId, t.ticker.currency);
   const currencies = [...new Set(currencyOf.values())];
 
   // Ascending price series per ticker.
@@ -52,6 +61,10 @@ export async function computeInvestmentHistory(
     ).then((series) => series.flat()),
     Promise.all(currencies.map(async (cur) => [cur, (await resolveFxRate(cur, baseCurrency)) ?? 1] as const)),
   ]);
+  const txs = options.providerBackedOnly
+    ? priceBackedTransactions(candidates, prices)
+    : candidates;
+  if (txs.length === 0) return [];
   const fxByCurrency = new Map<string, number>(fxEntries);
   const priceByTicker = new Map<string, { date: number; close: number }[]>();
   // Ascending signed-quantity events per ticker.

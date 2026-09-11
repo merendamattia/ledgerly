@@ -7,6 +7,7 @@ import {
   type FinancialForecastInput,
   type ForecastDataSources,
 } from "./financialForecast.ts";
+import { priceBackedTransactions } from "./investmentHistory.ts";
 
 const baseInput = (overrides: Partial<FinancialForecastInput> = {}): FinancialForecastInput => ({
   asOf: new Date("2026-06-30T00:00:00Z"),
@@ -123,6 +124,24 @@ test("flat no-investment forecasts never apply historical returns to later contr
   expect(forecast.series.netWorth.map((point) => point.mean)).toEqual([0, 0, 0]);
 });
 
+test("manual-only portfolios never apply old provider returns to future contributions", () => {
+  const forecast = buildFinancialForecast(
+    baseInput({
+      current: { netWorth: 500, investments: 500, marketInvestments: 0, flatInvestments: 500 },
+      observations: [{
+        month: "2026-06", income: 0, expense: 0, contribution: 100,
+        recurringIncome: 0, recurringExpense: 0, recurringContribution: 0,
+      }],
+      portfolioReturns: [0.1],
+      returnFallback: "flat_manual_or_missing_price",
+    }),
+    { seed: 1, simulations: 1, horizonMonths: 3 },
+  );
+
+  expect(forecast.series.return.map((point) => point.mean)).toEqual([0, 0, 0]);
+  expect(forecast.series.investment.map((point) => point.mean)).toEqual([600, 700, 800]);
+});
+
 test("adds known recurring movements deterministically and bootstraps only residual cash flow", () => {
   const forecast = buildFinancialForecast(
     baseInput({
@@ -150,6 +169,16 @@ test("flow-adjusted portfolio returns remove buys and retain multi-asset market 
   ]);
 
   expect(result).toEqual([{ month: "2026-02", rate: 0 }, { month: "2026-03", rate: 0.1 }]);
+});
+
+test("price-backed history excludes provider transactions whose ticker has no prices", () => {
+  const priced = { tickerId: "priced" };
+  const unpriced = { tickerId: "unpriced" };
+
+  expect(priceBackedTransactions(
+    [priced, unpriced],
+    [{ tickerId: "priced" }],
+  )).toEqual([priced]);
 });
 
 test("manual or missing-price investments stay flat and unsafe numbers are sanitized", () => {
@@ -275,6 +304,35 @@ test("forecasts portfolio history when regular cash-flow history is empty", asyn
 
   expect(forecast.status).toBe("ready");
   expect(forecast.assumptions.observationCount).toBe(2);
+  expect(forecast.series.return[0].mean).toBe(0.1);
+});
+
+test("mixed priced and unpriced holdings expose the flat fallback", async () => {
+  const source = <T>(value: T) => async (): Promise<T> => value;
+  const sources: ForecastDataSources = {
+    netWorth: source({
+      baseCurrency: "EUR", total: 100, investments: 100,
+      holdings: [
+        { provider: "yahoo", priceDate: "2026-06-30", value: 100 },
+        { provider: "yahoo", priceDate: null, value: 0 },
+      ],
+    }),
+    netWorthHistory: source([]),
+    cashflow: source({ baseCurrency: "EUR", months: [], income: [], expense: [], investment: [] }),
+    transactions: source([]),
+    recurringRules: source([]),
+    investmentHistory: source([
+      { date: "2026-05-31", value: 100, invested: 100 },
+      { date: "2026-06-30", value: 110, invested: 100 },
+    ]),
+  };
+
+  const forecast = await getFinancialForecast("owner-7", {
+    now: new Date("2026-06-30"), sources, seed: 1, simulations: 1, horizonMonths: 1,
+  });
+
+  expect(forecast.assumptions.returnFallback).toBe("flat_manual_or_missing_price");
+  expect(forecast.assumptions.components).toContain("manual_or_unpriced_investments_remain_flat");
   expect(forecast.series.return[0].mean).toBe(0.1);
 });
 

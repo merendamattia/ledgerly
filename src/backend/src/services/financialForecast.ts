@@ -354,7 +354,7 @@ export function buildFinancialForecast(
   const usableReturns = input.portfolioReturns
     .filter(Number.isFinite)
     .map((rate) => Math.max(-1, Math.min(10, rate)));
-  const marketReturnsEnabled = input.returnFallback !== "flat_no_investments";
+  const marketReturnsEnabled = input.current.marketInvestments > 0;
   const samples = Array.from({ length: horizonMonths }, () => ({
     netWorth: [] as number[], income: [] as number[], expense: [] as number[],
     investment: [] as number[], contribution: [] as number[], return: [] as number[], surplus: [] as number[],
@@ -532,13 +532,16 @@ export async function getFinancialForecast(
     .filter((holding) => holding.provider !== "manual" && holding.priceDate)
     .reduce((sum, holding) => sum + Math.max(0, safe(holding.value)), 0);
   const flatInvestments = Math.max(0, safe(netWorth.investments - marketInvestments));
+  const hasFlatInvestments = netWorth.holdings.some(
+    (holding) => holding.provider === "manual" || !holding.priceDate,
+  );
   const returnObservations = flowAdjustedMonthlyReturns(investmentHistory);
   const returns = returnObservations.map((item) => item.rate);
   let returnFallback: ReturnFallback = "none";
   if (netWorth.investments <= 0) returnFallback = "flat_no_investments";
   else if (marketInvestments <= 0) returnFallback = "flat_manual_or_missing_price";
   else if (returns.length === 0) returnFallback = "flat_insufficient_history";
-  else if (flatInvestments > 0) returnFallback = "flat_manual_or_missing_price";
+  else if (hasFlatInvestments) returnFallback = "flat_manual_or_missing_price";
 
   const componentAssumptions = [
     "cash_surplus_accumulates_in_net_worth",
@@ -549,7 +552,7 @@ export async function getFinancialForecast(
     "historical_investment_flows_are_removed_at_month_end",
   ];
   if (netWorthHistory.length === 0) componentAssumptions.push("net_worth_history_unavailable");
-  if (flatInvestments > 0) componentAssumptions.push("manual_or_unpriced_investments_remain_flat");
+  if (hasFlatInvestments) componentAssumptions.push("manual_or_unpriced_investments_remain_flat");
 
   return buildFinancialForecast({
     asOf: now,
