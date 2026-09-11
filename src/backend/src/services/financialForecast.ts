@@ -3,7 +3,11 @@ import { recurringExpenseRepository } from "../repositories/recurringExpense.ts"
 import { transactionRepository } from "../repositories/transaction.ts";
 import { isInvestmentCategoryName } from "../utils/category.ts";
 import { computeCashflowMatrix, type CashflowMatrix } from "./cashflowMatrix.ts";
-import { computeInvestmentHistory, type PortfolioPoint } from "./investmentHistory.ts";
+import {
+  computeInvestmentHistory,
+  type PortfolioCashFlowEvent,
+  type PortfolioPoint,
+} from "./investmentHistory.ts";
 import { getStoredFxRate } from "./market/fx.ts";
 import { latestStoredPrices } from "./market/quotes.ts";
 import { computeNetWorthHistory, type NetWorthPoint } from "./netWorthHistory.ts";
@@ -114,6 +118,21 @@ interface ForecastTransaction {
   category?: { name: string } | null;
 }
 
+interface LedgerMonthlyMovement {
+  amount: number;
+  hasActivity: boolean;
+  events: PortfolioCashFlowEvent[];
+}
+
+interface CashflowObservationSet {
+  observations: MonthlyForecastObservation[];
+  available: {
+    income: boolean;
+    expense: boolean;
+    contribution: boolean;
+  };
+}
+
 interface ForecastRecurringRule {
   amount: unknown;
   direction: TxDirection;
@@ -175,6 +194,7 @@ const defaultSources: ForecastDataSources = {
   }),
   investmentLedgerHistory: (userId) => computeInvestmentHistory(userId, {
     resolveFxRate: getStoredFxRate,
+    includeCashFlowEvents: true,
   }),
 };
 
@@ -277,20 +297,26 @@ function historicalReturnSummary(
  * net external investment flows. Aggregate values inherently retain the user's
  * actual multi-asset allocation rather than substituting a representative ticker.
  */
-export function flowAdjustedMonthlyReturns(points: PortfolioPoint[]): { month: string; rate: number }[] {
-  const byMonth = new Map<string, PortfolioPoint>();
-  for (const point of points) byMonth.set(point.date.slice(0, 7), point);
-  const monthly = [...byMonth.values()].sort((a, b) => a.date.localeCompare(b.date));
-  const result: { month: string; rate: number }[] = [];
-  for (let index = 1; index < monthly.length; index++) {
-    const opening = safe(monthly[index - 1].value);
+export function flowAdjustedMonthlyReturns(
+  points: PortfolioPoint[],
+): { month: string; rate: number }[] {
+  const daily = [...points].sort((a, b) => a.date.localeCompare(b.date));
+  const monthlyGrowth = new Map<string, number>();
+  for (let index = 1; index < daily.length; index++) {
+    const opening = safe(daily[index - 1].value);
     if (opening <= 0) continue;
-    const flow = safe(cumulativeCashFlow(monthly[index]) - cumulativeCashFlow(monthly[index - 1]));
-    const rawRate = (safe(monthly[index].value) - opening - flow) / opening;
+    const flow = safe(cumulativeCashFlow(daily[index]) - cumulativeCashFlow(daily[index - 1]));
+    const rawRate = (safe(daily[index].value) - opening - flow) / opening;
     if (!Number.isFinite(rawRate)) continue;
-    result.push({ month: monthly[index].date.slice(0, 7), rate: Math.round(rawRate * 1e12) / 1e12 });
+    const month = daily[index].date.slice(0, 7);
+    monthlyGrowth.set(month, safe((monthlyGrowth.get(month) ?? 1) * (1 + rawRate)));
   }
-  return result.slice(-LOOKBACK_MONTHS);
+  return [...monthlyGrowth.entries()]
+    .map(([month, growth]) => ({
+      month,
+      rate: safe(Math.round((growth - 1) * 1e12) / 1e12),
+    }))
+    .slice(-LOOKBACK_MONTHS);
 }
 
 function cumulativeCashFlow(point: PortfolioPoint): number {
@@ -459,7 +485,7 @@ function cashflowObservations(
   matrix: CashflowMatrix,
   transactions: ForecastTransaction[],
   investmentHistory: PortfolioPoint[],
-): MonthlyForecastObservation[] {
+): CashflowObservationSet {
   const recurring = new Map<string, { income: number; expense: number; contribution: number }>();
   for (const transaction of transactions) {
     if (!transaction.recurringExpenseId) continue;
@@ -477,43 +503,153 @@ function cashflowObservations(
   const matrixIndex = new Map(matrix.months.map((month, index) => [month.slice(0, 7), index]));
   const ledgerContributions = portfolioMonthlyContributions(investmentHistory);
   const months = new Set([...matrixIndex.keys(), ...ledgerContributions.keys()]);
-  return [...months].sort().map((month) => {
-    const index = matrixIndex.get(month);
-    const known = recurring.get(month) ?? { income: 0, expense: 0, contribution: 0 };
-    const cashflowContribution = index == null ? 0 : contributions[index];
-    const ledgerContribution = ledgerContributions.get(month);
-    return {
-      month,
-      income: index == null ? 0 : incomes[index],
-      expense: index == null ? 0 : expenses[index],
-      contribution: reconcileInvestmentContributions(cashflowContribution, ledgerContribution),
-      recurringIncome: known.income,
-      recurringExpense: known.expense,
-      recurringContribution: known.contribution,
-    };
-  }).slice(-LOOKBACK_MONTHS);
+  const categorizedInvestmentTransactions = new Map<string, ForecastTransaction[]>();
+  for (const transaction of transactions) {
+    if (transaction.direction !== "EXPENSE" || !isInvestmentCategoryName(transaction.category?.name)) continue;
+    const month = monthKey(transaction.date);
+    const monthTransactions = categorizedInvestmentTransactions.get(month) ?? [];
+    monthTransactions.push(transaction);
+    categorizedInvestmentTransactions.set(month, monthTransactions);
+  }
+  return {
+    observations: [...months].sort().map((month) => {
+      const index = matrixIndex.get(month);
+      const known = recurring.get(month) ?? { income: 0, expense: 0, contribution: 0 };
+      const cashflowContribution = index == null ? 0 : contributions[index];
+      const ledgerContribution = ledgerContributions.get(month);
+      return {
+        month,
+        income: index == null ? 0 : incomes[index],
+        expense: index == null ? 0 : expenses[index],
+        contribution: reconcileInvestmentContributions(
+          cashflowContribution,
+          ledgerContribution,
+          categorizedInvestmentTransactions.get(month) ?? [],
+        ),
+        recurringIncome: known.income,
+        recurringExpense: known.expense,
+        recurringContribution: known.contribution,
+      };
+    }).slice(-LOOKBACK_MONTHS),
+    available: {
+      income: matrix.income.length > 0,
+      expense: matrix.expense.length > 0,
+      contribution: matrix.investment.length > 0
+        || [...ledgerContributions.values()].some((movement) => movement.hasActivity),
+    },
+  };
 }
 
-function reconcileInvestmentContributions(cashflowContribution: number, ledgerContribution?: number): number {
-  if (ledgerContribution == null || ledgerContribution === 0) return cashflowContribution;
-  if (cashflowContribution === 0 || cashflowContribution === ledgerContribution) return ledgerContribution;
-  // A categorized buy can mirror one leg of a same-month buy/sell pair. The
-  // signed ledger total is authoritative when the aggregate signs differ.
-  if (Math.sign(cashflowContribution) !== Math.sign(ledgerContribution)) return ledgerContribution;
-  return safe(cashflowContribution + ledgerContribution);
+function reconcileInvestmentContributions(
+  cashflowContribution: number,
+  ledgerContribution: LedgerMonthlyMovement | undefined,
+  categorizedTransactions: ForecastTransaction[],
+): number {
+  if (!ledgerContribution || !ledgerContribution.hasActivity) return cashflowContribution;
+  if (categorizedTransactions.length > 0 && ledgerContribution.events.length > 0) {
+    const matched = matchCategorizedInvestmentTransactions(categorizedTransactions, ledgerContribution.events);
+    return safe(ledgerContribution.amount + cashflowContribution - matched);
+  }
+  if (ledgerContribution.events.length > 0) {
+    return ledgerContribution.events.some((event) => event.side === "BUY")
+      ? ledgerContribution.amount
+      : safe(cashflowContribution + ledgerContribution.amount);
+  }
+  // Older callers may provide only aggregate portfolio points. A negative
+  // movement is a sale, which the expense-only cash-flow matrix cannot mirror;
+  // preserve both sources until callers provide detailed event records.
+  return ledgerContribution.amount >= 0
+    ? ledgerContribution.amount
+    : safe(cashflowContribution + ledgerContribution.amount);
 }
 
-function portfolioMonthlyContributions(history: PortfolioPoint[]): Map<string, number> {
+function matchCategorizedInvestmentTransactions(
+  categorizedTransactions: ForecastTransaction[],
+  ledgerEvents: PortfolioCashFlowEvent[],
+): number {
+  const unmatched = categorizedTransactions.map((transaction) => ({
+    transaction,
+    matched: false,
+  }));
+  for (const event of ledgerEvents) {
+    if (event.side !== "BUY") continue;
+    const candidate = unmatched.find((item) => (
+      !item.matched
+      && item.transaction.date.toISOString().slice(0, 10) === event.date
+      && amountsMatch(amount(item.transaction.amount), event.grossAmount)
+    ));
+    if (candidate) candidate.matched = true;
+  }
+  return unmatched.reduce(
+    (sum, item) => sum + (item.matched ? amount(item.transaction.amount) : 0),
+    0,
+  );
+}
+
+function amountsMatch(left: number, right: number): boolean {
+  return Math.abs(left - right) <= Math.max(0.01, Math.max(Math.abs(left), Math.abs(right)) * 1e-9);
+}
+
+function portfolioMonthlyContributions(history: PortfolioPoint[]): Map<string, LedgerMonthlyMovement> {
   const monthEnds = new Map<string, PortfolioPoint>();
   for (const point of history) monthEnds.set(point.date.slice(0, 7), point);
-  const contributions = new Map<string, number>();
+  const contributions = new Map<string, LedgerMonthlyMovement>();
+  const hasDetailedEvents = history.some((point) => point.cashFlowEvents !== undefined);
+  if (hasDetailedEvents) {
+    for (const point of history) {
+      const month = point.date.slice(0, 7);
+      const movement = contributions.get(month) ?? { amount: 0, hasActivity: false, events: [] };
+      const events = point.cashFlowEvents ?? [];
+      movement.amount = safe(movement.amount + events.reduce((sum, event) => sum + event.amount, 0));
+      movement.hasActivity ||= point.cashFlowActivity === true || events.length > 0;
+      movement.events.push(...events);
+      contributions.set(month, movement);
+    }
+    return contributions;
+  }
+
   let previousCashFlow = 0;
-  for (const point of [...monthEnds.values()].sort((a, b) => a.date.localeCompare(b.date))) {
+  for (const [index, point] of [...monthEnds.values()]
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .entries()) {
     const cashFlow = cumulativeCashFlow(point);
-    contributions.set(point.date.slice(0, 7), safe(cashFlow - previousCashFlow));
+    const amount = safe(cashFlow - previousCashFlow);
+    contributions.set(point.date.slice(0, 7), {
+      amount,
+      hasActivity: point.cashFlowActivity ?? (amount !== 0 || (index === 0 && cashFlow !== 0)),
+      events: [],
+    });
     previousCashFlow = cashFlow;
   }
   return contributions;
+}
+
+function mergeForecastObservations(
+  cashflow: CashflowObservationSet,
+  history: MonthlyForecastObservation[],
+): MonthlyForecastObservation[] {
+  const cashflowByMonth = new Map(cashflow.observations.map((observation) => [observation.month, observation]));
+  const historyByMonth = new Map(history.map((observation) => [observation.month, observation]));
+  const months = [...new Set([...cashflowByMonth.keys(), ...historyByMonth.keys()])].sort();
+  return months.map((month) => {
+    const cashflowObservation = cashflowByMonth.get(month);
+    const historyObservation = historyByMonth.get(month);
+    return {
+      month,
+      income: cashflow.available.income
+        ? cashflowObservation?.income ?? 0
+        : historyObservation?.income ?? 0,
+      expense: cashflow.available.expense
+        ? cashflowObservation?.expense ?? 0
+        : historyObservation?.expense ?? 0,
+      contribution: cashflow.available.contribution
+        ? cashflowObservation?.contribution ?? 0
+        : historyObservation?.contribution ?? 0,
+      recurringIncome: cashflowObservation?.recurringIncome ?? 0,
+      recurringExpense: cashflowObservation?.recurringExpense ?? 0,
+      recurringContribution: cashflowObservation?.recurringContribution ?? 0,
+    };
+  }).slice(-LOOKBACK_MONTHS);
 }
 
 function netWorthObservations(history: NetWorthPoint[]): MonthlyForecastObservation[] {
@@ -608,8 +744,10 @@ export async function getFinancialForecast(
 
   const cashFlowObservations = cashflowObservations(matrix, transactions, ledgerHistory ?? investmentHistory);
   const historyObservations = netWorthObservations(netWorthHistory);
-  const observations = cashFlowObservations.length > 0 ? cashFlowObservations : historyObservations;
-  const usesNetWorthHistory = cashFlowObservations.length === 0 && historyObservations.length > 0;
+  const observations = mergeForecastObservations(cashFlowObservations, historyObservations);
+  const usesNetWorthHistory = historyObservations.length > 0 && (
+    !cashFlowObservations.available.income || !cashFlowObservations.available.expense
+  );
   const componentAssumptions = [
     "cash_surplus_accumulates_in_net_worth",
     "credits_other_assets_and_debts_remain_flat",

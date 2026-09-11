@@ -3,12 +3,23 @@ import { investmentTransactionRepository } from "../repositories/investmentTrans
 import { priceRepository } from "../repositories/price.ts";
 import { getFxRate, type FxRateResolver } from "./market/fx.ts";
 
+export interface PortfolioCashFlowEvent {
+  date: string;
+  side: "BUY" | "SELL";
+  amount: number;
+  grossAmount: number;
+}
+
 export interface PortfolioPoint {
   date: string; // yyyy-mm-dd
   value: number; // market value in base currency
   invested: number; // cumulative net cost basis in base currency
   /** Signed cumulative buy cost minus sale proceeds for forecast flow adjustment. */
   cashFlow?: number;
+  /** True when one or more investment movements occurred on this date. */
+  cashFlowActivity?: boolean;
+  /** Dated movements used to reconcile investment and categorized cash-flow sources. */
+  cashFlowEvents?: PortfolioCashFlowEvent[];
 }
 
 /** Keeps only transactions for tickers with at least one persisted price. */
@@ -35,7 +46,11 @@ function isoDay(d: Date): string {
  */
 export async function computeInvestmentHistory(
   userId: string,
-  options: { providerBackedOnly?: boolean; resolveFxRate?: FxRateResolver } = {},
+  options: {
+    providerBackedOnly?: boolean;
+    resolveFxRate?: FxRateResolver;
+    includeCashFlowEvents?: boolean;
+  } = {},
 ): Promise<PortfolioPoint[]> {
   const resolveFxRate = options.resolveFxRate ?? getFxRate;
   const [allTransactions, baseCurrency] = await Promise.all([
@@ -70,7 +85,13 @@ export async function computeInvestmentHistory(
   const fxByCurrency = new Map<string, number>(fxEntries);
   const priceByTicker = new Map<string, { date: number; close: number }[]>();
   // Ascending signed-quantity events per ticker.
-  const txByTicker = new Map<string, { date: number; qty: number; cost: number }[]>();
+  const txByTicker = new Map<string, {
+    date: number;
+    qty: number;
+    cost: number;
+    side: "BUY" | "SELL";
+    grossAmount: number;
+  }[]>();
   for (const id of tickerIds) {
     priceByTicker.set(id, []);
     txByTicker.set(id, []);
@@ -84,7 +105,13 @@ export async function computeInvestmentHistory(
     // Net invested: + (qty*price+fee) on buy, − (qty*price−fee) on sell.
     const gross = Number(t.quantity) * Number(t.price);
     const cost = (t.side === "BUY" ? gross + Number(t.fee) : -(gross - Number(t.fee))) * fx;
-    txByTicker.get(t.tickerId)!.push({ date: t.date.getTime(), qty: signedQty, cost });
+    txByTicker.get(t.tickerId)!.push({
+      date: t.date.getTime(),
+      qty: signedQty,
+      cost,
+      side: t.side,
+      grossAmount: gross * fx,
+    });
   }
 
   const startMs = txs[0].date.getTime();
@@ -108,6 +135,7 @@ export async function computeInvestmentHistory(
   for (; day.getTime() <= today.getTime(); day.setUTCDate(day.getUTCDate() + 1)) {
     const dayMs = day.getTime();
     let value = 0;
+    const cashFlowEvents: PortfolioCashFlowEvent[] = [];
     for (const id of tickerIds) {
       // Advance cumulative quantity + invested for txs on/before this day.
       const events = txByTicker.get(id)!;
@@ -116,6 +144,14 @@ export async function computeInvestmentHistory(
       while (tp < events.length && events[tp].date <= dayMs) {
         q += events[tp].qty;
         invested += events[tp].cost;
+        if (events[tp].date === dayMs) {
+          cashFlowEvents.push({
+            date: isoDay(new Date(events[tp].date)),
+            side: events[tp].side,
+            amount: events[tp].cost,
+            grossAmount: events[tp].grossAmount,
+          });
+        }
         tp++;
       }
       txPtr.set(id, tp);
@@ -132,12 +168,17 @@ export async function computeInvestmentHistory(
         value += q * ph[pp].close * fx;
       }
     }
-    points.push({
+    const point: PortfolioPoint = {
       date: isoDay(day),
       value,
       invested: Math.max(0, invested),
       cashFlow: Number.isFinite(invested) ? invested : 0,
-    });
+    };
+    if (options.includeCashFlowEvents) {
+      point.cashFlowActivity = cashFlowEvents.length > 0;
+      point.cashFlowEvents = cashFlowEvents;
+    }
+    points.push(point);
   }
   return points;
 }

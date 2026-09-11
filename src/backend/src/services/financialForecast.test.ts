@@ -180,6 +180,16 @@ test("flow-adjusted returns preserve profit on a full profitable sale", () => {
   expect(result).toEqual([{ month: "2026-02", rate: 0.5 }]);
 });
 
+test("flow-adjusted returns do not treat a February contribution as market growth", () => {
+  const result = flowAdjustedMonthlyReturns([
+    { date: "2026-01-31", value: 100, invested: 100, cashFlow: 100 },
+    { date: "2026-02-01", value: 200, invested: 200, cashFlow: 200 },
+    { date: "2026-02-28", value: 220, invested: 200, cashFlow: 200 },
+  ]);
+
+  expect(result).toEqual([{ month: "2026-02", rate: 0.1 }]);
+});
+
 test("price-backed history excludes provider transactions whose ticker has no prices", () => {
   const priced = { tickerId: "priced" };
   const unpriced = { tickerId: "unpriced" };
@@ -319,6 +329,105 @@ test("keeps a later cash-flow-only investment after ledger history starts", asyn
   expect(forecast.series.contribution[0].mean).toBe(50);
 });
 
+test("does not double count a categorized buy when the ledger includes a fee", async () => {
+  const source = <T>(value: T) => async (): Promise<T> => value;
+  const sources: ForecastDataSources = {
+    netWorth: source({
+      baseCurrency: "EUR", total: 101, investments: 101,
+      holdings: [{ provider: "yahoo", priceDate: "2026-06-30", value: 101 }],
+    }),
+    netWorthHistory: source([]),
+    cashflow: source({
+      baseCurrency: "EUR", months: ["2026-06-01"], income: [], expense: [],
+      investment: [{ id: "investments", label: "Investments", values: [100] }],
+    }),
+    transactions: source([{
+      date: new Date("2026-06-30"), amount: 100, direction: "EXPENSE",
+      category: { name: "Investments" },
+    }]),
+    recurringRules: source([]),
+    investmentHistory: source([]),
+    investmentLedgerHistory: source([{
+      date: "2026-06-30", value: 101, invested: 101, cashFlow: 101,
+      cashFlowEvents: [{ date: "2026-06-30", side: "BUY", amount: 101, grossAmount: 100 }],
+    }]),
+  };
+
+  const forecast = await getFinancialForecast("owner-7", {
+    now: new Date("2026-06-30"), sources, seed: 1, simulations: 1, horizonMonths: 1,
+  });
+
+  expect(forecast.summary.averageMonthlyContribution).toBe(101);
+});
+
+test("keeps a zero net ledger month authoritative when it contains buy and sell activity", async () => {
+  const source = <T>(value: T) => async (): Promise<T> => value;
+  const sources: ForecastDataSources = {
+    netWorth: source({
+      baseCurrency: "EUR", total: 100, investments: 100,
+      holdings: [{ provider: "yahoo", priceDate: "2026-06-30", value: 100 }],
+    }),
+    netWorthHistory: source([]),
+    cashflow: source({
+      baseCurrency: "EUR", months: ["2026-06-01"], income: [], expense: [],
+      investment: [{ id: "investments", label: "Investments", values: [100] }],
+    }),
+    transactions: source([{
+      date: new Date("2026-06-30"), amount: 100, direction: "EXPENSE",
+      category: { name: "Investments" },
+    }]),
+    recurringRules: source([]),
+    investmentHistory: source([]),
+    investmentLedgerHistory: source([
+      { date: "2026-05-31", value: 0, invested: 0, cashFlow: 0 },
+      {
+        date: "2026-06-30", value: 0, invested: 0, cashFlow: 0, cashFlowActivity: true,
+        cashFlowEvents: [
+          { date: "2026-06-30", side: "BUY", amount: 100, grossAmount: 100 },
+          { date: "2026-06-30", side: "SELL", amount: -100, grossAmount: 100 },
+        ],
+      },
+    ]),
+  };
+
+  const forecast = await getFinancialForecast("owner-7", {
+    now: new Date("2026-06-30"), sources, seed: 1, simulations: 1, horizonMonths: 1,
+  });
+
+  expect(forecast.summary.averageMonthlyContribution).toBe(0);
+});
+
+test("retains an independent categorized buy alongside an opposite-sign ledger flow", async () => {
+  const source = <T>(value: T) => async (): Promise<T> => value;
+  const sources: ForecastDataSources = {
+    netWorth: source({
+      baseCurrency: "EUR", total: 50, investments: 50,
+      holdings: [{ provider: "yahoo", priceDate: "2026-06-30", value: 50 }],
+    }),
+    netWorthHistory: source([]),
+    cashflow: source({
+      baseCurrency: "EUR", months: ["2026-06-01"], income: [], expense: [],
+      investment: [{ id: "investments", label: "Investments", values: [100] }],
+    }),
+    transactions: source([{
+      date: new Date("2026-06-30"), amount: 100, direction: "EXPENSE",
+      category: { name: "Investments" },
+    }]),
+    recurringRules: source([]),
+    investmentHistory: source([]),
+    investmentLedgerHistory: source([{
+      date: "2026-06-30", value: 50, invested: 50, cashFlow: -50, cashFlowActivity: true,
+      cashFlowEvents: [{ date: "2026-06-30", side: "SELL", amount: -50, grossAmount: 50 }],
+    }]),
+  };
+
+  const forecast = await getFinancialForecast("owner-7", {
+    now: new Date("2026-06-30"), sources, seed: 1, simulations: 1, horizonMonths: 1,
+  });
+
+  expect(forecast.summary.averageMonthlyContribution).toBe(50);
+});
+
 test("withdrawals reduce a manual-only investment sleeve", () => {
   const forecast = buildFinancialForecast(
     baseInput({
@@ -369,7 +478,13 @@ test("uses the signed ledger flow for a buy followed by a larger same-month sale
     recurringRules: source([]),
     investmentHistory: source([]),
     investmentLedgerHistory: source([
-      { date: "2026-06-30", value: 0, invested: 0, cashFlow: -100 },
+      {
+        date: "2026-06-30", value: 0, invested: 0, cashFlow: -100, cashFlowActivity: true,
+        cashFlowEvents: [
+          { date: "2026-06-30", side: "BUY", amount: 100, grossAmount: 100 },
+          { date: "2026-06-30", side: "SELL", amount: -200, grossAmount: 200 },
+        ],
+      },
     ]),
   };
 
@@ -438,6 +553,39 @@ test("uses net-worth history when cash-flow and investment history are empty", a
   expect(forecast.assumptions.observationCount).toBe(2);
   expect(forecast.assumptions.components).toContain("net_worth_history_drives_non_investment_surplus");
   expect(forecast.series.surplus[0].mean).toBe(10);
+});
+
+test("merges non-investment history into ledger-only observations", async () => {
+  const source = <T>(value: T) => async (): Promise<T> => value;
+  const sources: ForecastDataSources = {
+    netWorth: source({
+      baseCurrency: "EUR", total: 1_200, investments: 100,
+      holdings: [{ provider: "yahoo", priceDate: "2026-06-30", value: 100 }],
+    }),
+    netWorthHistory: source([
+      {
+        date: "2026-05-31", cash: 1_000, credits: 0, otherAssets: 0,
+        investments: 0, debts: 0, totalValue: 1_000,
+      },
+      {
+        date: "2026-06-30", cash: 1_100, credits: 0, otherAssets: 0,
+        investments: 0, debts: 0, totalValue: 1_100,
+      },
+    ]),
+    cashflow: source({ baseCurrency: "EUR", months: [], income: [], expense: [], investment: [] }),
+    transactions: source([]),
+    recurringRules: source([]),
+    investmentHistory: source([]),
+    investmentLedgerHistory: source([{ date: "2026-05-31", value: 100, invested: 100, cashFlow: 100 }]),
+  };
+
+  const forecast = await getFinancialForecast("owner-7", {
+    now: new Date("2026-06-30"), sources, random: () => 0.999, simulations: 1, horizonMonths: 1,
+  });
+
+  expect(forecast.summary.averageMonthlyIncome).toBe(50);
+  expect(forecast.series.income[0].mean).toBe(100);
+  expect(forecast.series.surplus[0].mean).toBe(100);
 });
 
 test("mixed priced and unpriced holdings expose the flat fallback", async () => {
