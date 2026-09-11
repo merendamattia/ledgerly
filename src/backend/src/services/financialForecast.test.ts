@@ -104,6 +104,25 @@ test("compounds opening investments before adding end-of-month contributions", (
   expect(forecast.series.netWorth.map((point) => point.mean)).toEqual([1_100, 1_220]);
 });
 
+test("flat no-investment forecasts never apply historical returns to later contributions", () => {
+  const forecast = buildFinancialForecast(
+    baseInput({
+      current: { netWorth: 0, investments: 0, marketInvestments: 0, flatInvestments: 0 },
+      observations: [{
+        month: "2026-06", income: 0, expense: 0, contribution: 100,
+        recurringIncome: 0, recurringExpense: 0, recurringContribution: 0,
+      }],
+      portfolioReturns: [0.1],
+      returnFallback: "flat_no_investments",
+    }),
+    { seed: 1, simulations: 1, horizonMonths: 3 },
+  );
+
+  expect(forecast.series.return.map((point) => point.mean)).toEqual([0, 0, 0]);
+  expect(forecast.series.investment.map((point) => point.mean)).toEqual([100, 200, 300]);
+  expect(forecast.series.netWorth.map((point) => point.mean)).toEqual([0, 0, 0]);
+});
+
 test("adds known recurring movements deterministically and bootstraps only residual cash flow", () => {
   const forecast = buildFinancialForecast(
     baseInput({
@@ -156,6 +175,107 @@ test("returns an explicit safe no-history result", () => {
   const forecast = buildFinancialForecast(baseInput({ observations: [] }), { seed: 1 });
   expect(forecast.status).toBe("no_history");
   expect(Object.values(forecast.series).every((series) => series.length === 0)).toBe(true);
+});
+
+test("loads investment-ledger buys as contributions without a cash-flow row", async () => {
+  const source = <T>(value: T) => async (): Promise<T> => value;
+  const sources: ForecastDataSources = {
+    netWorth: source({
+      baseCurrency: "EUR", total: 100, investments: 100,
+      holdings: [{ provider: "yahoo", priceDate: "2026-06-30", value: 100 }],
+    }),
+    netWorthHistory: source([]),
+    cashflow: source({ baseCurrency: "EUR", months: [], income: [], expense: [], investment: [] }),
+    transactions: source([]),
+    recurringRules: source([]),
+    investmentHistory: source([]),
+    investmentLedgerHistory: source([{ date: "2026-06-30", value: 0, invested: 100 }]),
+  };
+
+  const forecast = await getFinancialForecast("owner-7", {
+    now: new Date("2026-06-30"), sources, seed: 1, simulations: 1, horizonMonths: 1,
+  });
+
+  expect(forecast.status).toBe("ready");
+  expect(forecast.summary.averageMonthlyContribution).toBe(100);
+  expect(forecast.series.contribution[0].mean).toBe(100);
+});
+
+test("loads investment-ledger sells as withdrawals", async () => {
+  const source = <T>(value: T) => async (): Promise<T> => value;
+  const sources: ForecastDataSources = {
+    netWorth: source({
+      baseCurrency: "EUR", total: 100, investments: 100,
+      holdings: [{ provider: "yahoo", priceDate: "2026-06-30", value: 100 }],
+    }),
+    netWorthHistory: source([]),
+    cashflow: source({ baseCurrency: "EUR", months: [], income: [], expense: [], investment: [] }),
+    transactions: source([]),
+    recurringRules: source([]),
+    investmentHistory: source([]),
+    investmentLedgerHistory: source([
+      { date: "2026-05-31", value: 100, invested: 100 },
+      { date: "2026-06-30", value: 50, invested: 50 },
+    ]),
+  };
+
+  const forecast = await getFinancialForecast("owner-7", {
+    now: new Date("2026-06-30"), sources, random: () => 0.9, simulations: 1, horizonMonths: 1,
+  });
+
+  expect(forecast.series.contribution[0].mean).toBe(-50);
+  expect(forecast.series.investment[0].mean).toBe(50);
+});
+
+test("does not double count a ledger buy mirrored by categorized cash flow", async () => {
+  const source = <T>(value: T) => async (): Promise<T> => value;
+  const sources: ForecastDataSources = {
+    netWorth: source({
+      baseCurrency: "EUR", total: 100, investments: 100,
+      holdings: [{ provider: "yahoo", priceDate: "2026-06-30", value: 100 }],
+    }),
+    netWorthHistory: source([]),
+    cashflow: source({
+      baseCurrency: "EUR", months: ["2026-06-01"], income: [], expense: [],
+      investment: [{ id: "investments", label: "Investments", values: [100] }],
+    }),
+    transactions: source([]),
+    recurringRules: source([]),
+    investmentHistory: source([]),
+    investmentLedgerHistory: source([{ date: "2026-06-30", value: 0, invested: 100 }]),
+  };
+
+  const forecast = await getFinancialForecast("owner-7", {
+    now: new Date("2026-06-30"), sources, seed: 1, simulations: 1, horizonMonths: 1,
+  });
+
+  expect(forecast.summary.averageMonthlyContribution).toBe(100);
+});
+
+test("forecasts portfolio history when regular cash-flow history is empty", async () => {
+  const source = <T>(value: T) => async (): Promise<T> => value;
+  const sources: ForecastDataSources = {
+    netWorth: source({
+      baseCurrency: "EUR", total: 110, investments: 110,
+      holdings: [{ provider: "yahoo", priceDate: "2026-06-30", value: 110 }],
+    }),
+    netWorthHistory: source([]),
+    cashflow: source({ baseCurrency: "EUR", months: [], income: [], expense: [], investment: [] }),
+    transactions: source([]),
+    recurringRules: source([]),
+    investmentHistory: source([
+      { date: "2026-05-31", value: 100, invested: 100 },
+      { date: "2026-06-30", value: 110, invested: 100 },
+    ]),
+  };
+
+  const forecast = await getFinancialForecast("owner-7", {
+    now: new Date("2026-06-30"), sources, seed: 1, simulations: 1, horizonMonths: 1,
+  });
+
+  expect(forecast.status).toBe("ready");
+  expect(forecast.assumptions.observationCount).toBe(2);
+  expect(forecast.series.return[0].mean).toBe(0.1);
 });
 
 test("the input loader passes the same owner id to every user-scoped source", async () => {

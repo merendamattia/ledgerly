@@ -9,6 +9,8 @@ export interface Quote {
   date: Date;
 }
 
+export type LatestPricesResolver = (tickerIds: string[]) => Promise<Map<string, Quote>>;
+
 function priceCacheKey(tickerId: string): string {
   return `price:${tickerId}:latest`;
 }
@@ -59,6 +61,14 @@ export async function latestPrices(tickerIds: string[]): Promise<Map<string, Quo
     }),
   );
   return quotes;
+}
+
+/** Latest persisted closes without reading or populating the Redis cache. */
+export async function latestStoredPrices(tickerIds: string[]): Promise<Map<string, Quote>> {
+  const rows = await priceRepository.latestByTickerIds([...new Set(tickerIds)]);
+  return new Map(
+    [...rows].map(([tickerId, row]) => [tickerId, { close: Number(row.close), date: row.date }]),
+  );
 }
 
 /**

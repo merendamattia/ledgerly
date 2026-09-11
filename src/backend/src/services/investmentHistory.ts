@@ -1,7 +1,7 @@
 import { settingsRepository } from "../repositories/settings.ts";
 import { investmentTransactionRepository } from "../repositories/investmentTransaction.ts";
 import { priceRepository } from "../repositories/price.ts";
-import { getFxRate } from "./market/fx.ts";
+import { getFxRate, type FxRateResolver } from "./market/fx.ts";
 
 export interface PortfolioPoint {
   date: string; // yyyy-mm-dd
@@ -24,8 +24,9 @@ function isoDay(d: Date): string {
  */
 export async function computeInvestmentHistory(
   userId: string,
-  options: { providerBackedOnly?: boolean } = {},
+  options: { providerBackedOnly?: boolean; resolveFxRate?: FxRateResolver } = {},
 ): Promise<PortfolioPoint[]> {
+  const resolveFxRate = options.resolveFxRate ?? getFxRate;
   const [allTransactions, baseCurrency] = await Promise.all([
     investmentTransactionRepository.listAll(userId),
     settingsRepository.baseCurrency(userId),
@@ -49,7 +50,7 @@ export async function computeInvestmentHistory(
         (await priceRepository.series(tickerId)).map((point) => ({ ...point, tickerId })),
       ),
     ).then((series) => series.flat()),
-    Promise.all(currencies.map(async (cur) => [cur, await getFxRate(cur, baseCurrency)] as const)),
+    Promise.all(currencies.map(async (cur) => [cur, (await resolveFxRate(cur, baseCurrency)) ?? 1] as const)),
   ]);
   const fxByCurrency = new Map<string, number>(fxEntries);
   const priceByTicker = new Map<string, { date: number; close: number }[]>();

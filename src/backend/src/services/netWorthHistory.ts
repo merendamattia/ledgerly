@@ -3,7 +3,7 @@ import { cashSnapshotRepository } from "../repositories/cashSnapshot.ts";
 import { cashAccountRepository } from "../repositories/cashAccount.ts";
 import { debtSnapshotRepository } from "../repositories/debtSnapshot.ts";
 import { debtRepository } from "../repositories/debt.ts";
-import { getFxRate } from "./market/fx.ts";
+import { getFxRate, type FxRateResolver } from "./market/fx.ts";
 import { computeInvestmentHistory } from "./investmentHistory.ts";
 
 export interface NetWorthPoint {
@@ -28,10 +28,17 @@ function isoDay(d: Date): string {
  * today. Investments come from price history; cash and debts are step functions
  * driven by their dated snapshots (a value applies from its snapshot day onward).
  */
-export async function computeNetWorthHistory(userId: string): Promise<NetWorthPoint[]> {
+export async function computeNetWorthHistory(
+  userId: string,
+  options: { resolveFxRate?: FxRateResolver; providerBackedInvestmentsOnly?: boolean } = {},
+): Promise<NetWorthPoint[]> {
+  const resolveFxRate = options.resolveFxRate ?? getFxRate;
   const [baseCurrency, inv, cashSnaps, debtSnaps, accounts, debtsRows] = await Promise.all([
     settingsRepository.baseCurrency(userId),
-    computeInvestmentHistory(userId),
+    computeInvestmentHistory(userId, {
+      providerBackedOnly: options.providerBackedInvestmentsOnly,
+      resolveFxRate,
+    }),
     cashSnapshotRepository.history(userId),
     debtSnapshotRepository.history(userId),
     cashAccountRepository.list(userId),
@@ -49,7 +56,7 @@ export async function computeNetWorthHistory(userId: string): Promise<NetWorthPo
     await Promise.all(
       [...currencies].map(async (currency) => [
         currency,
-        await getFxRate(currency, baseCurrency),
+        (await resolveFxRate(currency, baseCurrency)) ?? 1,
       ] as const),
     ),
   );
