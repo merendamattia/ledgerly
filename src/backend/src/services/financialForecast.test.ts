@@ -290,6 +290,69 @@ test("does not double count a ledger buy mirrored by categorized cash flow", asy
   expect(forecast.summary.averageMonthlyContribution).toBe(100);
 });
 
+test("keeps a later cash-flow-only investment after ledger history starts", async () => {
+  const source = <T>(value: T) => async (): Promise<T> => value;
+  const sources: ForecastDataSources = {
+    netWorth: source({
+      baseCurrency: "EUR", total: 100, investments: 100,
+      holdings: [{ provider: "yahoo", priceDate: "2026-06-30", value: 100 }],
+    }),
+    netWorthHistory: source([]),
+    cashflow: source({
+      baseCurrency: "EUR", months: ["2026-05-01", "2026-06-01"], income: [], expense: [],
+      investment: [{ id: "investments", label: "Investments", values: [0, 50] }],
+    }),
+    transactions: source([]),
+    recurringRules: source([]),
+    investmentHistory: source([]),
+    investmentLedgerHistory: source([
+      { date: "2026-05-31", value: 100, invested: 100 },
+      { date: "2026-06-30", value: 100, invested: 100 },
+    ]),
+  };
+
+  const forecast = await getFinancialForecast("owner-7", {
+    now: new Date("2026-06-30"), sources, random: () => 0.999, simulations: 1, horizonMonths: 1,
+  });
+
+  expect(forecast.summary.averageMonthlyContribution).toBe(75);
+  expect(forecast.series.contribution[0].mean).toBe(50);
+});
+
+test("withdrawals reduce a manual-only investment sleeve", () => {
+  const forecast = buildFinancialForecast(
+    baseInput({
+      current: { netWorth: 500, investments: 500, marketInvestments: 0, flatInvestments: 500 },
+      observations: [{
+        month: "2026-06", income: 0, expense: 0, contribution: -100,
+        recurringIncome: 0, recurringExpense: 0, recurringContribution: 0,
+      }],
+      portfolioReturns: [],
+      returnFallback: "flat_manual_or_missing_price",
+    }),
+    { simulations: 1, horizonMonths: 1 },
+  );
+
+  expect(forecast.series.investment[0].mean).toBe(400);
+});
+
+test("withdrawals beyond the market sleeve reduce the flat investment balance", () => {
+  const forecast = buildFinancialForecast(
+    baseInput({
+      current: { netWorth: 550, investments: 550, marketInvestments: 50, flatInvestments: 500 },
+      observations: [{
+        month: "2026-06", income: 0, expense: 0, contribution: -100,
+        recurringIncome: 0, recurringExpense: 0, recurringContribution: 0,
+      }],
+      portfolioReturns: [],
+      returnFallback: "flat_manual_or_missing_price",
+    }),
+    { simulations: 1, horizonMonths: 1 },
+  );
+
+  expect(forecast.series.investment[0].mean).toBe(450);
+});
+
 test("uses the signed ledger flow for a buy followed by a larger same-month sale", async () => {
   const source = <T>(value: T) => async (): Promise<T> => value;
   const sources: ForecastDataSources = {

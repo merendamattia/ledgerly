@@ -307,6 +307,26 @@ function observationAverage(
   ), 0) / observations.length);
 }
 
+function applyInvestmentFlow(
+  marketInvestments: number,
+  flatInvestments: number,
+  contribution: number,
+): { marketInvestments: number; flatInvestments: number } {
+  const market = Math.max(0, safe(marketInvestments));
+  const flat = Math.max(0, safe(flatInvestments));
+  const flow = safe(contribution);
+  if (flow >= 0) {
+    return { marketInvestments: safe(market + flow), flatInvestments: flat };
+  }
+
+  const total = safe(market + flat);
+  const withdrawal = Math.min(total, -flow);
+  const marketWithdrawal = Math.min(market, withdrawal);
+  const nextMarket = Math.max(0, safe(market - marketWithdrawal));
+  const nextFlat = Math.max(0, safe(total - withdrawal - nextMarket));
+  return { marketInvestments: nextMarket, flatInvestments: nextFlat };
+}
+
 /** Pure seeded Monte Carlo engine. Contributions are added after each month's return. */
 export function buildFinancialForecast(
   input: FinancialForecastInput,
@@ -366,7 +386,7 @@ export function buildFinancialForecast(
 
   for (let simulation = 0; simulation < simulations; simulation++) {
     let marketInvestments = Math.max(0, safe(input.current.marketInvestments));
-    const flatInvestments = Math.max(0, safe(input.current.flatInvestments));
+    let flatInvestments = Math.max(0, safe(input.current.flatInvestments));
     let cumulativeSurplus = 0;
     let cumulativeMarketGain = 0;
 
@@ -387,7 +407,12 @@ export function buildFinancialForecast(
         ? usableReturns[sampledIndex(random, usableReturns.length)]
         : 0;
       const marketGain = safe(marketInvestments * rate);
-      marketInvestments = Math.max(0, safe(marketInvestments + marketGain + contribution));
+      marketInvestments = Math.max(0, safe(marketInvestments + marketGain));
+      ({ marketInvestments, flatInvestments } = applyInvestmentFlow(
+        marketInvestments,
+        flatInvestments,
+        contribution,
+      ));
       cumulativeSurplus = safe(cumulativeSurplus + surplus);
       cumulativeMarketGain = safe(cumulativeMarketGain + marketGain);
       const investment = safe(marketInvestments + flatInvestments);
@@ -461,12 +486,21 @@ function cashflowObservations(
       month,
       income: index == null ? 0 : incomes[index],
       expense: index == null ? 0 : expenses[index],
-      contribution: ledgerContribution == null ? cashflowContribution : ledgerContribution,
+      contribution: reconcileInvestmentContributions(cashflowContribution, ledgerContribution),
       recurringIncome: known.income,
       recurringExpense: known.expense,
       recurringContribution: known.contribution,
     };
   }).slice(-LOOKBACK_MONTHS);
+}
+
+function reconcileInvestmentContributions(cashflowContribution: number, ledgerContribution?: number): number {
+  if (ledgerContribution == null || ledgerContribution === 0) return cashflowContribution;
+  if (cashflowContribution === 0 || cashflowContribution === ledgerContribution) return ledgerContribution;
+  // A categorized buy can mirror one leg of a same-month buy/sell pair. The
+  // signed ledger total is authoritative when the aggregate signs differ.
+  if (Math.sign(cashflowContribution) !== Math.sign(ledgerContribution)) return ledgerContribution;
+  return safe(cashflowContribution + ledgerContribution);
 }
 
 function portfolioMonthlyContributions(history: PortfolioPoint[]): Map<string, number> {
