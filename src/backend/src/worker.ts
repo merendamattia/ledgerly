@@ -1,11 +1,13 @@
 import { Worker } from "bullmq";
 import Redis from "ioredis";
 import type { AppleWalletJobData } from "./core/appleWalletQueue.ts";
-import { appleWalletQueueName, config } from "./core/config.ts";
+import { appleWalletQueueName, config, forecastQueueName } from "./core/config.ts";
+import type { ForecastJobData } from "./core/forecastQueue.ts";
 import { logger } from "./core/logger.ts";
 import { appleWalletImportRepository } from "./repositories/appleWalletImport.ts";
 import { recoverQueuedAppleWalletImports } from "./services/appleWalletImport.ts";
 import { processAppleWalletImport } from "./services/appleWalletWorker.ts";
+import { processForecastGeneration } from "./services/forecastGeneration.ts";
 
 const connection = new Redis(config.REDIS_URL, { maxRetriesPerRequest: null });
 const worker = new Worker<AppleWalletJobData>(
@@ -13,6 +15,11 @@ const worker = new Worker<AppleWalletJobData>(
   async (job) =>
     processAppleWalletImport(job.data.importId, job.attemptsMade + 1, job.opts.attempts ?? 1),
   { connection, concurrency: config.APPLE_PAY_WORKER_CONCURRENCY },
+);
+const forecastWorker = new Worker<ForecastJobData>(
+  forecastQueueName,
+  (job) => processForecastGeneration(job.data.queueJobId),
+  { connection, concurrency: 1 },
 );
 
 async function recoverQueuedImports() {
@@ -39,12 +46,17 @@ worker.on("failed", (job, error) => {
   }
 });
 worker.on("error", (error) => logger.error("Apple Wallet worker error", { error: String(error) }));
+forecastWorker.on("failed", (job, error) => {
+  logger.warn("Forecast generation failed", { jobId: job?.id, error: String(error) });
+});
+forecastWorker.on("error", (error) => logger.error("Forecast worker error", { error: String(error) }));
 
 logger.info("Apple Wallet worker started", { concurrency: config.APPLE_PAY_WORKER_CONCURRENCY, recovered });
 
 async function shutdown() {
   clearInterval(recoveryTimer);
   await worker.close();
+  await forecastWorker.close();
   await connection.quit();
 }
 

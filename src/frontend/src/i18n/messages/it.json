@@ -92,6 +92,8 @@
     "refreshFailed": "Non è stato possibile generare la nuova simulazione. La previsione precedente resta visibile.",
     "loadFailedTitle": "Previsione non disponibile",
     "loadFailedDescription": "Ledgerly non riesce a caricare l'ultima previsione. Riprova.",
+    "generatingTitle": "Generazione della prima previsione",
+    "generatingDescription": "Ledgerly sta creando la simulazione dallo storico finanziario registrato.",
     "emptyTitle": "Nessuna previsione generata",
     "emptyDescription": "Genera la prima simulazione dopo aver registrato lo storico finanziario.",
     "emptyMetricTitle": "Dati insufficienti per questo grafico",

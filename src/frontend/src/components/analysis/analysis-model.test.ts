@@ -101,7 +101,9 @@ describe("forecast view states", () => {
 
   test("distinguishes loading, no forecast and terminal error states", () => {
     expect(forecastViewState(undefined)).toBe("loading");
+    expect(forecastViewState(undefined, { isError: true })).toBe("error");
     expect(forecastViewState({ status: "EMPTY", snapshot: null })).toBe("empty");
+    expect(forecastViewState({ status: "GENERATING", snapshot: null })).toBe("refreshing");
     expect(forecastViewState({ status: "FAILED", snapshot: null, error: "failed" })).toBe("error");
   });
 });

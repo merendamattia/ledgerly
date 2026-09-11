@@ -1,56 +1,13 @@
+import type {
+  ForecastPoint,
+  ForecastResponse,
+  ForecastSnapshot,
+  HistoricalPoint,
+} from "@/lib/forecast-contract";
+
 export const FORECAST_HORIZONS = [1, 2, 5, 10, 15, 20] as const;
 export type ForecastHorizon = (typeof FORECAST_HORIZONS)[number];
-
-export type ForecastPoint = {
-  date: string;
-  mean: number;
-  p10: number;
-  p25: number;
-  p50: number;
-  p75: number;
-  p90: number;
-};
-
-export type HistoricalPoint = { date: string; value: number; contribution?: number };
-
-export type ForecastSnapshot = {
-  id: string;
-  generatedAt: string;
-  sourceDataCutoff: string;
-  currency: string;
-  effectiveLookbackMonths: number;
-  observationCount: number;
-  simulationCount: number;
-  dataQuality: "HIGH" | "MEDIUM" | "LOW";
-  assumptions: string[];
-  history: {
-    netWorth: HistoricalPoint[];
-    income: HistoricalPoint[];
-    expenses: HistoricalPoint[];
-    investments: HistoricalPoint[];
-  };
-  series: {
-    netWorth: ForecastPoint[];
-    income: ForecastPoint[];
-    expenses: ForecastPoint[];
-    investments: ForecastPoint[];
-    contributions: ForecastPoint[];
-  };
-  summary: {
-    startingNetWorth: number;
-    savingsContribution: number;
-    investmentReturnContribution: number;
-    startingPortfolioValue: number;
-    historicalInvestmentReturnRate: number | null;
-    historicalInvestmentReturnMonths: number;
-  };
-};
-
-export type ForecastResponse = {
-  status: "EMPTY" | "GENERATING" | "READY" | "FAILED";
-  snapshot: ForecastSnapshot | null;
-  error?: string | null;
-};
+export type { ForecastPoint, ForecastResponse, ForecastSnapshot, HistoricalPoint };
 
 export type ForecastViewState =
   | "loading"
@@ -91,9 +48,14 @@ export function sliceForecast(snapshot: ForecastSnapshot, years: ForecastHorizon
 }
 
 /** Derives the rendering state without discarding a valid previous forecast. */
-export function forecastViewState(response?: ForecastResponse): ForecastViewState {
+export function forecastViewState(
+  response?: ForecastResponse,
+  query: { isLoading?: boolean; isError?: boolean } = {},
+): ForecastViewState {
+  if (query.isError && !response) return "error";
+  if (query.isLoading) return "loading";
   if (!response) return "loading";
-  if (response.status === "GENERATING" && response.snapshot) return "refreshing";
+  if (response.status === "GENERATING") return "refreshing";
   if (response.status === "FAILED" && response.snapshot) return "stale-error";
   if (response.status === "FAILED") return "error";
   if (!response.snapshot) return "empty";

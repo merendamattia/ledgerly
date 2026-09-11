@@ -93,6 +93,8 @@
     "refreshFailed": "The new simulation could not be generated. The previous forecast is still shown.",
     "loadFailedTitle": "Forecast unavailable",
     "loadFailedDescription": "Ledgerly could not load the latest forecast. Try again.",
+    "generatingTitle": "Generating your first forecast",
+    "generatingDescription": "Ledgerly is building the simulation from your recorded financial history.",
     "emptyTitle": "No forecast generated yet",
     "emptyDescription": "Generate the first simulation after recording financial history.",
     "emptyMetricTitle": "Not enough data for this graph",

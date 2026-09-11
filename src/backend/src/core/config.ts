@@ -52,3 +52,4 @@ if (!parsed.success) {
 export const config = parsed.data;
 export type Config = typeof config;
 export const appleWalletQueueName = `ledgerly-${config.APP_ENV}-apple-wallet-imports`;
+export const forecastQueueName = `ledgerly-${config.APP_ENV}-financial-forecasts`;

@@ -168,7 +168,10 @@ export default function AnalysisPage() {
   const refresh = useRefreshForecast();
   const { privateText } = usePrivateNumberFormatter();
   const response = forecast.data;
-  const state = forecast.isLoading ? "loading" : forecastViewState(response);
+  const state = forecastViewState(response, {
+    isLoading: forecast.isLoading,
+    isError: forecast.isError,
+  });
   const snapshot = response?.snapshot ?? null;
   const isRefreshing = refresh.isPending || response?.status === "GENERATING";
 
@@ -226,7 +229,8 @@ export default function AnalysisPage() {
   );
 
   if (!snapshot) {
-    const failed = state === "error" || forecast.isError;
+    const failed = state === "error";
+    const generating = state === "refreshing";
     return (
       <div className="flex flex-col gap-5 animate-fu">
         <PageHeader title={t("title")} description={t("description")} action={refreshButton} />
@@ -234,10 +238,18 @@ export default function AnalysisPage() {
           <CardContent>
             <Empty className="min-h-[360px]">
               <EmptyHeader>
-                <EmptyMedia variant="icon">{failed ? <AlertTriangle /> : <ChartSpline />}</EmptyMedia>
-                <EmptyTitle>{failed ? t("loadFailedTitle") : t("emptyTitle")}</EmptyTitle>
+                <EmptyMedia variant="icon">
+                  {failed ? <AlertTriangle /> : generating ? <Spinner /> : <ChartSpline />}
+                </EmptyMedia>
+                <EmptyTitle>
+                  {failed ? t("loadFailedTitle") : generating ? t("generatingTitle") : t("emptyTitle")}
+                </EmptyTitle>
                 <EmptyDescription>
-                  {failed ? t("loadFailedDescription") : t("emptyDescription")}
+                  {failed
+                    ? t("loadFailedDescription")
+                    : generating
+                      ? t("generatingDescription")
+                      : t("emptyDescription")}
                 </EmptyDescription>
               </EmptyHeader>
               <EmptyContent>

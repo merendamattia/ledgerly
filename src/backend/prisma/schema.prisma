@@ -44,6 +44,7 @@ model User {
   appleWalletImports     AppleWalletImport[]
   notifications          Notification[]
   pushSubscriptions      PushSubscription[]
+  forecast               UserForecast?
 
   @@map("user")
 }
@@ -148,6 +149,14 @@ enum AppleWalletImportStatus {
   FAILED
 }
 
+enum ForecastGenerationStatus {
+  IDLE
+  QUEUED
+  RUNNING
+  READY
+  FAILED
+}
+
 /// The cadence unit of a recurring expense (paired with an integer count, e.g.
 /// 30 + DAY = "every 30 days", 2 + WEEK, 1 + MONTH).
 enum RecurInterval {
@@ -174,6 +183,25 @@ model Settings {
   lastSeenReleaseVersion   String?
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
+}
+
+/// Latest valid forecast plus the durable state of its replacement job.
+model UserForecast {
+  id               String                   @id @default(cuid())
+  userId           String                   @unique
+  user             User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status           ForecastGenerationStatus @default(IDLE)
+  snapshotId       String?                  @unique
+  payload          Json?
+  generatedAt      DateTime?
+  sourceDataCutoff DateTime?
+  queueJobId       String?                  @unique
+  lastError        String?
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+
+  @@index([status, updatedAt])
+  @@map("user_forecast")
 }
 
 /// One active, user-owned token for narrow external integrations.
