@@ -167,7 +167,7 @@ export function mulberry32(seed: number): () => number {
  * Modified Dietz fallback when exact intramonth flow timing is unavailable.
  */
 export function computeFlowAdjustedMonthlyReturns(
-  points: { date: string; value: number; invested: number }[],
+  points: { date: string; value: number; netContributions: number }[],
 ): number[] {
   const monthEnds = new Map<string, (typeof points)[number]>();
   for (const point of points) monthEnds.set(point.date.slice(0, 7), point);
@@ -176,7 +176,7 @@ export function computeFlowAdjustedMonthlyReturns(
   for (let index = 1; index < ordered.length; index++) {
     const start = ordered[index - 1];
     const end = ordered[index];
-    const flow = finite(end.invested - start.invested);
+    const flow = finite(end.netContributions - start.netContributions);
     const denominator = start.value + flow * 0.5;
     if (denominator <= 0) continue;
     const value = (end.value - start.value - flow) / denominator;

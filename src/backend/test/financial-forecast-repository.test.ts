@@ -9,6 +9,8 @@ const users = [
   `forecast-b-${suffix}`,
   `forecast-recovery-${suffix}`,
   `analysis-recovery-${suffix}`,
+  `forecast-recovery-race-${suffix}`,
+  `analysis-recovery-race-${suffix}`,
 ];
 
 const payload = {
@@ -183,4 +185,77 @@ test("recovery makes stale interpretation claims retryable and republishes them"
       recoveredInterpretation.queueJobId,
     ),
   ).toBe(true);
+});
+
+test("forecast completion between recovery scan and transition is not reset", async () => {
+  const queueJobId = "forecast-completion-race";
+  const startedAt = new Date("2020-01-01T00:00:00.000Z");
+  expect(await financialForecastRepository.requestGeneration(users[4], queueJobId)).toBe(true);
+  expect(await financialForecastRepository.claimGeneration(users[4], queueJobId)).toBe(true);
+  const staleClaim = await prisma.financialForecastState.update({
+    where: { userId: users[4] },
+    data: { startedAt },
+    select: { id: true, startedAt: true },
+  });
+  if (!staleClaim.startedAt) throw new Error("Expected a running forecast claim");
+
+  const completed = await financialForecastRepository.completeGeneration(users[4], queueJobId, {
+    dataCutoff: new Date("2026-09-12T00:00:00.000Z"),
+    effectiveLookbackMonths: 1,
+    observationMonths: 1,
+    simulationCount: 10,
+    maxHorizonMonths: 240,
+    seed: 3,
+    payload,
+  });
+  const recoveredJobId = await financialForecastRepository.recoverStaleGenerationClaim(
+    staleClaim.id,
+    staleClaim.startedAt,
+  );
+
+  expect(recoveredJobId).toBeNull();
+  expect(await prisma.financialForecastState.findUniqueOrThrow({
+    where: { userId: users[4] },
+  })).toMatchObject({ status: "COMPLETED", queueJobId });
+  expect(await prisma.financialForecastSnapshot.findUnique({ where: { id: completed.id } })).not.toBeNull();
+});
+
+test("interpretation completion between recovery scan and transition is not reset", async () => {
+  const queueJobId = "analysis-completion-race";
+  const startedAt = new Date("2020-01-01T00:00:00.000Z");
+  const snapshot = await prisma.financialForecastSnapshot.create({
+    data: {
+      userId: users[5],
+      dataCutoff: new Date("2026-09-12T00:00:00.000Z"),
+      effectiveLookbackMonths: 1,
+      observationMonths: 1,
+      simulationCount: 10,
+      maxHorizonMonths: 240,
+      seed: 4,
+      payload,
+      analysisQueueJobId: queueJobId,
+    },
+  });
+  expect(await financialForecastRepository.claimAnalysis(snapshot.id, queueJobId)).toBe(true);
+  const staleClaim = await prisma.financialForecastSnapshot.update({
+    where: { id: snapshot.id },
+    data: { analysisStartedAt: startedAt },
+    select: { id: true, analysisStartedAt: true },
+  });
+  if (!staleClaim.analysisStartedAt) throw new Error("Expected a running interpretation claim");
+
+  await financialForecastRepository.completeAnalysis(snapshot.id, queueJobId, payload);
+  const recoveredJobId = await financialForecastRepository.recoverStaleInterpretationClaim(
+    staleClaim.id,
+    staleClaim.analysisStartedAt,
+  );
+
+  expect(recoveredJobId).toBeNull();
+  expect(await prisma.financialForecastSnapshot.findUniqueOrThrow({
+    where: { id: snapshot.id },
+  })).toMatchObject({
+    analysisStatus: "COMPLETED",
+    analysisQueueJobId: queueJobId,
+    analysisContent: payload,
+  });
 });

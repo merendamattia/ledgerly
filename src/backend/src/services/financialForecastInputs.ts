@@ -64,7 +64,7 @@ function returnSummary(returns: number[]): InvestmentReturnSummary {
 
 /** Missing prices leave zero-valued history that must not become a -99% market return. */
 export function buildInvestmentReturnModel(
-  monthEnds: { date: string; value: number; invested: number }[],
+  monthEnds: { date: string; value: number; netContributions: number }[],
 ): { returns: number[]; summary: InvestmentReturnSummary } {
   const hasMarketValue = monthEnds.some((point) => point.value > 0 && Number.isFinite(point.value));
   const returns = hasMarketValue

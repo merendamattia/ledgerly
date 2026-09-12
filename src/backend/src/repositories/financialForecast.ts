@@ -85,84 +85,96 @@ export const financialForecastRepository = {
     });
   },
 
+  async recoverStaleGenerationClaim(id: string, startedAt: Date): Promise<string | null> {
+    const queueJobId = crypto.randomUUID();
+    const recovered = await prisma.financialForecastState.updateMany({
+      where: { id, status: "RUNNING", startedAt },
+      data: {
+        status: "PENDING",
+        queueJobId,
+        startedAt: null,
+        failedAt: null,
+        lastError: "Financial forecast worker claim expired",
+      },
+    });
+    return recovered.count === 1 ? queueJobId : null;
+  },
+
+  async recoverStaleInterpretationClaim(id: string, startedAt: Date): Promise<string | null> {
+    const queueJobId = crypto.randomUUID();
+    const recovered = await prisma.financialForecastSnapshot.updateMany({
+      where: { id, analysisStatus: "RUNNING", analysisStartedAt: startedAt },
+      data: {
+        analysisStatus: "PENDING",
+        analysisQueueJobId: queueJobId,
+        analysisStartedAt: null,
+        analysisFailedAt: null,
+        analysisError: "Financial interpretation worker claim expired",
+      },
+    });
+    return recovered.count === 1 ? queueJobId : null;
+  },
+
   /** Releases expired claims and returns every durable item awaiting delivery. */
   async prepareRecovery(staleBefore: Date) {
-    return prisma.$transaction(async (tx) => {
-      const staleGenerations = await tx.financialForecastState.findMany({
-        where: { status: "RUNNING", startedAt: { lte: staleBefore } },
-        select: { id: true },
-      });
-      for (const { id } of staleGenerations) {
-        await tx.financialForecastState.update({
-          where: { id },
-          data: {
-            status: "PENDING",
-            queueJobId: crypto.randomUUID(),
-            startedAt: null,
-            failedAt: null,
-            lastError: "Financial forecast worker claim expired",
-          },
-        });
-      }
-      const staleInterpretations = await tx.financialForecastSnapshot.findMany({
-        where: { analysisStatus: "RUNNING", analysisStartedAt: { lte: staleBefore } },
-        select: { id: true },
-      });
-      for (const { id } of staleInterpretations) {
-        await tx.financialForecastSnapshot.update({
-          where: { id },
-          data: {
-            analysisStatus: "PENDING",
-            analysisQueueJobId: crypto.randomUUID(),
-            analysisStartedAt: null,
-            analysisFailedAt: null,
-            analysisError: "Financial interpretation worker claim expired",
-          },
-        });
-      }
-      const unassignedInterpretations = await tx.financialForecastSnapshot.findMany({
-        where: { analysisStatus: "PENDING", analysisQueueJobId: null },
-        select: { id: true },
-      });
-      for (const { id } of unassignedInterpretations) {
-        await tx.financialForecastSnapshot.update({
-          where: { id },
-          data: { analysisQueueJobId: crypto.randomUUID() },
-        });
-      }
-      const [generationRows, interpretationRows] = await Promise.all([
-        tx.financialForecastState.findMany({
-          where: { status: "PENDING", queueJobId: { not: null } },
-          orderBy: { requestedAt: "asc" },
-          select: { userId: true, queueJobId: true },
-        }),
-        tx.financialForecastSnapshot.findMany({
-          where: { analysisStatus: "PENDING", analysisQueueJobId: { not: null } },
-          orderBy: { generatedAt: "asc" },
-          select: {
-            id: true,
-            userId: true,
-            analysisQueueJobId: true,
-            user: { select: { settings: { select: { locale: true } } } },
-          },
-        }),
-      ]);
-      return {
-        generations: generationRows.flatMap(({ userId, queueJobId }) =>
-          queueJobId ? [{ userId, generationId: queueJobId }] : [],
-        ),
-        interpretations: interpretationRows.flatMap(({ id, userId, analysisQueueJobId, user }) =>
-          analysisQueueJobId
-            ? [{
-                userId,
-                snapshotId: id,
-                queueJobId: analysisQueueJobId,
-                locale: user.settings[0]?.locale === "it" ? "it" as const : "en" as const,
-              }]
-            : [],
-        ),
-      };
+    const staleGenerations = await prisma.financialForecastState.findMany({
+      where: { status: "RUNNING", startedAt: { lte: staleBefore } },
+      select: { id: true, startedAt: true },
     });
+    for (const { id, startedAt } of staleGenerations) {
+      if (startedAt) await financialForecastRepository.recoverStaleGenerationClaim(id, startedAt);
+    }
+    const staleInterpretations = await prisma.financialForecastSnapshot.findMany({
+      where: { analysisStatus: "RUNNING", analysisStartedAt: { lte: staleBefore } },
+      select: { id: true, analysisStartedAt: true },
+    });
+    for (const { id, analysisStartedAt } of staleInterpretations) {
+      if (analysisStartedAt) {
+        await financialForecastRepository.recoverStaleInterpretationClaim(id, analysisStartedAt);
+      }
+    }
+    const unassignedInterpretations = await prisma.financialForecastSnapshot.findMany({
+      where: { analysisStatus: "PENDING", analysisQueueJobId: null },
+      select: { id: true },
+    });
+    for (const { id } of unassignedInterpretations) {
+      await prisma.financialForecastSnapshot.updateMany({
+        where: { id, analysisStatus: "PENDING", analysisQueueJobId: null },
+        data: { analysisQueueJobId: crypto.randomUUID() },
+      });
+    }
+    const [generationRows, interpretationRows] = await Promise.all([
+      prisma.financialForecastState.findMany({
+        where: { status: "PENDING", queueJobId: { not: null } },
+        orderBy: { requestedAt: "asc" },
+        select: { userId: true, queueJobId: true },
+      }),
+      prisma.financialForecastSnapshot.findMany({
+        where: { analysisStatus: "PENDING", analysisQueueJobId: { not: null } },
+        orderBy: { generatedAt: "asc" },
+        select: {
+          id: true,
+          userId: true,
+          analysisQueueJobId: true,
+          user: { select: { settings: { select: { locale: true } } } },
+        },
+      }),
+    ]);
+    return {
+      generations: generationRows.flatMap(({ userId, queueJobId }) =>
+        queueJobId ? [{ userId, generationId: queueJobId }] : [],
+      ),
+      interpretations: interpretationRows.flatMap(({ id, userId, analysisQueueJobId, user }) =>
+        analysisQueueJobId
+          ? [{
+              userId,
+              snapshotId: id,
+              queueJobId: analysisQueueJobId,
+              locale: user.settings[0]?.locale === "it" ? "it" as const : "en" as const,
+            }]
+          : [],
+      ),
+    };
   },
 
   async latestForUser(userId: string) {

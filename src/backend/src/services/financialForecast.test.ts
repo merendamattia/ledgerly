@@ -219,9 +219,9 @@ test("forecast remains finite with no investments and sparse cash-flow history",
 
 test("flow-adjusted returns treat contributions as flows, not performance", () => {
   const returns = computeFlowAdjustedMonthlyReturns([
-    { date: "2026-01-31", value: 100, invested: 100 },
-    { date: "2026-02-28", value: 150, invested: 150 },
-    { date: "2026-03-31", value: 165, invested: 150 },
+    { date: "2026-01-31", value: 100, netContributions: 100 },
+    { date: "2026-02-28", value: 150, netContributions: 150 },
+    { date: "2026-03-31", value: 165, netContributions: 150 },
   ]);
 
   expect(returns).toEqual([0, 0.1]);

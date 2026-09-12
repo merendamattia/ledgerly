@@ -9,6 +9,7 @@ export interface PortfolioPoint {
   date: string; // yyyy-mm-dd
   value: number; // market value in base currency
   invested: number; // cumulative net cost basis in base currency
+  netContributions: number; // cumulative signed gross principal flows in base currency
 }
 
 /**
@@ -53,7 +54,10 @@ export async function computeInvestmentHistory(
   const fxByCurrency = new Map<string, number>(fxEntries);
   const priceByTicker = new Map<string, { date: number; close: number }[]>();
   // Ascending signed-quantity events per ticker.
-  const txByTicker = new Map<string, { date: number; qty: number; cost: number }[]>();
+  const txByTicker = new Map<
+    string,
+    { date: number; qty: number; cost: number; netContribution: number }[]
+  >();
   for (const id of tickerIds) {
     priceByTicker.set(id, []);
     txByTicker.set(id, []);
@@ -67,7 +71,15 @@ export async function computeInvestmentHistory(
     // Net invested: + (qty*price+fee) on buy, − (qty*price−fee) on sell.
     const gross = Number(t.quantity) * Number(t.price);
     const cost = (t.side === "BUY" ? gross + Number(t.fee) : -(gross - Number(t.fee))) * fx;
-    txByTicker.get(t.tickerId)!.push({ date: t.date.getTime(), qty: signedQty, cost });
+    // Market flows use signed gross principal. Fees affect net worth separately
+    // and must never be mistaken for portfolio performance.
+    const netContribution = (t.side === "BUY" ? gross : -gross) * fx;
+    txByTicker.get(t.tickerId)!.push({
+      date: t.date.getTime(),
+      qty: signedQty,
+      cost,
+      netContribution,
+    });
   }
 
   const startMs = txs[0].date.getTime();
@@ -85,6 +97,7 @@ export async function computeInvestmentHistory(
     heldQty.set(id, 0);
   }
   let invested = 0;
+  let netContributions = 0;
 
   const points: PortfolioPoint[] = [];
   const day = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate()));
@@ -99,6 +112,7 @@ export async function computeInvestmentHistory(
       while (tp < events.length && events[tp].date <= dayMs) {
         q += events[tp].qty;
         invested += events[tp].cost;
+        netContributions += events[tp].netContribution;
         tp++;
       }
       txPtr.set(id, tp);
@@ -115,7 +129,12 @@ export async function computeInvestmentHistory(
         value += q * ph[pp].close * fx;
       }
     }
-    points.push({ date: isoDay(day), value, invested: Math.max(0, invested) });
+    points.push({
+      date: isoDay(day),
+      value,
+      invested: Math.max(0, invested),
+      netContributions,
+    });
   }
   return points;
 }

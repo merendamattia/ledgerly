@@ -108,8 +108,8 @@ test("categorized investment expenses already represented by ledger buys are not
 
 test("missing portfolio prices use the zero-return fallback instead of treating contributions as losses", () => {
   const model = buildInvestmentReturnModel([
-    { date: "2026-01-31", value: 0, invested: 100 },
-    { date: "2026-02-28", value: 0, invested: 200 },
+    { date: "2026-01-31", value: 0, netContributions: 100 },
+    { date: "2026-02-28", value: 0, netContributions: 200 },
   ]);
 
   expect(model).toEqual({
@@ -122,6 +122,31 @@ test("missing portfolio prices use the zero-return fallback instead of treating 
       fallback: "NO_RELIABLE_MARKET_HISTORY",
     },
   });
+});
+
+test("profitable liquidation and fees stay outside portfolio market returns", () => {
+  const sale = investmentLedgerContribution(
+    {
+      date: new Date("2026-02-10T00:00:00.000Z"),
+      side: "SELL",
+      quantity: 1,
+      price: 150,
+      fee: 5,
+    },
+    1,
+  );
+  const model = buildInvestmentReturnModel([
+    { date: "2026-01-31", value: 200, netContributions: 100 },
+    {
+      date: "2026-02-28",
+      value: 50,
+      netContributions: 100 + sale.principalAmount,
+    },
+  ]);
+
+  expect(sale).toMatchObject({ principalAmount: -150, feeAmount: 5 });
+  expect(model.returns).toEqual([0]);
+  expect(model.summary.annualizedArithmeticReturn).toBe(0);
 });
 
 test("investment contribution conversion uses the supplied persisted FX resolver", async () => {
