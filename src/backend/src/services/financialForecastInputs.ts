@@ -1,9 +1,11 @@
 import { recurringExpenseRepository } from "../repositories/recurringExpense.ts";
+import { investmentTransactionRepository } from "../repositories/investmentTransaction.ts";
 import { settingsRepository } from "../repositories/settings.ts";
 import { transactionRepository } from "../repositories/transaction.ts";
 import { isInvestmentCategoryName } from "../utils/category.ts";
 import { computeNextDate } from "./recurring.ts";
 import { computeInvestmentHistory } from "./investmentHistory.ts";
+import { getFxRateOn } from "./market/fx.ts";
 import { computeNetWorthHistory } from "./netWorthHistory.ts";
 import { computeNetWorth } from "./valuation.ts";
 import {
@@ -60,10 +62,49 @@ function returnSummary(returns: number[]): InvestmentReturnSummary {
   };
 }
 
-type TransactionRow = Awaited<ReturnType<typeof transactionRepository.listAll>>[number];
+type ForecastCashflowTransaction = {
+  date: Date;
+  direction: "INCOME" | "EXPENSE";
+  amount: unknown;
+  recurringExpenseId: string | null;
+  category?: { name: string } | null;
+};
 
-function cashflowHistory(transactions: TransactionRow[], cutoff: Date) {
-  if (transactions.length === 0) {
+export type InvestmentContributionFlow = {
+  date: Date;
+  buyAmount: number;
+  netAmount: number;
+};
+
+export function investmentLedgerContribution(
+  transaction: {
+    date: Date;
+    side: "BUY" | "SELL";
+    quantity: unknown;
+    price: unknown;
+    fee: unknown;
+  },
+  baseCurrencyRate: number,
+): InvestmentContributionFlow {
+  const gross = Number(transaction.quantity) * Number(transaction.price);
+  const fee = Number(transaction.fee);
+  const buyAmount =
+    transaction.side === "BUY" ? (gross + fee) * baseCurrencyRate : 0;
+  const netAmount =
+    transaction.side === "BUY" ? buyAmount : -(gross - fee) * baseCurrencyRate;
+  return { date: transaction.date, buyAmount, netAmount };
+}
+
+/** Combines categorized transfers with the authoritative investment ledger. */
+export function aggregateForecastCashflows(
+  transactions: ForecastCashflowTransaction[],
+  investmentFlows: InvestmentContributionFlow[],
+  cutoff: Date,
+) {
+  const firstDate = [...transactions, ...investmentFlows]
+    .filter(({ date }) => date.getTime() <= cutoff.getTime())
+    .reduce<Date | null>((first, row) => (!first || row.date < first ? row.date : first), null);
+  if (!firstDate) {
     return {
       observations: [] as MonthlyObservation[],
       income: [] as MonthlyAmount[],
@@ -71,7 +112,7 @@ function cashflowHistory(transactions: TransactionRow[], cutoff: Date) {
       contributions: [] as MonthlyAmount[],
     };
   }
-  const months = monthRange(transactions[0].date, cutoff);
+  const months = monthRange(firstDate, cutoff);
   const total = new Map(
     months.map((month) => [
       month,
@@ -84,6 +125,11 @@ function cashflowHistory(transactions: TransactionRow[], cutoff: Date) {
       { income: 0, expenses: 0, investmentContributions: 0 },
     ]),
   );
+  const categorized = new Map(months.map((month) => [month, 0]));
+  const variableCategorized = new Map(months.map((month) => [month, 0]));
+  const recurringCategorized = new Map(months.map((month) => [month, 0]));
+  const ledgerBuys = new Map(months.map((month) => [month, 0]));
+  const ledgerNet = new Map(months.map((month) => [month, 0]));
   for (const transaction of transactions) {
     if (transaction.date.getTime() > cutoff.getTime()) continue;
     const key = monthKey(transaction.date);
@@ -98,12 +144,33 @@ function cashflowHistory(transactions: TransactionRow[], cutoff: Date) {
       all.income += Number(transaction.amount);
       if (target) target.income += Number(transaction.amount);
     } else if (investment) {
-      all.investmentContributions += Number(transaction.amount);
-      if (target) target.investmentContributions += Number(transaction.amount);
+      const amount = Number(transaction.amount);
+      categorized.set(key, categorized.get(key)! + amount);
+      if (target) variableCategorized.set(key, variableCategorized.get(key)! + amount);
+      else recurringCategorized.set(key, recurringCategorized.get(key)! + amount);
     } else {
       all.expenses += Number(transaction.amount);
       if (target) target.expenses += Number(transaction.amount);
     }
+  }
+  for (const flow of investmentFlows) {
+    if (flow.date.getTime() > cutoff.getTime()) continue;
+    const key = monthKey(flow.date);
+    if (!ledgerNet.has(key)) continue;
+    ledgerBuys.set(key, ledgerBuys.get(key)! + flow.buyAmount);
+    ledgerNet.set(key, ledgerNet.get(key)! + flow.netAmount);
+  }
+  for (const month of months) {
+    const buys = ledgerBuys.get(month)!;
+    const sells = ledgerNet.get(month)! - buys;
+    const totalContributions = ledgerNet.get(month)! + Math.max(0, categorized.get(month)! - buys);
+    const unmatchedLedgerBuys = Math.max(0, buys - recurringCategorized.get(month)!);
+    const variableContributions =
+      sells +
+      unmatchedLedgerBuys +
+      Math.max(0, variableCategorized.get(month)! - unmatchedLedgerBuys);
+    total.get(month)!.investmentContributions = totalContributions;
+    variable.get(month)!.investmentContributions = variableContributions;
   }
   const lookback = months.slice(-FINANCIAL_FORECAST_LOOKBACK_MONTHS);
   return {
@@ -115,6 +182,32 @@ function cashflowHistory(transactions: TransactionRow[], cutoff: Date) {
       value: total.get(date)!.investmentContributions,
     })),
   };
+}
+
+type InvestmentTransactionRow = Awaited<
+  ReturnType<typeof investmentTransactionRepository.listAll>
+>[number];
+
+async function investmentContributionFlows(
+  transactions: InvestmentTransactionRow[],
+  baseCurrency: string,
+): Promise<InvestmentContributionFlow[]> {
+  const rateByCurrencyAndDay = new Map<string, Promise<number>>();
+  const rateFor = (currency: string, date: Date) => {
+    const key = `${currency}:${date.toISOString().slice(0, 10)}`;
+    let rate = rateByCurrencyAndDay.get(key);
+    if (!rate) {
+      rate = getFxRateOn(currency, baseCurrency, date);
+      rateByCurrencyAndDay.set(key, rate);
+    }
+    return rate;
+  };
+  return Promise.all(
+    transactions.map(async (transaction) => {
+      const rate = await rateFor(transaction.ticker.currency, transaction.date);
+      return investmentLedgerContribution(transaction, rate);
+    }),
+  );
 }
 
 type RecurringRow = Awaited<ReturnType<typeof recurringExpenseRepository.list>>[number];
@@ -164,16 +257,21 @@ function recurringForecast(
 /** Loads and aggregates the authoritative persisted inputs for one user. */
 export async function loadFinancialForecastInputs(userId: string, cutoff = new Date()) {
   const day = new Date(Date.UTC(cutoff.getUTCFullYear(), cutoff.getUTCMonth(), cutoff.getUTCDate()));
-  const [settings, current, netWorthHistory, investmentHistory, transactions, recurring] =
+  const [settings, current, netWorthHistory, investmentHistory, transactions, investmentTransactions, recurring] =
     await Promise.all([
       settingsRepository.get(userId),
       computeNetWorth(userId),
       computeNetWorthHistory(userId),
       computeInvestmentHistory(userId),
       transactionRepository.listAll(userId),
+      investmentTransactionRepository.listAll(userId),
       recurringExpenseRepository.list(userId),
     ]);
-  const cashflow = cashflowHistory(transactions, day);
+  const contributionFlows = await investmentContributionFlows(
+    investmentTransactions,
+    settings.baseCurrency,
+  );
+  const cashflow = aggregateForecastCashflows(transactions, contributionFlows, day);
   const investmentMonthEnds = compressMonthEnds(investmentHistory);
   const investmentReturns = computeFlowAdjustedMonthlyReturns(investmentMonthEnds).slice(
     -FINANCIAL_FORECAST_LOOKBACK_MONTHS,

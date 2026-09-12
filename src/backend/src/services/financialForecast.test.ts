@@ -75,6 +75,26 @@ test("forecast compounds the existing portfolio without double-counting contribu
   expect(forecast.series.surplus[0].p50).toBe(50);
 });
 
+test("sampled investment sells move proceeds back to cash without changing net worth", () => {
+  const forecast = buildFinancialForecast(
+    inputs({
+      monthlyObservations: [
+        {
+          month: "2026-01-01",
+          income: 0,
+          expenses: 0,
+          investmentContributions: -100,
+        },
+      ],
+      investmentReturns: [0],
+    }),
+    { horizonMonths: 1, simulationCount: 2, random: () => 0 },
+  );
+
+  expect(forecast.series.investments[0].p50).toBe(900);
+  expect(forecast.series.netWorth[0].p50).toBe(2_000);
+});
+
 test("forecast creates one reusable 240-month percentile series", () => {
   const forecast = buildFinancialForecast(inputs(), {
     horizonMonths: 240,

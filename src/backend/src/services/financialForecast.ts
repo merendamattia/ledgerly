@@ -218,10 +218,10 @@ export function buildFinancialForecast(
       };
       const income = Math.max(0, finite(sampled.income + known.income));
       const expenses = Math.max(0, finite(sampled.expenses + known.expenses));
-      const contribution = Math.max(
-        0,
-        finite(sampled.investmentContributions + known.investmentContributions),
+      const requestedContribution = finite(
+        sampled.investmentContributions + known.investmentContributions,
       );
+      const contribution = Math.max(-investments, requestedContribution);
       const marketReturn = Math.max(-0.99, finite(returns[randomIndex(returns.length, random)]));
       cash = finite(cash + income - expenses - contribution);
       investments = Math.max(0, finite((investments + contribution) * (1 + marketReturn)));
