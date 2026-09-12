@@ -89,7 +89,7 @@ test("a failed replacement keeps the previous user-scoped snapshot readable", as
   expect(result.state?.lastError).toBe("simulation failed");
 });
 
-test("recovery republishes pending handoffs and fails stale forecast claims", async () => {
+test("recovery makes stale forecast claims retryable and republishes them", async () => {
   expect(await financialForecastRepository.requestGeneration(users[2], "recover-forecast")).toBe(true);
 
   let work = await financialForecastRepository.prepareRecovery(new Date(0));
@@ -105,16 +105,27 @@ test("recovery republishes pending handoffs and fails stale forecast claims", as
   });
 
   work = await financialForecastRepository.prepareRecovery(new Date("2021-01-01T00:00:00.000Z"));
-  expect(work.generations).not.toContainEqual({
-    userId: users[2],
-    generationId: "recover-forecast",
+  const recoveredGeneration = work.generations.find(({ userId }) => userId === users[2]);
+  expect(recoveredGeneration?.generationId).toBeString();
+  expect(recoveredGeneration?.generationId).not.toBe("recover-forecast");
+  if (!recoveredGeneration) throw new Error("Expected a recovered forecast generation");
+  const generationState = await prisma.financialForecastState.findUniqueOrThrow({
+    where: { userId: users[2] },
   });
+  expect(generationState).toMatchObject({
+    status: "PENDING",
+    queueJobId: recoveredGeneration.generationId,
+  });
+  expect(await financialForecastRepository.claimGeneration(users[2], "recover-forecast")).toBe(false);
   expect(
-    (await prisma.financialForecastState.findUniqueOrThrow({ where: { userId: users[2] } })).status,
-  ).toBe("FAILED");
+    await financialForecastRepository.claimGeneration(
+      users[2],
+      recoveredGeneration.generationId,
+    ),
+  ).toBe(true);
 });
 
-test("recovery republishes pending interpretations and fails stale analysis claims", async () => {
+test("recovery makes stale interpretation claims retryable and republishes them", async () => {
   const snapshot = await prisma.financialForecastSnapshot.create({
     data: {
       userId: users[3],
@@ -125,6 +136,7 @@ test("recovery republishes pending interpretations and fails stale analysis clai
       maxHorizonMonths: 240,
       seed: 2,
       payload,
+      analysisQueueJobId: "recover-analysis",
     },
   });
 
@@ -133,22 +145,42 @@ test("recovery republishes pending interpretations and fails stale analysis clai
     userId: users[3],
     snapshotId: snapshot.id,
     locale: "it",
+    queueJobId: "recover-analysis",
   });
 
-  expect(await financialForecastRepository.claimAnalysis(snapshot.id)).toBe(true);
+  expect(await financialForecastRepository.claimAnalysis(snapshot.id, "recover-analysis")).toBe(true);
   await prisma.financialForecastSnapshot.update({
     where: { id: snapshot.id },
     data: { analysisStartedAt: new Date("2020-01-01T00:00:00.000Z") },
   });
 
   work = await financialForecastRepository.prepareRecovery(new Date("2021-01-01T00:00:00.000Z"));
-  expect(work.interpretations).not.toContainEqual({
+  const recoveredInterpretation = work.interpretations.find(
+    ({ snapshotId }) => snapshotId === snapshot.id,
+  );
+  expect(recoveredInterpretation).toMatchObject({
     userId: users[3],
     snapshotId: snapshot.id,
     locale: "it",
   });
+  expect(recoveredInterpretation?.queueJobId).toBeString();
+  expect(recoveredInterpretation?.queueJobId).not.toBe("recover-analysis");
+  if (!recoveredInterpretation) throw new Error("Expected a recovered interpretation");
+  const recoveredSnapshot = await prisma.financialForecastSnapshot.findUniqueOrThrow({
+    where: { id: snapshot.id },
+  });
+  expect(recoveredSnapshot).toMatchObject({
+    analysisStatus: "PENDING",
+    analysisQueueJobId: recoveredInterpretation.queueJobId,
+  });
+  expect(await financialForecastRepository.claimAnalysis(snapshot.id, "recover-analysis")).toBe(false);
+  await expect(
+    financialForecastRepository.completeAnalysis(snapshot.id, "recover-analysis", payload),
+  ).rejects.toThrow("Financial interpretation claim was lost");
   expect(
-    (await prisma.financialForecastSnapshot.findUniqueOrThrow({ where: { id: snapshot.id } }))
-      .analysisStatus,
-  ).toBe("FAILED");
+    await financialForecastRepository.claimAnalysis(
+      snapshot.id,
+      recoveredInterpretation.queueJobId,
+    ),
+  ).toBe(true);
 });

@@ -27,6 +27,7 @@ CREATE TABLE "financial_forecast_snapshot" (
   "seed" INTEGER NOT NULL,
   "payload" JSONB NOT NULL,
   "analysisStatus" "FinancialAnalysisStatus" NOT NULL DEFAULT 'PENDING',
+  "analysisQueueJobId" TEXT,
   "analysisQueuedAt" TIMESTAMP(3),
   "analysisStartedAt" TIMESTAMP(3),
   "analysisCompletedAt" TIMESTAMP(3),
@@ -38,6 +39,7 @@ CREATE TABLE "financial_forecast_snapshot" (
 
 CREATE UNIQUE INDEX "financial_forecast_state_userId_key" ON "financial_forecast_state"("userId");
 CREATE UNIQUE INDEX "financial_forecast_state_queueJobId_key" ON "financial_forecast_state"("queueJobId");
+CREATE UNIQUE INDEX "financial_forecast_snapshot_analysisQueueJobId_key" ON "financial_forecast_snapshot"("analysisQueueJobId");
 CREATE INDEX "financial_forecast_snapshot_userId_generatedAt_idx" ON "financial_forecast_snapshot"("userId", "generatedAt");
 
 ALTER TABLE "financial_forecast_state"

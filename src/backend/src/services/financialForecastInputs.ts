@@ -83,8 +83,12 @@ type ForecastCashflowTransaction = {
 
 export type InvestmentContributionFlow = {
   date: Date;
+  /** Buy cash outflow, including fees, used only to match categorized transfers. */
   buyAmount: number;
-  netAmount: number;
+  /** Signed gross principal moved into or out of the portfolio. */
+  principalAmount: number;
+  /** Cash cost that must reduce net worth instead of becoming portfolio principal. */
+  feeAmount: number;
 };
 
 export function investmentLedgerContribution(
@@ -101,9 +105,14 @@ export function investmentLedgerContribution(
   const fee = Number(transaction.fee);
   const buyAmount =
     transaction.side === "BUY" ? (gross + fee) * baseCurrencyRate : 0;
-  const netAmount =
-    transaction.side === "BUY" ? buyAmount : -(gross - fee) * baseCurrencyRate;
-  return { date: transaction.date, buyAmount, netAmount };
+  const principalAmount =
+    (transaction.side === "BUY" ? gross : -gross) * baseCurrencyRate;
+  return {
+    date: transaction.date,
+    buyAmount,
+    principalAmount,
+    feeAmount: fee * baseCurrencyRate,
+  };
 }
 
 /** Combines categorized transfers with the authoritative investment ledger. */
@@ -127,20 +136,23 @@ export function aggregateForecastCashflows(
   const total = new Map(
     months.map((month) => [
       month,
-      { income: 0, expenses: 0, investmentContributions: 0 },
+      { income: 0, expenses: 0, investmentContributions: 0, investmentFees: 0 },
     ]),
   );
   const variable = new Map(
     months.map((month) => [
       month,
-      { income: 0, expenses: 0, investmentContributions: 0 },
+      { income: 0, expenses: 0, investmentContributions: 0, investmentFees: 0 },
     ]),
   );
   const categorized = new Map(months.map((month) => [month, 0]));
   const variableCategorized = new Map(months.map((month) => [month, 0]));
   const recurringCategorized = new Map(months.map((month) => [month, 0]));
   const ledgerBuys = new Map(months.map((month) => [month, 0]));
-  const ledgerNet = new Map(months.map((month) => [month, 0]));
+  const ledgerBuyPrincipal = new Map(months.map((month) => [month, 0]));
+  const ledgerSellPrincipal = new Map(months.map((month) => [month, 0]));
+  const ledgerBuyFees = new Map(months.map((month) => [month, 0]));
+  const ledgerSellFees = new Map(months.map((month) => [month, 0]));
   for (const transaction of transactions) {
     if (transaction.date.getTime() > cutoff.getTime()) continue;
     const key = monthKey(transaction.date);
@@ -167,21 +179,31 @@ export function aggregateForecastCashflows(
   for (const flow of investmentFlows) {
     if (flow.date.getTime() > cutoff.getTime()) continue;
     const key = monthKey(flow.date);
-    if (!ledgerNet.has(key)) continue;
+    if (!ledgerBuys.has(key)) continue;
     ledgerBuys.set(key, ledgerBuys.get(key)! + flow.buyAmount);
-    ledgerNet.set(key, ledgerNet.get(key)! + flow.netAmount);
+    const principalTarget = flow.principalAmount >= 0 ? ledgerBuyPrincipal : ledgerSellPrincipal;
+    principalTarget.set(key, principalTarget.get(key)! + flow.principalAmount);
+    const feeTarget = flow.buyAmount > 0 ? ledgerBuyFees : ledgerSellFees;
+    feeTarget.set(key, feeTarget.get(key)! + flow.feeAmount);
   }
   for (const month of months) {
     const buys = ledgerBuys.get(month)!;
-    const sells = ledgerNet.get(month)! - buys;
-    const totalContributions = ledgerNet.get(month)! + Math.max(0, categorized.get(month)! - buys);
-    const unmatchedLedgerBuys = Math.max(0, buys - recurringCategorized.get(month)!);
+    const buyPrincipal = ledgerBuyPrincipal.get(month)!;
+    const sellPrincipal = ledgerSellPrincipal.get(month)!;
+    const totalContributions =
+      buyPrincipal + sellPrincipal + Math.max(0, categorized.get(month)! - buys);
+    const unmatchedLedgerBuyCash = Math.max(0, buys - recurringCategorized.get(month)!);
+    const unmatchedLedgerBuyRatio = buys > 0 ? unmatchedLedgerBuyCash / buys : 0;
+    const unmatchedLedgerBuyPrincipal = buyPrincipal * unmatchedLedgerBuyRatio;
     const variableContributions =
-      sells +
-      unmatchedLedgerBuys +
-      Math.max(0, variableCategorized.get(month)! - unmatchedLedgerBuys);
+      sellPrincipal +
+      unmatchedLedgerBuyPrincipal +
+      Math.max(0, variableCategorized.get(month)! - unmatchedLedgerBuyCash);
     total.get(month)!.investmentContributions = totalContributions;
     variable.get(month)!.investmentContributions = variableContributions;
+    total.get(month)!.investmentFees = ledgerBuyFees.get(month)! + ledgerSellFees.get(month)!;
+    variable.get(month)!.investmentFees =
+      ledgerBuyFees.get(month)! * unmatchedLedgerBuyRatio + ledgerSellFees.get(month)!;
   }
   const lookback = months.slice(-FINANCIAL_FORECAST_LOOKBACK_MONTHS);
   return {
@@ -241,7 +263,7 @@ function recurringForecast(
 ): RecurringForecastMonth[] {
   const months = Array.from({ length: FINANCIAL_FORECAST_HORIZON_MONTHS }, (_, index) => {
     const date = new Date(Date.UTC(cutoff.getUTCFullYear(), cutoff.getUTCMonth() + index + 1, 1));
-    return { month: monthKey(date), income: 0, expenses: 0, investmentContributions: 0 };
+    return { month: monthKey(date), income: 0, expenses: 0, investmentContributions: 0, investmentFees: 0 };
   });
   const byMonth = new Map(months.map((month) => [month.month.slice(0, 7), month]));
   const end = new Date(Date.UTC(cutoff.getUTCFullYear(), cutoff.getUTCMonth() + 241, 0));

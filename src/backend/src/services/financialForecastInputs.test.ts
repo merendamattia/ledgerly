@@ -23,7 +23,8 @@ test("investment buys, fees and sell proceeds are converted into signed base-cur
   ).toEqual({
     date: new Date("2026-01-10T00:00:00.000Z"),
     buyAmount: 410,
-    netAmount: 410,
+    principalAmount: 400,
+    feeAmount: 10,
   });
   expect(
     investmentLedgerContribution(
@@ -39,7 +40,8 @@ test("investment buys, fees and sell proceeds are converted into signed base-cur
   ).toEqual({
     date: new Date("2026-02-10T00:00:00.000Z"),
     buyAmount: 0,
-    netAmount: -118,
+    principalAmount: -120,
+    feeAmount: 2,
   });
 });
 
@@ -50,27 +52,30 @@ test("investment-ledger activity alone produces base-currency contribution obser
       {
         date: new Date("2026-01-10T00:00:00.000Z"),
         buyAmount: 205,
-        netAmount: 205,
+        principalAmount: 200,
+        feeAmount: 5,
       },
       {
         date: new Date("2026-02-10T00:00:00.000Z"),
         buyAmount: 0,
-        netAmount: -59,
+        principalAmount: -60,
+        feeAmount: 1,
       },
     ],
     cutoff,
   );
 
-  expect(result.observations.map(({ month, investmentContributions }) => ({
+  expect(result.observations.map(({ month, investmentContributions, investmentFees }) => ({
     month,
     investmentContributions,
+    investmentFees,
   }))).toEqual([
-    { month: "2026-01-01", investmentContributions: 205 },
-    { month: "2026-02-01", investmentContributions: -59 },
+    { month: "2026-01-01", investmentContributions: 200, investmentFees: 5 },
+    { month: "2026-02-01", investmentContributions: -60, investmentFees: 1 },
   ]);
   expect(result.contributions).toEqual([
-    { date: "2026-01-01", value: 205 },
-    { date: "2026-02-01", value: -59 },
+    { date: "2026-01-01", value: 200 },
+    { date: "2026-02-01", value: -60 },
   ]);
 });
 
@@ -89,14 +94,16 @@ test("categorized investment expenses already represented by ledger buys are not
       {
         date: new Date("2026-01-10T00:00:00.000Z"),
         buyAmount: 205,
-        netAmount: 205,
+        principalAmount: 200,
+        feeAmount: 5,
       },
     ],
     cutoff,
   );
 
-  expect(result.observations[0].investmentContributions).toBe(205);
-  expect(result.contributions[0].value).toBe(205);
+  expect(result.observations[0].investmentContributions).toBe(200);
+  expect(result.observations[0].investmentFees).toBe(5);
+  expect(result.contributions[0].value).toBe(200);
 });
 
 test("missing portfolio prices use the zero-return fallback instead of treating contributions as losses", () => {
@@ -142,7 +149,8 @@ test("investment contribution conversion uses the supplied persisted FX resolver
     {
       date: new Date("2026-01-10T00:00:00.000Z"),
       buyAmount: 184.5,
-      netAmount: 184.5,
+      principalAmount: 180,
+      feeAmount: 4.5,
     },
   ]);
 });

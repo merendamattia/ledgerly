@@ -37,7 +37,12 @@ const forecastWorker = new Worker<FinancialForecastJobData>(
 const interpretationWorker = new Worker<FinancialInterpretationJobData>(
   financialInterpretationQueueName,
   async (job) =>
-    processFinancialInterpretation(job.data.snapshotId, job.data.userId, job.data.locale),
+    processFinancialInterpretation(
+      job.data.snapshotId,
+      job.data.userId,
+      job.data.locale,
+      job.data.queueJobId,
+    ),
   { connection, concurrency: config.FINANCIAL_ANALYSIS_WORKER_CONCURRENCY },
 );
 
@@ -120,7 +125,11 @@ interpretationWorker.on("failed", (job, error) => {
     (job.failedReason.includes("job stalled more than allowable limit") ||
       job.attemptsMade >= (job.opts.attempts ?? 1));
   if (terminal) {
-    void financialForecastRepository.failAnalysis(job.data.snapshotId, error.message);
+    void financialForecastRepository.failAnalysis(
+      job.data.snapshotId,
+      job.data.queueJobId,
+      error.message,
+    );
   }
 });
 interpretationWorker.on("error", (error) =>

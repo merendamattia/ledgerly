@@ -4,6 +4,7 @@ import {
   buildForecastChartRows,
   horizonMonths,
   sliceForecastSeries,
+  visibleAiInterpretation,
 } from "./analysis-view.ts";
 
 const point = (date: string, value: number) => ({
@@ -29,6 +30,13 @@ test("changing horizon slices the loaded series without changing its source", ()
   expect(sliceForecastSeries(source, 1)).toHaveLength(12);
   expect(sliceForecastSeries(source, 20)).toHaveLength(240);
   expect(source).toHaveLength(240);
+});
+
+test("privacy mode suppresses the complete AI interpretation", () => {
+  const interpretation = { summary: "Net worth may reach €10,000 with a 70% savings rate." };
+
+  expect(visibleAiInterpretation(interpretation, true)).toBeNull();
+  expect(visibleAiInterpretation(interpretation, false)).toBe(interpretation);
 });
 
 test("chart rows connect solid actuals to the dashed median at the Today boundary", () => {

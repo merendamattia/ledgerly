@@ -56,8 +56,9 @@ export const financialForecastRepository = {
     },
   ) {
     return prisma.$transaction(async (tx) => {
+      const analysisQueueJobId = crypto.randomUUID();
       const created = await tx.financialForecastSnapshot.create({
-        data: { userId, ...snapshot },
+        data: { userId, ...snapshot, analysisQueueJobId },
       });
       const retained = await tx.financialForecastSnapshot.findMany({
         where: { userId },
@@ -73,7 +74,7 @@ export const financialForecastRepository = {
         data: { status: "COMPLETED", completedAt: new Date(), lastError: null },
       });
       if (completed.count !== 1) throw new Error("Forecast generation claim was lost");
-      return created;
+      return { ...created, analysisQueueJobId };
     });
   },
 
@@ -84,25 +85,51 @@ export const financialForecastRepository = {
     });
   },
 
-  /** Fails expired claims and returns every durable item still awaiting delivery. */
+  /** Releases expired claims and returns every durable item awaiting delivery. */
   async prepareRecovery(staleBefore: Date) {
     return prisma.$transaction(async (tx) => {
-      await tx.financialForecastState.updateMany({
+      const staleGenerations = await tx.financialForecastState.findMany({
         where: { status: "RUNNING", startedAt: { lte: staleBefore } },
-        data: {
-          status: "FAILED",
-          failedAt: new Date(),
-          lastError: "Financial forecast worker claim expired",
-        },
+        select: { id: true },
       });
-      await tx.financialForecastSnapshot.updateMany({
+      for (const { id } of staleGenerations) {
+        await tx.financialForecastState.update({
+          where: { id },
+          data: {
+            status: "PENDING",
+            queueJobId: crypto.randomUUID(),
+            startedAt: null,
+            failedAt: null,
+            lastError: "Financial forecast worker claim expired",
+          },
+        });
+      }
+      const staleInterpretations = await tx.financialForecastSnapshot.findMany({
         where: { analysisStatus: "RUNNING", analysisStartedAt: { lte: staleBefore } },
-        data: {
-          analysisStatus: "FAILED",
-          analysisFailedAt: new Date(),
-          analysisError: "Financial interpretation worker claim expired",
-        },
+        select: { id: true },
       });
+      for (const { id } of staleInterpretations) {
+        await tx.financialForecastSnapshot.update({
+          where: { id },
+          data: {
+            analysisStatus: "PENDING",
+            analysisQueueJobId: crypto.randomUUID(),
+            analysisStartedAt: null,
+            analysisFailedAt: null,
+            analysisError: "Financial interpretation worker claim expired",
+          },
+        });
+      }
+      const unassignedInterpretations = await tx.financialForecastSnapshot.findMany({
+        where: { analysisStatus: "PENDING", analysisQueueJobId: null },
+        select: { id: true },
+      });
+      for (const { id } of unassignedInterpretations) {
+        await tx.financialForecastSnapshot.update({
+          where: { id },
+          data: { analysisQueueJobId: crypto.randomUUID() },
+        });
+      }
       const [generationRows, interpretationRows] = await Promise.all([
         tx.financialForecastState.findMany({
           where: { status: "PENDING", queueJobId: { not: null } },
@@ -110,20 +137,30 @@ export const financialForecastRepository = {
           select: { userId: true, queueJobId: true },
         }),
         tx.financialForecastSnapshot.findMany({
-          where: { analysisStatus: "PENDING" },
+          where: { analysisStatus: "PENDING", analysisQueueJobId: { not: null } },
           orderBy: { generatedAt: "asc" },
-          select: { id: true, userId: true, user: { select: { settings: { select: { locale: true } } } } },
+          select: {
+            id: true,
+            userId: true,
+            analysisQueueJobId: true,
+            user: { select: { settings: { select: { locale: true } } } },
+          },
         }),
       ]);
       return {
         generations: generationRows.flatMap(({ userId, queueJobId }) =>
           queueJobId ? [{ userId, generationId: queueJobId }] : [],
         ),
-        interpretations: interpretationRows.map(({ id, userId, user }) => ({
-          userId,
-          snapshotId: id,
-          locale: user.settings[0]?.locale === "it" ? "it" as const : "en" as const,
-        })),
+        interpretations: interpretationRows.flatMap(({ id, userId, analysisQueueJobId, user }) =>
+          analysisQueueJobId
+            ? [{
+                userId,
+                snapshotId: id,
+                queueJobId: analysisQueueJobId,
+                locale: user.settings[0]?.locale === "it" ? "it" as const : "en" as const,
+              }]
+            : [],
+        ),
       };
     });
   },
@@ -151,31 +188,31 @@ export const financialForecastRepository = {
     return prisma.financialForecastSnapshot.findFirst({ where: { id: snapshotId, userId } });
   },
 
-  async markAnalysisQueued(snapshotId: string) {
+  async markAnalysisQueued(snapshotId: string, queueJobId: string) {
     await prisma.financialForecastSnapshot.updateMany({
-      where: { id: snapshotId, analysisStatus: "PENDING" },
+      where: { id: snapshotId, analysisQueueJobId: queueJobId, analysisStatus: "PENDING" },
       data: { analysisQueuedAt: new Date() },
     });
   },
 
-  async recordAnalysisEnqueueError(snapshotId: string, error: string) {
+  async recordAnalysisEnqueueError(snapshotId: string, queueJobId: string, error: string) {
     await prisma.financialForecastSnapshot.updateMany({
-      where: { id: snapshotId, analysisStatus: "PENDING" },
+      where: { id: snapshotId, analysisQueueJobId: queueJobId, analysisStatus: "PENDING" },
       data: { analysisError: error.slice(0, 500) },
     });
   },
 
-  async claimAnalysis(snapshotId: string): Promise<boolean> {
+  async claimAnalysis(snapshotId: string, queueJobId: string): Promise<boolean> {
     const claimed = await prisma.financialForecastSnapshot.updateMany({
-      where: { id: snapshotId, analysisStatus: "PENDING" },
+      where: { id: snapshotId, analysisQueueJobId: queueJobId, analysisStatus: "PENDING" },
       data: { analysisStatus: "RUNNING", analysisStartedAt: new Date(), analysisError: null },
     });
     return claimed.count === 1;
   },
 
-  async completeAnalysis(snapshotId: string, content: Prisma.InputJsonValue) {
-    await prisma.financialForecastSnapshot.updateMany({
-      where: { id: snapshotId, analysisStatus: "RUNNING" },
+  async completeAnalysis(snapshotId: string, queueJobId: string, content: Prisma.InputJsonValue) {
+    const completed = await prisma.financialForecastSnapshot.updateMany({
+      where: { id: snapshotId, analysisQueueJobId: queueJobId, analysisStatus: "RUNNING" },
       data: {
         analysisStatus: "COMPLETED",
         analysisContent: content,
@@ -183,11 +220,12 @@ export const financialForecastRepository = {
         analysisError: null,
       },
     });
+    if (completed.count !== 1) throw new Error("Financial interpretation claim was lost");
   },
 
-  async failAnalysis(snapshotId: string, error: string) {
+  async failAnalysis(snapshotId: string, queueJobId: string, error: string) {
     await prisma.financialForecastSnapshot.updateMany({
-      where: { id: snapshotId, analysisStatus: "RUNNING" },
+      where: { id: snapshotId, analysisQueueJobId: queueJobId, analysisStatus: "RUNNING" },
       data: { analysisStatus: "FAILED", analysisFailedAt: new Date(), analysisError: error },
     });
   },

@@ -474,6 +474,7 @@
     "aiPrevious": "Viene mostrata l'interpretazione della simulazione precedente finché la nuova non è pronta.",
     "aiFailed": "L'interpretazione AI non è riuscita. La previsione e la spiegazione deterministica restano valide.",
     "aiUnavailable": "L'interpretazione AI è facoltativa e non è disponibile per questa previsione.",
+    "aiPrivacyHidden": "L'interpretazione AI è nascosta mentre la modalità privacy è attiva.",
     "keyDrivers": "Fattori principali",
     "risks": "Rischi e incertezza",
     "assumptions": "Ipotesi"

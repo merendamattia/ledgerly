@@ -12,6 +12,7 @@ const zeroRecurring = Array.from({ length: 240 }, (_, index) => ({
   income: 0,
   expenses: 0,
   investmentContributions: 0,
+  investmentFees: 0,
 }));
 
 function inputs(overrides: Partial<FinancialForecastInputs> = {}): FinancialForecastInputs {
@@ -32,6 +33,7 @@ function inputs(overrides: Partial<FinancialForecastInputs> = {}): FinancialFore
         income: 100,
         expenses: 50,
         investmentContributions: 100,
+        investmentFees: 0,
       },
     ],
     recurringFuture: zeroRecurring,
@@ -84,6 +86,7 @@ test("sampled investment sells move proceeds back to cash without changing net w
           income: 0,
           expenses: 0,
           investmentContributions: -100,
+          investmentFees: 0,
         },
       ],
       investmentReturns: [0],
@@ -93,6 +96,50 @@ test("sampled investment sells move proceeds back to cash without changing net w
 
   expect(forecast.series.investments[0].p50).toBe(900);
   expect(forecast.series.netWorth[0].p50).toBe(2_000);
+});
+
+test("investment buy fees reduce net worth without increasing portfolio principal", () => {
+  const forecast = buildFinancialForecast(
+    inputs({
+      monthlyObservations: [
+        {
+          month: "2026-01-01",
+          income: 0,
+          expenses: 0,
+          investmentContributions: 100,
+          investmentFees: 5,
+        },
+      ],
+      investmentReturns: [0],
+    }),
+    { horizonMonths: 1, simulationCount: 2, random: () => 0 },
+  );
+
+  expect(forecast.series.investments[0].p50).toBe(1_100);
+  expect(forecast.series.netWorth[0].p50).toBe(1_995);
+  expect(forecast.series.surplus[0].p50).toBe(-5);
+});
+
+test("investment sell fees reduce proceeds and net worth without remaining in principal", () => {
+  const forecast = buildFinancialForecast(
+    inputs({
+      monthlyObservations: [
+        {
+          month: "2026-01-01",
+          income: 0,
+          expenses: 0,
+          investmentContributions: -100,
+          investmentFees: 5,
+        },
+      ],
+      investmentReturns: [0],
+    }),
+    { horizonMonths: 1, simulationCount: 2, random: () => 0 },
+  );
+
+  expect(forecast.series.investments[0].p50).toBe(900);
+  expect(forecast.series.netWorth[0].p50).toBe(1_995);
+  expect(forecast.series.surplus[0].p50).toBe(-5);
 });
 
 test("forecast creates one reusable 240-month percentile series", () => {
@@ -119,8 +166,8 @@ test("the same seed produces the same Monte Carlo distribution", () => {
   const first = buildFinancialForecast(
     inputs({
       monthlyObservations: [
-        { month: "2025-12-01", income: 80, expenses: 60, investmentContributions: 10 },
-        { month: "2026-01-01", income: 140, expenses: 90, investmentContributions: 20 },
+        { month: "2025-12-01", income: 80, expenses: 60, investmentContributions: 10, investmentFees: 0 },
+        { month: "2026-01-01", income: 140, expenses: 90, investmentContributions: 20, investmentFees: 0 },
       ],
       investmentReturns: [-0.03, 0.05],
     }),
@@ -129,8 +176,8 @@ test("the same seed produces the same Monte Carlo distribution", () => {
   const second = buildFinancialForecast(
     inputs({
       monthlyObservations: [
-        { month: "2025-12-01", income: 80, expenses: 60, investmentContributions: 10 },
-        { month: "2026-01-01", income: 140, expenses: 90, investmentContributions: 20 },
+        { month: "2025-12-01", income: 80, expenses: 60, investmentContributions: 10, investmentFees: 0 },
+        { month: "2026-01-01", income: 140, expenses: 90, investmentContributions: 20, investmentFees: 0 },
       ],
       investmentReturns: [-0.03, 0.05],
     }),
@@ -152,7 +199,7 @@ test("forecast remains finite with no investments and sparse cash-flow history",
         total: -500,
       },
       monthlyObservations: [
-        { month: "2026-01-01", income: 100, expenses: 50, investmentContributions: 0 },
+        { month: "2026-01-01", income: 100, expenses: 50, investmentContributions: 0, investmentFees: 0 },
       ],
       investmentReturns: [],
       investmentReturn: {

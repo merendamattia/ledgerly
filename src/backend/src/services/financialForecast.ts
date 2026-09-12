@@ -8,6 +8,7 @@ export type MonthlyObservation = {
   income: number;
   expenses: number;
   investmentContributions: number;
+  investmentFees: number;
 };
 export type RecurringForecastMonth = MonthlyObservation;
 
@@ -194,7 +195,7 @@ export function buildFinancialForecast(
   const random = options.random ?? Math.random;
   const observations = input.monthlyObservations.length
     ? input.monthlyObservations
-    : [{ month: input.cutoff.toISOString().slice(0, 7) + "-01", income: 0, expenses: 0, investmentContributions: 0 }];
+    : [{ month: input.cutoff.toISOString().slice(0, 7) + "-01", income: 0, expenses: 0, investmentContributions: 0, investmentFees: 0 }];
   const returns = input.investmentReturns.length ? input.investmentReturns : [0];
   const metrics = ["netWorth", "income", "expenses", "investments", "surplus"] as const;
   const distributions = Object.fromEntries(
@@ -215,6 +216,7 @@ export function buildFinancialForecast(
         income: 0,
         expenses: 0,
         investmentContributions: 0,
+        investmentFees: 0,
       };
       const income = Math.max(0, finite(sampled.income + known.income));
       const expenses = Math.max(0, finite(sampled.expenses + known.expenses));
@@ -222,15 +224,19 @@ export function buildFinancialForecast(
         sampled.investmentContributions + known.investmentContributions,
       );
       const contribution = Math.max(-investments, requestedContribution);
+      const investmentFees = Math.max(
+        0,
+        finite(sampled.investmentFees + known.investmentFees),
+      );
       const marketReturn = Math.max(-0.99, finite(returns[randomIndex(returns.length, random)]));
-      cash = finite(cash + income - expenses - contribution);
+      cash = finite(cash + income - expenses - investmentFees - contribution);
       investments = Math.max(0, finite((investments + contribution) * (1 + marketReturn)));
       const values = {
         netWorth: finite(cash + investments + fixedNetWorth),
         income,
         expenses,
         investments,
-        surplus: finite(income - expenses),
+        surplus: finite(income - expenses - investmentFees),
       };
       for (const metric of metrics) {
         distributions[metric][month][simulation] = values[metric];

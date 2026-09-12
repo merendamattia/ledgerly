@@ -19,6 +19,7 @@ type EnqueueInterpretation = (
   snapshotId: string,
   userId: string,
   locale: "en" | "it",
+  queueJobId: string,
 ) => Promise<unknown>;
 type PrepareRecovery = typeof financialForecastRepository.prepareRecovery;
 
@@ -58,25 +59,39 @@ function seedFrom(value: string): number {
   return createHash("sha256").update(value).digest().readUInt32LE(0) & 0x7fffffff;
 }
 
-const enqueueInterpretation: EnqueueInterpretation = async (snapshotId, userId, locale) => {
+const enqueueInterpretation: EnqueueInterpretation = async (
+  snapshotId,
+  userId,
+  locale,
+  queueJobId,
+) => {
   await financialInterpretationQueue.add(
     "interpret",
-    { snapshotId, userId, locale },
+    { snapshotId, userId, locale, queueJobId },
     {
-      jobId: snapshotId,
+      jobId: queueJobId,
       attempts: 1,
       removeOnComplete: 500,
       removeOnFail: 2_000,
     },
   );
-  await financialForecastRepository.markAnalysisQueued(snapshotId);
+  await financialForecastRepository.markAnalysisQueued(snapshotId, queueJobId);
 };
 
-async function queueInterpretation(snapshotId: string, userId: string, locale: "en" | "it") {
+async function queueInterpretation(
+  snapshotId: string,
+  userId: string,
+  locale: "en" | "it",
+  queueJobId: string,
+) {
   try {
-    await enqueueInterpretation(snapshotId, userId, locale);
+    await enqueueInterpretation(snapshotId, userId, locale, queueJobId);
   } catch (error) {
-    await financialForecastRepository.recordAnalysisEnqueueError(snapshotId, String(error));
+    await financialForecastRepository.recordAnalysisEnqueueError(
+      snapshotId,
+      queueJobId,
+      String(error),
+    );
     logger.warn("Financial interpretation queue handoff failed", {
       snapshotId,
       userId,
@@ -118,6 +133,7 @@ export async function recoverFinancialAnalysisJobs(options: {
         interpretation.snapshotId,
         interpretation.userId,
         interpretation.locale,
+        interpretation.queueJobId,
       );
       interpretations += 1;
     } catch (error) {
@@ -152,7 +168,12 @@ export async function processFinancialForecast(userId: string, generationId: str
       seed,
       payload: payload as unknown as Prisma.InputJsonValue,
     });
-    await queueInterpretation(snapshot.id, userId, loaded.locale);
+    await queueInterpretation(
+      snapshot.id,
+      userId,
+      loaded.locale,
+      snapshot.analysisQueueJobId,
+    );
     return "COMPLETED" as const;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Forecast generation failed";

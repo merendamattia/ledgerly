@@ -225,6 +225,7 @@ model FinancialForecastSnapshot {
   seed                    Int
   payload                 Json
   analysisStatus          FinancialAnalysisStatus @default(PENDING)
+  analysisQueueJobId      String?                 @unique
   analysisQueuedAt        DateTime?
   analysisStartedAt       DateTime?
   analysisCompletedAt     DateTime?

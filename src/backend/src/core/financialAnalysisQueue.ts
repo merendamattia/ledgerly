@@ -15,6 +15,7 @@ export type FinancialForecastJobData = {
 export type FinancialInterpretationJobData = {
   userId: string;
   snapshotId: string;
+  queueJobId: string;
   locale: "en" | "it";
 };
 

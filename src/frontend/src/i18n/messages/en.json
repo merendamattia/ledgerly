@@ -475,6 +475,7 @@
     "aiPrevious": "Showing the interpretation of the previous simulation until the new one is ready.",
     "aiFailed": "The AI interpretation failed. The deterministic forecast and explanation remain valid.",
     "aiUnavailable": "AI interpretation is optional and is not available for this forecast.",
+    "aiPrivacyHidden": "AI interpretation is hidden while privacy mode is active.",
     "keyDrivers": "Key drivers",
     "risks": "Risks and uncertainty",
     "assumptions": "Assumptions"

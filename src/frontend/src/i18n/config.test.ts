@@ -10,6 +10,8 @@ test("English and Italian resolve messages with English fallback", () => {
   expect(getMessages("it").analysis.newSimulation).toBe("Nuova simulazione");
   expect(getMessages("en").analysis.contributions).toBe("Contributions");
   expect(getMessages("it").analysis.contributions).toBe("Contributi");
+  expect(getMessages("en").analysis.aiPrivacyHidden).toBe("AI interpretation is hidden while privacy mode is active.");
+  expect(getMessages("it").analysis.aiPrivacyHidden).toBe("L'interpretazione AI è nascosta mentre la modalità privacy è attiva.");
 });
 
 test("only registered locales are accepted", () => {

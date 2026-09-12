@@ -23,6 +23,14 @@ export type ForecastChartRow = ForecastPoint & {
 
 export const horizonMonths = (years: number) => years * 12;
 
+/** Prevents unstructured AI prose from bypassing numeric privacy masking. */
+export function visibleAiInterpretation<T>(
+  interpretation: T | null | undefined,
+  shouldHidePrivateNumbers: boolean,
+): T | null {
+  return shouldHidePrivateNumbers ? null : interpretation ?? null;
+}
+
 /** Slices the one persisted maximum series; it never requests or calculates. */
 export function sliceForecastSeries(series: ForecastPoint[], years: number): ForecastPoint[] {
   return series.slice(0, horizonMonths(years));

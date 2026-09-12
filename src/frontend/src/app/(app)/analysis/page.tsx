@@ -6,6 +6,7 @@ import { ChartNoAxesCombined, RefreshCw, Sparkles, TriangleAlert } from "lucide-
 import { toast } from "sonner";
 import { ForecastFanChart } from "@/components/charts/forecast-fan-chart";
 import { PrivateNumber } from "@/components/private-number";
+import { usePrivacyMode } from "@/components/privacy-mode";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,7 @@ import {
   HORIZON_OPTIONS,
   buildForecastChartRows,
   sliceForecastSeries,
+  visibleAiInterpretation,
   type ForecastChartRow,
 } from "@/lib/analysis-view";
 import { formatDate, formatDateTime, formatMoney, formatNumber, formatPercent } from "@/lib/format";
@@ -130,9 +132,11 @@ function ForecastSection({
 
 function AiInterpretation({ data }: { data: AnalysisData }) {
   const t = useTranslations("analysis");
+  const { shouldHidePrivateNumbers } = usePrivacyMode();
   const current = data.forecast?.analysis;
   const previous = data.previousAnalysis;
-  const content = current?.status === "COMPLETED" ? current.content : previous?.content;
+  const interpretation = current?.status === "COMPLETED" ? current.content : previous?.content;
+  const content = visibleAiInterpretation(interpretation, shouldHidePrivateNumbers);
   const generationActive =
     data.generation?.status === "PENDING" || data.generation?.status === "RUNNING";
   const showingPrevious =
@@ -154,7 +158,9 @@ function AiInterpretation({ data }: { data: AnalysisData }) {
         ) : null}
       </CardHeader>
       <CardContent>
-        {content ? (
+        {shouldHidePrivateNumbers ? (
+          <p className="text-sm text-muted-foreground">{t("aiPrivacyHidden")}</p>
+        ) : content ? (
           <div className="flex max-w-[76ch] flex-col gap-4 text-sm leading-relaxed">
             <p>{content.summary}</p>
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -485,7 +491,9 @@ export default function AnalysisPage() {
             { label: t("averageContributions"), value: money(payload.summary.averageMonthlyContributions) },
             {
               label: t("portfolioReturn"),
-              value: returnSummary.cagr == null ? "—" : formatPercent(returnSummary.cagr * 100),
+              value: returnSummary.cagr == null
+                ? "—"
+                : <PrivateNumber text={formatPercent(returnSummary.cagr * 100)} />,
             },
           ]}
           note={
