@@ -6,6 +6,8 @@ test("English and Italian resolve messages with English fallback", () => {
   expect(getMessages("en").common.save).toBe("Save");
   expect(getMessages("it").common.save).toBe("Salva");
   expect(getMessages("it").common.appName).toBe("Ledgerly");
+  expect(getMessages("en").analysis.newSimulation).toBe("New simulation");
+  expect(getMessages("it").analysis.newSimulation).toBe("Nuova simulazione");
 });
 
 test("only registered locales are accepted", () => {

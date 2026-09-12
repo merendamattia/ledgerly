@@ -29,6 +29,8 @@ The main UI has four sections. See [`DESIGN.md`](./DESIGN.md) for the "modern le
   cumulative savings.
 - Transactions keeps income and expenses in one table with filters and a period selector. The same
   table is intended to include investment trades in the future.
+- Analysis, available under More, combines observed net worth, income, expenses and investments
+  with Monte Carlo percentile ranges. The horizon selector reads one cached 20-year result.
 
 ## Features
 
@@ -40,6 +42,10 @@ The main UI has four sections. See [`DESIGN.md`](./DESIGN.md) for the "modern le
   reports.
 - A nightly job fetches missing daily closes. Reads check Redis first and fall back to Postgres;
   only backfills and scheduled jobs call external providers.
+- A Monday 04:00 job queues one 10,000-path, 240-month forecast per user. Forecasts bootstrap the
+  latest 12 monthly cash-flow observations, incorporate known recurring movements, and compound
+  flow-adjusted portfolio returns on existing invested capital plus future contributions. Sparse
+  history uses all available months and is marked as reduced confidence.
 
 ## Stack
 
@@ -80,7 +86,7 @@ bun install
 bun run db:migrate
 bun run db:seed
 
-# 5. Start the backend, Apple Wallet worker, and frontend
+# 5. Start the backend, background workers, and frontend
 bun run dev
 ```
 
@@ -131,6 +137,26 @@ to verify the complete server-to-browser delivery path. This is Wallet-triggered
 so the backend must be reachable from the iPhone and the authorized amount may differ from the final
 amount posted by the card issuer.
 
+### Financial forecasts
+
+Analysis never runs Monte Carlo work on page load or when its 1, 2, 5, 10, 15 or 20-year selector
+changes. PostgreSQL stores compact mean/P10/P25/P50/P75/P90 aggregates for all 240 future months;
+the browser slices that result locally. A manual **New simulation** action queues only the signed-in
+user and keeps the last valid snapshot visible while the replacement runs. Per-user guarded state
+prevents overlapping simulations.
+
+The model treats investment-category transactions as contributions rather than consumption. It
+removes net contributions from month-to-month portfolio value changes before sampling market
+returns, then compounds sampled returns on the existing portfolio and subsequent contributions.
+Credits, other manually managed assets and debts stay flat unless their effect appears in cash-flow
+history. Forecasts are estimates, not guarantees or financial advice; long-horizon ranges are
+illustrative because uncertainty compounds.
+
+Each completed forecast also queues an optional OpenAI interpretation. Only aggregate metrics and
+selected horizon summaries are sent with `store: false`; raw transactions are not sent. The output
+is schema-validated, localized to the user's Ledgerly language and bound to the exact snapshot.
+OpenAI failure does not invalidate the deterministic forecast.
+
 ### Useful scripts (run from the repo root)
 
 | Command                 | What it does                            |
@@ -138,7 +164,7 @@ amount posted by the card issuer.
 | `bun run dev`           | Run backend + worker + frontend         |
 | `bun run dev:backend`   | Run the backend only                    |
 | `bun run dev:frontend`  | Run the frontend only                   |
-| `bun run dev:worker`    | Run the Apple Wallet worker only        |
+| `bun run dev:worker`    | Run the BullMQ workers only             |
 | `bun run docker:build` | Build Docker images with a three-worker cap |
 | `bun run db:migrate`    | Create/apply a Prisma migration (dev)   |
 | `bun run db:seed`       | Seed system cron job definitions         |
@@ -184,11 +210,12 @@ Set the environment variables (see [`.env.production.example`](./.env.production
 - `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `CRON_SECRET`,
   `FRONTEND_URL`, `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_APPLE_PAY_SHORTCUT_URL`.
 - `OPENAI_API_KEY` for the worker; `OPENAI_MODEL` and `OPENAI_REASONING_EFFORT` default to
-  `gpt-5.6-luna` and `low`. Worker concurrency defaults to `1`.
+  `gpt-5.6-luna` and `low`. Wallet, forecast and interpretation worker concurrency defaults to `1`.
 - `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT` to enable Web Push.
 
-The nightly price job runs inside the backend process with croner. Its default schedule is 02:20
-in `Europe/Rome`; seeded `CronJob` rows define each job schedule, and `CRON_TIMEZONE` sets the
+The nightly price job and weekly forecast producer run inside the backend process with croner. Their
+default schedules are 02:20 nightly and 04:00 Monday in `Europe/Rome`; seeded `CronJob` rows define
+each schedule, and `CRON_TIMEZONE` sets the
 timezone. Coolify does not need a separate scheduled task. The HTTP endpoint remains available to
 the cron secret and to administrators who run it manually:
 
