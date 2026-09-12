@@ -17,6 +17,7 @@ export type ForecastPoint = {
 
 export type ForecastChartRow = ForecastPoint & {
   actual: number | null;
+  historicalOverlay: number | null;
   today: boolean;
 };
 
@@ -30,21 +31,27 @@ export function sliceForecastSeries(series: ForecastPoint[], years: number): For
 /** Joins observed history and the forecast fan at one explicit Today point. */
 export function buildForecastChartRows({
   history,
+  historicalOverlay,
   forecast,
   cutoff,
   currentValue,
 }: {
   history: { date: string; value: number }[];
+  historicalOverlay?: { date: string; value: number }[];
   forecast: ForecastPoint[];
   cutoff: string;
   currentValue: number;
 }): ForecastChartRow[] {
+  const overlayByMonth = new Map(
+    historicalOverlay?.map((point) => [point.date.slice(0, 7), point.value]) ?? [],
+  );
   const actual = history
     .filter((point) => point.date !== cutoff)
     .slice(-24)
     .map((point) => ({
       date: point.date,
       actual: point.value,
+      historicalOverlay: overlayByMonth.get(point.date.slice(0, 7)) ?? null,
       today: false,
       mean: Number.NaN,
       p10: Number.NaN,
@@ -58,6 +65,7 @@ export function buildForecastChartRows({
   const boundary: ForecastChartRow = {
     date: cutoff,
     actual: currentValue,
+    historicalOverlay: null,
     today: true,
     mean: currentValue,
     p10: currentValue,
@@ -71,6 +79,11 @@ export function buildForecastChartRows({
   return [
     ...actual,
     boundary,
-    ...forecast.map((point) => ({ ...point, actual: null, today: false })),
+    ...forecast.map((point) => ({
+      ...point,
+      actual: null,
+      historicalOverlay: null,
+      today: false,
+    })),
   ];
 }

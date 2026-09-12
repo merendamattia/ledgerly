@@ -44,3 +44,37 @@ test("chart rows connect solid actuals to the dashed median at the Today boundar
   expect(rows[24]).toMatchObject({ date: "2026-01-31", actual: 30, p50: 30, today: true });
   expect(rows[25]).toMatchObject({ date: "2026-02-01", actual: null, p50: 40 });
 });
+
+test("investment chart rows align historical contributions by month without changing future values", () => {
+  const rows = buildForecastChartRows({
+    history: [
+      { date: "2025-12-31", value: 900 },
+      { date: "2026-01-31", value: 1_000 },
+    ],
+    historicalOverlay: [
+      { date: "2025-12-01", value: 75 },
+      { date: "2026-01-01", value: 100 },
+    ],
+    forecast: [point("2026-02-01", 1_100)],
+    cutoff: "2026-01-31",
+    currentValue: 1_000,
+  });
+
+  expect(rows[0]).toMatchObject({
+    date: "2025-12-31",
+    actual: 900,
+    historicalOverlay: 75,
+  });
+  expect(rows[1]).toMatchObject({
+    date: "2026-01-31",
+    actual: 1_000,
+    historicalOverlay: null,
+    today: true,
+  });
+  expect(rows[2]).toMatchObject({
+    date: "2026-02-01",
+    actual: null,
+    historicalOverlay: null,
+    p50: 1_100,
+  });
+});

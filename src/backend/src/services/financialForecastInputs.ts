@@ -5,7 +5,7 @@ import { transactionRepository } from "../repositories/transaction.ts";
 import { isInvestmentCategoryName } from "../utils/category.ts";
 import { computeNextDate } from "./recurring.ts";
 import { computeInvestmentHistory } from "./investmentHistory.ts";
-import { getFxRateOn } from "./market/fx.ts";
+import { getPersistedFxRate, getPersistedFxRateOn } from "./market/fx.ts";
 import { computeNetWorthHistory } from "./netWorthHistory.ts";
 import { computeNetWorth } from "./valuation.ts";
 import {
@@ -60,6 +60,17 @@ function returnSummary(returns: number[]): InvestmentReturnSummary {
     annualizedVolatility: Math.sqrt(variance) * Math.sqrt(12),
     fallback: null,
   };
+}
+
+/** Missing prices leave zero-valued history that must not become a -99% market return. */
+export function buildInvestmentReturnModel(
+  monthEnds: { date: string; value: number; invested: number }[],
+): { returns: number[]; summary: InvestmentReturnSummary } {
+  const hasMarketValue = monthEnds.some((point) => point.value > 0 && Number.isFinite(point.value));
+  const returns = hasMarketValue
+    ? computeFlowAdjustedMonthlyReturns(monthEnds).slice(-FINANCIAL_FORECAST_LOOKBACK_MONTHS)
+    : [];
+  return { returns, summary: returnSummary(returns) };
 }
 
 type ForecastCashflowTransaction = {
@@ -184,20 +195,32 @@ export function aggregateForecastCashflows(
   };
 }
 
-type InvestmentTransactionRow = Awaited<
-  ReturnType<typeof investmentTransactionRepository.listAll>
->[number];
+type InvestmentContributionTransaction = {
+  date: Date;
+  side: "BUY" | "SELL";
+  quantity: unknown;
+  price: unknown;
+  fee: unknown;
+  ticker: { currency: string };
+};
 
-async function investmentContributionFlows(
-  transactions: InvestmentTransactionRow[],
+type HistoricalFxRateResolver = (
+  base: string,
+  quote: string,
+  date: Date,
+) => Promise<number>;
+
+export async function investmentContributionFlows(
+  transactions: InvestmentContributionTransaction[],
   baseCurrency: string,
+  resolveFxRate: HistoricalFxRateResolver = getPersistedFxRateOn,
 ): Promise<InvestmentContributionFlow[]> {
   const rateByCurrencyAndDay = new Map<string, Promise<number>>();
   const rateFor = (currency: string, date: Date) => {
     const key = `${currency}:${date.toISOString().slice(0, 10)}`;
     let rate = rateByCurrencyAndDay.get(key);
     if (!rate) {
-      rate = getFxRateOn(currency, baseCurrency, date);
+      rate = resolveFxRate(currency, baseCurrency, date);
       rateByCurrencyAndDay.set(key, rate);
     }
     return rate;
@@ -260,9 +283,9 @@ export async function loadFinancialForecastInputs(userId: string, cutoff = new D
   const [settings, current, netWorthHistory, investmentHistory, transactions, investmentTransactions, recurring] =
     await Promise.all([
       settingsRepository.get(userId),
-      computeNetWorth(userId),
-      computeNetWorthHistory(userId),
-      computeInvestmentHistory(userId),
+      computeNetWorth(userId, getPersistedFxRate),
+      computeNetWorthHistory(userId, getPersistedFxRate),
+      computeInvestmentHistory(userId, getPersistedFxRate),
       transactionRepository.listAll(userId),
       investmentTransactionRepository.listAll(userId),
       recurringExpenseRepository.list(userId),
@@ -273,9 +296,7 @@ export async function loadFinancialForecastInputs(userId: string, cutoff = new D
   );
   const cashflow = aggregateForecastCashflows(transactions, contributionFlows, day);
   const investmentMonthEnds = compressMonthEnds(investmentHistory);
-  const investmentReturns = computeFlowAdjustedMonthlyReturns(investmentMonthEnds).slice(
-    -FINANCIAL_FORECAST_LOOKBACK_MONTHS,
-  );
+  const investmentReturnModel = buildInvestmentReturnModel(investmentMonthEnds);
   const netWorth = compressMonthEnds(netWorthHistory)
     .slice(-24)
     .map((point) => ({ date: point.date, value: point.totalValue }));
@@ -296,7 +317,7 @@ export async function loadFinancialForecastInputs(userId: string, cutoff = new D
     },
     monthlyObservations: cashflow.observations,
     recurringFuture: recurringForecast(recurring, day),
-    investmentReturns,
+    investmentReturns: investmentReturnModel.returns,
     historical: {
       netWorth,
       income: cashflow.income.slice(-24),
@@ -304,7 +325,7 @@ export async function loadFinancialForecastInputs(userId: string, cutoff = new D
       investments,
       contributions: cashflow.contributions.slice(-24),
     },
-    investmentReturn: returnSummary(investmentReturns),
+    investmentReturn: investmentReturnModel.summary,
   };
   const locale: "en" | "it" = settings.locale === "it" ? "it" : "en";
   return {

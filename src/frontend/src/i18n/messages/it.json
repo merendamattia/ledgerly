@@ -442,6 +442,8 @@
     "investmentsTitle": "Investimenti",
     "investmentsDescription": "Valore del portafoglio esistente, nuovi contributi e rendimenti di mercato corretti per i flussi e capitalizzati nel tempo.",
     "actual": "Reale",
+    "portfolioValue": "Valore del portafoglio",
+    "contributions": "Contributi",
     "median": "Mediana P50",
     "mean": "Media",
     "range": "P10–P90",

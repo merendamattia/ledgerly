@@ -74,6 +74,7 @@ function ForecastSection({
   currency,
   labels,
   explanationRows,
+  historicalOverlayLabel,
   color,
   className,
   note,
@@ -92,6 +93,7 @@ function ForecastSection({
     aria: string;
   };
   explanationRows: { label: string; value: React.ReactNode }[];
+  historicalOverlayLabel?: string;
   color?: string;
   className?: string;
   note?: string;
@@ -110,6 +112,7 @@ function ForecastSection({
           actualLabel={labels.actual}
           medianLabel={labels.median}
           meanLabel={labels.mean}
+          historicalOverlayLabel={historicalOverlayLabel}
           rangeLabel={labels.range}
           ariaLabel={labels.aria}
           color={color}
@@ -240,6 +243,7 @@ export default function AnalysisPage() {
       }),
       investments: buildForecastChartRows({
         history: payload.historical.investments,
+        historicalOverlay: payload.historical.contributions,
         forecast: end("investments"),
         cutoff: String(forecast.dataCutoff).slice(0, 10),
         currentValue: payload.current.investments,
@@ -472,7 +476,8 @@ export default function AnalysisPage() {
           rows={rows!.investments}
           currency={currency}
           color="var(--chart-4)"
-          labels={commonLabels(t("investmentsTitle"))}
+          labels={{ ...commonLabels(t("investmentsTitle")), actual: t("portfolioValue") }}
+          historicalOverlayLabel={t("contributions")}
           explanationRows={[
             { label: t("startingValue"), value: money(payload.current.investments) },
             { label: t("medianAtHorizon", { years }), value: money(investmentEnd.p50) },

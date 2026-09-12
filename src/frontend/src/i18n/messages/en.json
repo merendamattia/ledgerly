@@ -443,6 +443,8 @@
     "investmentsTitle": "Investments",
     "investmentsDescription": "Existing portfolio value, new contributions and flow-adjusted market returns compounded over time.",
     "actual": "Actual",
+    "portfolioValue": "Portfolio value",
+    "contributions": "Contributions",
     "median": "P50 median",
     "mean": "Mean",
     "range": "P10–P90",

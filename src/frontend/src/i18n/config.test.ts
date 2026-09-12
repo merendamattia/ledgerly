@@ -8,6 +8,8 @@ test("English and Italian resolve messages with English fallback", () => {
   expect(getMessages("it").common.appName).toBe("Ledgerly");
   expect(getMessages("en").analysis.newSimulation).toBe("New simulation");
   expect(getMessages("it").analysis.newSimulation).toBe("Nuova simulazione");
+  expect(getMessages("en").analysis.contributions).toBe("Contributions");
+  expect(getMessages("it").analysis.contributions).toBe("Contributi");
 });
 
 test("only registered locales are accepted", () => {

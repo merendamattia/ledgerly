@@ -68,3 +68,23 @@ export async function getFxRateOn(base: string, quote: string, date: Date): Prom
   if (row) return Number(row.rate);
   return getFxRate(base, quote);
 }
+
+/** Latest persisted rate. Forecast workers must never backfill through a provider. */
+export async function getPersistedFxRate(base: string, quote: string): Promise<number> {
+  if (base === quote) return 1;
+  const row = await fxRepository.latest(base, quote);
+  if (!row) throw new Error(`No persisted FX rate available for ${base} -> ${quote}`);
+  return Number(row.rate);
+}
+
+/** Persisted historical rate with a persisted-only latest fallback. */
+export async function getPersistedFxRateOn(
+  base: string,
+  quote: string,
+  date: Date,
+): Promise<number> {
+  if (base === quote) return 1;
+  const row = await fxRepository.onOrBefore(base, quote, date);
+  if (row) return Number(row.rate);
+  return getPersistedFxRate(base, quote);
+}

@@ -3,6 +3,8 @@ import { investmentTransactionRepository } from "../repositories/investmentTrans
 import { priceRepository } from "../repositories/price.ts";
 import { getFxRate } from "./market/fx.ts";
 
+type FxRateResolver = (base: string, quote: string) => Promise<number>;
+
 export interface PortfolioPoint {
   date: string; // yyyy-mm-dd
   value: number; // market value in base currency
@@ -22,7 +24,10 @@ function isoDay(d: Date): string {
  * cumulative buys − sells up to that day; the price is the latest close ≤ day.
  * FX uses the current rate (historical FX is not modelled here).
  */
-export async function computeInvestmentHistory(userId: string): Promise<PortfolioPoint[]> {
+export async function computeInvestmentHistory(
+  userId: string,
+  resolveFxRate: FxRateResolver = getFxRate,
+): Promise<PortfolioPoint[]> {
   const [txs, baseCurrency] = await Promise.all([
     investmentTransactionRepository.listAll(userId),
     settingsRepository.baseCurrency(userId),
@@ -43,7 +48,7 @@ export async function computeInvestmentHistory(userId: string): Promise<Portfoli
         (await priceRepository.series(tickerId)).map((point) => ({ ...point, tickerId })),
       ),
     ).then((series) => series.flat()),
-    Promise.all(currencies.map(async (cur) => [cur, await getFxRate(cur, baseCurrency)] as const)),
+    Promise.all(currencies.map(async (cur) => [cur, await resolveFxRate(cur, baseCurrency)] as const)),
   ]);
   const fxByCurrency = new Map<string, number>(fxEntries);
   const priceByTicker = new Map<string, { date: number; close: number }[]>();
