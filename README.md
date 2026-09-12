@@ -147,10 +147,11 @@ prevents overlapping simulations.
 
 The model treats investment-category transactions as contributions rather than consumption. It
 removes net contributions from month-to-month portfolio value changes before sampling market
-returns, then compounds sampled returns on the existing portfolio and subsequent contributions.
-Credits, other manually managed assets and debts stay flat unless their effect appears in cash-flow
-history. Forecasts are estimates, not guarantees or financial advice; long-horizon ranges are
-illustrative because uncertainty compounds.
+returns, then compounds sampled returns on the priced provider-backed portfolio sleeve and its
+share of subsequent contributions. Manual or unpriced investment value stays flat. Credits, other
+manually managed assets and debts also stay flat unless their effect appears in cash-flow history.
+Forecasts are estimates, not guarantees or financial advice; long-horizon ranges are illustrative
+because uncertainty compounds.
 
 Each completed forecast also queues an optional OpenAI interpretation. Only aggregate metrics and
 selected horizon summaries are sent with `store: false`; raw transactions are not sent. The output

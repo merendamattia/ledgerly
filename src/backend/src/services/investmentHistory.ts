@@ -4,6 +4,7 @@ import { priceRepository } from "../repositories/price.ts";
 import { getFxRate } from "./market/fx.ts";
 
 type FxRateResolver = (base: string, quote: string) => Promise<number>;
+type InvestmentHistoryOptions = { priceBackedOnly?: boolean };
 
 export interface PortfolioPoint {
   date: string; // yyyy-mm-dd
@@ -28,14 +29,27 @@ function isoDay(d: Date): string {
 export async function computeInvestmentHistory(
   userId: string,
   resolveFxRate: FxRateResolver = getFxRate,
+  options: InvestmentHistoryOptions = {},
 ): Promise<PortfolioPoint[]> {
-  const [txs, baseCurrency] = await Promise.all([
+  const [allTransactions, baseCurrency] = await Promise.all([
     investmentTransactionRepository.listAll(userId),
     settingsRepository.baseCurrency(userId),
   ]);
-  if (txs.length === 0) return [];
+  const candidateTransactions = options.priceBackedOnly
+    ? allTransactions.filter((transaction) => transaction.ticker.provider !== "manual")
+    : allTransactions;
+  if (candidateTransactions.length === 0) return [];
 
-  const tickerIds = [...new Set(txs.map((t) => t.tickerId))];
+  const candidateTickerIds = [
+    ...new Set(candidateTransactions.map((transaction) => transaction.tickerId)),
+  ];
+  const prices = await priceRepository.seriesByTickerIds(candidateTickerIds);
+  const pricedTickerIds = new Set(prices.map((price) => price.tickerId));
+  const txs = options.priceBackedOnly
+    ? candidateTransactions.filter((transaction) => pricedTickerIds.has(transaction.tickerId))
+    : candidateTransactions;
+  if (txs.length === 0) return [];
+  const tickerIds = [...new Set(txs.map((transaction) => transaction.tickerId))];
 
   // ticker -> currency, and current FX per currency.
   const currencyOf = new Map<string, string>();
@@ -43,14 +57,9 @@ export async function computeInvestmentHistory(
   const currencies = [...new Set(currencyOf.values())];
 
   // Ascending price series per ticker.
-  const [prices, fxEntries] = await Promise.all([
-    Promise.all(
-      tickerIds.map(async (tickerId) =>
-        (await priceRepository.series(tickerId)).map((point) => ({ ...point, tickerId })),
-      ),
-    ).then((series) => series.flat()),
-    Promise.all(currencies.map(async (cur) => [cur, await resolveFxRate(cur, baseCurrency)] as const)),
-  ]);
+  const fxEntries = await Promise.all(
+    currencies.map(async (cur) => [cur, await resolveFxRate(cur, baseCurrency)] as const),
+  );
   const fxByCurrency = new Map<string, number>(fxEntries);
   const priceByTicker = new Map<string, { date: number; close: number }[]>();
   // Ascending signed-quantity events per ticker.
@@ -63,6 +72,7 @@ export async function computeInvestmentHistory(
     txByTicker.set(id, []);
   }
   for (const p of prices) {
+    if (!priceByTicker.has(p.tickerId)) continue;
     priceByTicker.get(p.tickerId)!.push({ date: p.date.getTime(), close: Number(p.close) });
   }
   for (const t of txs) {

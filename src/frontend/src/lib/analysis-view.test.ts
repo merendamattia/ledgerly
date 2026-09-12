@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import {
   HORIZON_OPTIONS,
   buildForecastChartRows,
+  buildNetWorthExplanation,
   horizonMonths,
   sliceForecastSeries,
   visibleAiInterpretation,
@@ -30,6 +31,28 @@ test("changing horizon slices the loaded series without changing its source", ()
   expect(sliceForecastSeries(source, 1)).toHaveLength(12);
   expect(sliceForecastSeries(source, 20)).toHaveLength(240);
   expect(source).toHaveLength(240);
+});
+
+test("Net Worth explanation uses the selected horizon savings and market-return contributions", () => {
+  const explanation = buildNetWorthExplanation({
+    years: 2,
+    currentValue: 1_000,
+    forecast: Array.from({ length: 24 }, (_, index) => point(`month-${index}`, 1_100 + index)),
+    contributions: Array.from({ length: 24 }, (_, index) => ({
+      date: `month-${index}`,
+      savings: 10 * (index + 1),
+      marketReturn: 5 * (index + 1),
+    })),
+  });
+
+  expect(explanation).toEqual({
+    startingValue: 1_000,
+    median: 1_123,
+    p10: 1_113,
+    p90: 1_133,
+    savingsContribution: 240,
+    marketReturnContribution: 120,
+  });
 });
 
 test("privacy mode suppresses the complete AI interpretation", () => {

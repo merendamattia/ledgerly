@@ -39,6 +39,7 @@ function horizonSummaries(payload: FinancialForecastPayload) {
     expenses: payload.series.expenses[months - 1] ?? null,
     investments: payload.series.investments[months - 1] ?? null,
     surplus: payload.series.surplus[months - 1] ?? null,
+    netWorthContributions: payload.contributions.netWorth[months - 1] ?? null,
   }));
 }
 

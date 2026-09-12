@@ -24,6 +24,8 @@ function inputs(overrides: Partial<FinancialForecastInputs> = {}): FinancialFore
       credits: 0,
       otherAssets: 0,
       investments: 1_000,
+      marketInvestments: 1_000,
+      fallbackInvestments: 0,
       debts: 0,
       total: 2_000,
     },
@@ -75,6 +77,49 @@ test("forecast compounds the existing portfolio without double-counting contribu
   expect(forecast.series.investments[0].p50).toBeCloseTo(1_210);
   expect(forecast.series.investments[1].p50).toBeCloseTo(1_441);
   expect(forecast.series.surplus[0].p50).toBe(50);
+  expect(forecast.contributions.netWorth[1]).toMatchObject({
+    savings: 100,
+    marketReturn: 241,
+  });
+});
+
+test("market returns compound only the priced sleeve of a mixed portfolio", () => {
+  const forecast = buildFinancialForecast(
+    inputs({
+      current: {
+        cash: 0,
+        credits: 0,
+        otherAssets: 0,
+        investments: 200,
+        marketInvestments: 100,
+        fallbackInvestments: 100,
+        debts: 0,
+        total: 200,
+      },
+      monthlyObservations: [
+        {
+          month: "2026-01-01",
+          income: 0,
+          expenses: 0,
+          investmentContributions: 0,
+          investmentFees: 0,
+        },
+      ],
+      investmentReturns: [0.1],
+    }),
+    { horizonMonths: 1, simulationCount: 2, random: () => 0 },
+  );
+
+  expect(forecast.series.investments[0].p50).toBe(210);
+  expect(forecast.series.netWorth[0].p50).toBe(210);
+  expect(forecast.contributions.netWorth[0]).toMatchObject({
+    savings: 0,
+    marketReturn: 10,
+  });
+  expect(forecast.assumptions.investmentFallback).toEqual({
+    treatment: "HELD_FLAT",
+    value: 100,
+  });
 });
 
 test("sampled investment sells move proceeds back to cash without changing net worth", () => {
@@ -195,6 +240,8 @@ test("forecast remains finite with no investments and sparse cash-flow history",
         credits: 0,
         otherAssets: 700,
         investments: 0,
+        marketInvestments: 0,
+        fallbackInvestments: 0,
         debts: 1_000,
         total: -500,
       },

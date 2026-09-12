@@ -35,6 +35,7 @@ import { useAnalysis, useRefreshAnalysis, type AnalysisData } from "@/hooks/use-
 import {
   HORIZON_OPTIONS,
   buildForecastChartRows,
+  buildNetWorthExplanation,
   sliceForecastSeries,
   visibleAiInterpretation,
   type ForecastChartRow,
@@ -42,6 +43,12 @@ import {
 import { formatDate, formatDateTime, formatMoney, formatNumber, formatPercent } from "@/lib/format";
 
 type Forecast = NonNullable<AnalysisData["forecast"]>;
+type ExplanationRow = {
+  label: string;
+  value: React.ReactNode;
+  numeric?: boolean;
+  wide?: boolean;
+};
 
 function ForecastLoading() {
   return (
@@ -56,13 +63,24 @@ function ForecastLoading() {
   );
 }
 
-function ExplanationGrid({ rows }: { rows: { label: string; value: React.ReactNode }[] }) {
+function ExplanationGrid({ rows }: { rows: ExplanationRow[] }) {
   return (
     <dl className="grid grid-cols-1 gap-x-5 gap-y-3 sm:grid-cols-2 xl:grid-cols-4">
       {rows.map((row) => (
-        <div key={row.label} className="min-w-0">
+        <div
+          key={row.label}
+          className={row.wide ? "min-w-0 sm:col-span-2" : "min-w-0"}
+        >
           <dt className="text-xs text-muted-foreground">{row.label}</dt>
-          <dd className="mt-1 font-mono text-sm font-semibold tabular-nums">{row.value}</dd>
+          <dd
+            className={
+              row.numeric === false
+                ? "mt-1 max-w-[72ch] text-sm leading-relaxed"
+                : "mt-1 font-mono text-sm font-semibold tabular-nums"
+            }
+          >
+            {row.value}
+          </dd>
         </div>
       ))}
     </dl>
@@ -94,7 +112,7 @@ function ForecastSection({
     interpretation: string;
     aria: string;
   };
-  explanationRows: { label: string; value: React.ReactNode }[];
+  explanationRows: ExplanationRow[];
   historicalOverlayLabel?: string;
   color?: string;
   className?: string;
@@ -359,13 +377,15 @@ export default function AnalysisPage() {
     interpretation: t("interpretation"),
     aria: t("chartAria", { section }),
   });
-  const netWorthEnd = end("netWorth");
   const incomeEnd = end("income");
   const expenseEnd = end("expenses");
   const investmentEnd = end("investments");
-  const surplusMean =
-    sliceForecastSeries(payload.series.surplus, years).reduce((sum, point) => sum + point.mean, 0) /
-    (years * 12);
+  const netWorthExplanation = buildNetWorthExplanation({
+    years,
+    currentValue: payload.current.total,
+    forecast: payload.series.netWorth,
+    contributions: payload.contributions.netWorth,
+  });
   const returnSummary = payload.summary.investmentReturn;
 
   return (
@@ -440,12 +460,39 @@ export default function AnalysisPage() {
           currency={currency}
           labels={commonLabels(t("netWorthTitle"))}
           explanationRows={[
-            { label: t("startingValue"), value: money(payload.current.total) },
-            { label: t("medianAtHorizon", { years }), value: money(netWorthEnd.p50) },
-            { label: t("likelyRange"), value: <>{money(netWorthEnd.p10)} – {money(netWorthEnd.p90)}</> },
-            { label: t("projectedSurplus"), value: money(surplusMean) },
+            { label: t("startingValue"), value: money(netWorthExplanation.startingValue) },
+            {
+              label: t("medianAtHorizon", { years }),
+              value: money(netWorthExplanation.median),
+            },
+            {
+              label: t("savingsContribution"),
+              value: money(netWorthExplanation.savingsContribution),
+            },
+            {
+              label: t("marketReturnContribution"),
+              value: money(netWorthExplanation.marketReturnContribution),
+            },
+            {
+              label: t("forecastUncertainty"),
+              value: <>{money(netWorthExplanation.p10)} – {money(netWorthExplanation.p90)}</>,
+            },
+            {
+              label: t("forecastAssumptions"),
+              value: (
+                <>
+                  {t("marketReturnAssumption")}{" "}
+                  {payload.assumptions.investmentFallback
+                    ? t("investmentFallbackAssumption")
+                    : null}{" "}
+                  {t("flatAssumption")}
+                </>
+              ),
+              numeric: false,
+              wide: true,
+            },
           ]}
-          note={`${payload.assumptions.recurringMovementsIncluded ? t("recurringIncluded") : t("recurringNotIncluded")} ${t("flatAssumption")}`}
+          note={payload.assumptions.recurringMovementsIncluded ? t("recurringIncluded") : t("recurringNotIncluded")}
         />
         <ForecastSection
           title={t("incomeTitle")}

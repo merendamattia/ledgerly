@@ -24,6 +24,12 @@ export type PercentilePoint = {
   max: number;
 };
 
+export type NetWorthContributionPoint = {
+  date: string;
+  savings: number;
+  marketReturn: number;
+};
+
 export type InvestmentReturnSummary = {
   observationMonths: number;
   cagr: number | null;
@@ -40,6 +46,8 @@ export type FinancialForecastInputs = {
     credits: number;
     otherAssets: number;
     investments: number;
+    marketInvestments: number;
+    fallbackInvestments: number;
     debts: number;
     total: number;
     allocation?: Record<string, number>;
@@ -69,6 +77,9 @@ export type FinancialForecastPayload = {
     investments: PercentilePoint[];
     surplus: PercentilePoint[];
   };
+  contributions: {
+    netWorth: NetWorthContributionPoint[];
+  };
   summary: {
     averageMonthlyIncome: number;
     averageMonthlyExpenses: number;
@@ -83,6 +94,10 @@ export type FinancialForecastPayload = {
     dataQuality: "NONE" | "REDUCED" | "STANDARD";
     recurringMovementsIncluded: boolean;
     flatComponents: string[];
+    investmentFallback: {
+      treatment: "HELD_FLAT";
+      value: number;
+    } | null;
   };
 };
 
@@ -205,10 +220,17 @@ export function buildFinancialForecast(
     (typeof metrics)[number],
     Float64Array
   >;
+  const contributionSums = {
+    savings: new Float64Array(horizonMonths),
+    marketReturn: new Float64Array(horizonMonths),
+  };
 
   for (let simulation = 0; simulation < simulationCount; simulation++) {
     let cash = finite(input.current.cash);
-    let investments = Math.max(0, finite(input.current.investments));
+    let marketInvestments = Math.max(0, finite(input.current.marketInvestments));
+    let fallbackInvestments = Math.max(0, finite(input.current.fallbackInvestments));
+    let cumulativeSavings = 0;
+    let cumulativeMarketReturn = 0;
     const fixedNetWorth = finite(input.current.credits + input.current.otherAssets - input.current.debts);
     for (let month = 0; month < horizonMonths; month++) {
       const sampled = observations[randomIndex(observations.length, random)];
@@ -223,14 +245,29 @@ export function buildFinancialForecast(
       const requestedContribution = finite(
         sampled.investmentContributions + known.investmentContributions,
       );
-      const contribution = Math.max(-investments, requestedContribution);
+      const investmentsBeforeContribution = marketInvestments + fallbackInvestments;
+      const contribution = Math.max(-investmentsBeforeContribution, requestedContribution);
+      const marketShare =
+        investmentsBeforeContribution > 0
+          ? marketInvestments / investmentsBeforeContribution
+          : input.investmentReturns.length > 0
+            ? 1
+            : 0;
+      const marketContribution = contribution * marketShare;
+      const fallbackContribution = contribution - marketContribution;
       const investmentFees = Math.max(
         0,
         finite(sampled.investmentFees + known.investmentFees),
       );
       const marketReturn = Math.max(-0.99, finite(returns[randomIndex(returns.length, random)]));
       cash = finite(cash + income - expenses - investmentFees - contribution);
-      investments = Math.max(0, finite((investments + contribution) * (1 + marketReturn)));
+      const marketPrincipal = Math.max(0, finite(marketInvestments + marketContribution));
+      const marketReturnAmount = finite(marketPrincipal * marketReturn);
+      marketInvestments = Math.max(0, finite(marketPrincipal + marketReturnAmount));
+      fallbackInvestments = Math.max(0, finite(fallbackInvestments + fallbackContribution));
+      const investments = marketInvestments + fallbackInvestments;
+      cumulativeSavings = finite(cumulativeSavings + income - expenses - investmentFees);
+      cumulativeMarketReturn = finite(cumulativeMarketReturn + marketReturnAmount);
       const values = {
         netWorth: finite(cash + investments + fixedNetWorth),
         income,
@@ -242,6 +279,8 @@ export function buildFinancialForecast(
         distributions[metric][month][simulation] = values[metric];
         sums[metric][month] += values[metric];
       }
+      contributionSums.savings[month] += cumulativeSavings;
+      contributionSums.marketReturn[month] += cumulativeMarketReturn;
     }
   }
 
@@ -257,6 +296,11 @@ export function buildFinancialForecast(
       ),
     ]),
   ) as FinancialForecastPayload["series"];
+  const netWorthContributions = Array.from({ length: horizonMonths }, (_, month) => ({
+    date: addUtcMonths(input.cutoff, month + 1),
+    savings: finite(contributionSums.savings[month] / simulationCount),
+    marketReturn: finite(contributionSums.marketReturn[month] / simulationCount),
+  }));
   const lookbackMonths = Math.min(
     FINANCIAL_FORECAST_LOOKBACK_MONTHS,
     input.monthlyObservations.length,
@@ -281,6 +325,7 @@ export function buildFinancialForecast(
     current: input.current,
     historical: input.historical,
     series,
+    contributions: { netWorth: netWorthContributions },
     summary: {
       averageMonthlyIncome: average(observedIncome),
       averageMonthlyExpenses: average(observedExpenses),
@@ -301,6 +346,10 @@ export function buildFinancialForecast(
         (month) => month.income !== 0 || month.expenses !== 0 || month.investmentContributions !== 0,
       ),
       flatComponents: ["credits", "otherAssets", "debts"],
+      investmentFallback:
+        input.current.fallbackInvestments > 0
+          ? { treatment: "HELD_FLAT", value: input.current.fallbackInvestments }
+          : null,
     },
   };
 }

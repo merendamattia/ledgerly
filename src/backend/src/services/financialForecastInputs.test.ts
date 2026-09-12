@@ -4,6 +4,7 @@ import {
   buildInvestmentReturnModel,
   investmentContributionFlows,
   investmentLedgerContribution,
+  partitionInvestmentHoldings,
 } from "./financialForecastInputs.ts";
 
 const cutoff = new Date("2026-02-28T00:00:00.000Z");
@@ -121,6 +122,19 @@ test("missing portfolio prices use the zero-return fallback instead of treating 
       annualizedVolatility: null,
       fallback: "NO_RELIABLE_MARKET_HISTORY",
     },
+  });
+});
+
+test("current holdings partition manual and unpriced values into a flat fallback sleeve", () => {
+  expect(
+    partitionInvestmentHoldings([
+      { provider: "yahoo", priceDate: "2026-02-27", value: 100 },
+      { provider: "manual", priceDate: "2026-02-28", value: 60 },
+      { provider: "yahoo", priceDate: null, value: 40 },
+    ]),
+  ).toEqual({
+    marketInvestments: 100,
+    fallbackInvestments: 100,
   });
 });
 

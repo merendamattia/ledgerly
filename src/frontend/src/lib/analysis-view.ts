@@ -21,6 +21,12 @@ export type ForecastChartRow = ForecastPoint & {
   today: boolean;
 };
 
+export type NetWorthContributionPoint = {
+  date: string;
+  savings: number;
+  marketReturn: number;
+};
+
 export const horizonMonths = (years: number) => years * 12;
 
 /** Prevents unstructured AI prose from bypassing numeric privacy masking. */
@@ -34,6 +40,30 @@ export function visibleAiInterpretation<T>(
 /** Slices the one persisted maximum series; it never requests or calculates. */
 export function sliceForecastSeries(series: ForecastPoint[], years: number): ForecastPoint[] {
   return series.slice(0, horizonMonths(years));
+}
+
+/** Selects deterministic explanation metrics from the same cached horizon as the chart. */
+export function buildNetWorthExplanation({
+  years,
+  currentValue,
+  forecast,
+  contributions,
+}: {
+  years: number;
+  currentValue: number;
+  forecast: ForecastPoint[];
+  contributions: NetWorthContributionPoint[];
+}) {
+  const endpoint = forecast[horizonMonths(years) - 1];
+  const contribution = contributions[horizonMonths(years) - 1];
+  return {
+    startingValue: currentValue,
+    median: endpoint?.p50 ?? currentValue,
+    p10: endpoint?.p10 ?? currentValue,
+    p90: endpoint?.p90 ?? currentValue,
+    savingsContribution: contribution?.savings ?? 0,
+    marketReturnContribution: contribution?.marketReturn ?? 0,
+  };
 }
 
 /** Joins observed history and the forecast fan at one explicit Today point. */

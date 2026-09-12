@@ -10,6 +10,10 @@ test("English and Italian resolve messages with English fallback", () => {
   expect(getMessages("it").analysis.newSimulation).toBe("Nuova simulazione");
   expect(getMessages("en").analysis.contributions).toBe("Contributions");
   expect(getMessages("it").analysis.contributions).toBe("Contributi");
+  expect(getMessages("en").analysis.savingsContribution).toBe("Expected savings contribution");
+  expect(getMessages("it").analysis.marketReturnContribution).toBe("Contributo atteso dei rendimenti di mercato");
+  expect(getMessages("en").analysis.investmentFallbackAssumption).toContain("held flat");
+  expect(getMessages("it").analysis.forecastUncertainty).toBe("Incertezza della previsione (P10–P90)");
   expect(getMessages("en").analysis.aiPrivacyHidden).toBe("AI interpretation is hidden while privacy mode is active.");
   expect(getMessages("it").analysis.aiPrivacyHidden).toBe("L'interpretazione AI è nascosta mentre la modalità privacy è attiva.");
 });

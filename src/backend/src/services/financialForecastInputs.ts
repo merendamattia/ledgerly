@@ -73,6 +73,27 @@ export function buildInvestmentReturnModel(
   return { returns, summary: returnSummary(returns) };
 }
 
+/** Splits current investment value by whether persisted provider prices support market returns. */
+export function partitionInvestmentHoldings(
+  holdings: { provider: string; priceDate: string | null; value: number }[],
+) {
+  const marketInvestments = holdings.reduce(
+    (total, holding) =>
+      holding.provider !== "manual" && holding.priceDate
+        ? total + Math.max(0, holding.value)
+        : total,
+    0,
+  );
+  const totalInvestments = holdings.reduce(
+    (total, holding) => total + Math.max(0, holding.value),
+    0,
+  );
+  return {
+    marketInvestments,
+    fallbackInvestments: Math.max(0, totalInvestments - marketInvestments),
+  };
+}
+
 type ForecastCashflowTransaction = {
   date: Date;
   direction: "INCOME" | "EXPENSE";
@@ -302,12 +323,12 @@ function recurringForecast(
 /** Loads and aggregates the authoritative persisted inputs for one user. */
 export async function loadFinancialForecastInputs(userId: string, cutoff = new Date()) {
   const day = new Date(Date.UTC(cutoff.getUTCFullYear(), cutoff.getUTCMonth(), cutoff.getUTCDate()));
-  const [settings, current, netWorthHistory, investmentHistory, transactions, investmentTransactions, recurring] =
+  const [settings, current, netWorthHistory, marketInvestmentHistory, transactions, investmentTransactions, recurring] =
     await Promise.all([
       settingsRepository.get(userId),
       computeNetWorth(userId, getPersistedFxRate),
       computeNetWorthHistory(userId, getPersistedFxRate),
-      computeInvestmentHistory(userId, getPersistedFxRate),
+      computeInvestmentHistory(userId, getPersistedFxRate, { priceBackedOnly: true }),
       transactionRepository.listAll(userId),
       investmentTransactionRepository.listAll(userId),
       recurringExpenseRepository.list(userId),
@@ -317,12 +338,15 @@ export async function loadFinancialForecastInputs(userId: string, cutoff = new D
     settings.baseCurrency,
   );
   const cashflow = aggregateForecastCashflows(transactions, contributionFlows, day);
-  const investmentMonthEnds = compressMonthEnds(investmentHistory);
-  const investmentReturnModel = buildInvestmentReturnModel(investmentMonthEnds);
+  const marketInvestmentMonthEnds = compressMonthEnds(marketInvestmentHistory);
+  const investmentReturnModel = buildInvestmentReturnModel(marketInvestmentMonthEnds);
+  const investmentSleeves = partitionInvestmentHoldings(current.holdings);
   const netWorth = compressMonthEnds(netWorthHistory)
     .slice(-24)
     .map((point) => ({ date: point.date, value: point.totalValue }));
-  const investments = investmentMonthEnds
+  const investments = compressMonthEnds(
+    netWorthHistory.map((point) => ({ date: point.date, value: point.investments })),
+  )
     .slice(-24)
     .map((point) => ({ date: point.date, value: point.value }));
   const inputs: FinancialForecastInputs = {
@@ -333,6 +357,7 @@ export async function loadFinancialForecastInputs(userId: string, cutoff = new D
       credits: current.credits,
       otherAssets: current.otherAssets,
       investments: current.investments,
+      ...investmentSleeves,
       debts: current.debts,
       total: current.total,
       allocation: current.allocation,
