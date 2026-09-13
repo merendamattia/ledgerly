@@ -56,6 +56,7 @@ const PAGE_META: Record<string, PageMeta> = {
   "/cashflow": { titleKey: "cashFlow", subtitleKey: "cashFlowSubtitle" },
   "/transactions": { titleKey: "activity", subtitleKey: "activitySubtitle" },
   "/accounts": { titleKey: "accounts", subtitleKey: "accountsSubtitle" },
+  "/analysis": { titleKey: "analysis", subtitleKey: "analysisSubtitle" },
   "/matrix": { titleKey: "matrices", subtitleKey: "matricesSubtitle" },
   "/imports": { titleKey: "imports", subtitleKey: "importsSubtitle" },
   "/settings": { titleKey: "settings", subtitleKey: "settingsSubtitle" },

@@ -44,6 +44,8 @@ model User {
   appleWalletImports     AppleWalletImport[]
   notifications          Notification[]
   pushSubscriptions      PushSubscription[]
+  financialForecasts     FinancialForecastSnapshot[]
+  financialForecastState FinancialForecastState?
 
   @@map("user")
 }
@@ -148,6 +150,20 @@ enum AppleWalletImportStatus {
   FAILED
 }
 
+enum FinancialForecastGenerationStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum FinancialAnalysisStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
 /// The cadence unit of a recurring expense (paired with an integer count, e.g.
 /// 30 + DAY = "every 30 days", 2 + WEEK, 1 + MONTH).
 enum RecurInterval {
@@ -174,6 +190,51 @@ model Settings {
   lastSeenReleaseVersion   String?
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
+}
+
+/// Guarded per-user generation state. The current snapshot remains readable
+/// while a replacement is pending or running.
+model FinancialForecastState {
+  id          String                            @id @default(cuid())
+  userId      String                            @unique
+  user        User                              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status      FinancialForecastGenerationStatus @default(PENDING)
+  queueJobId  String?                           @unique
+  requestedAt DateTime                          @default(now())
+  startedAt   DateTime?
+  completedAt DateTime?
+  failedAt    DateTime?
+  lastError   String?
+  updatedAt   DateTime                          @updatedAt
+
+  @@map("financial_forecast_state")
+}
+
+/// Compact, immutable Monte Carlo aggregates. Raw simulation paths and raw
+/// transaction data are deliberately not persisted.
+model FinancialForecastSnapshot {
+  id                      String                  @id @default(cuid())
+  userId                  String
+  user                    User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  generatedAt             DateTime                @default(now())
+  dataCutoff              DateTime                @db.Date
+  effectiveLookbackMonths Int
+  observationMonths       Int
+  simulationCount         Int
+  maxHorizonMonths        Int
+  seed                    Int
+  payload                 Json
+  analysisStatus          FinancialAnalysisStatus @default(PENDING)
+  analysisQueueJobId      String?                 @unique
+  analysisQueuedAt        DateTime?
+  analysisStartedAt       DateTime?
+  analysisCompletedAt     DateTime?
+  analysisFailedAt        DateTime?
+  analysisContent         Json?
+  analysisError           String?
+
+  @@index([userId, generatedAt])
+  @@map("financial_forecast_snapshot")
 }
 
 /// One active, user-owned token for narrow external integrations.

@@ -18,6 +18,7 @@ export interface TransactionFilters {
  */
 export const queryKeys = {
   dashboard: ["dashboard"] as const,
+  analysis: ["analysis"] as const,
   netWorthHistory: ["dashboard", "networth-history"] as const,
   assetMatrix: ["dashboard", "asset-matrix"] as const,
   assetReturnMatrix: ["dashboard", "asset-return-matrix"] as const,

@@ -1,0 +1,451 @@
+import { recurringExpenseRepository } from "../repositories/recurringExpense.ts";
+import { investmentTransactionRepository } from "../repositories/investmentTransaction.ts";
+import { priceRepository } from "../repositories/price.ts";
+import { settingsRepository } from "../repositories/settings.ts";
+import { transactionRepository } from "../repositories/transaction.ts";
+import { isInvestmentCategoryName } from "../utils/category.ts";
+import { computeNextDate } from "./recurring.ts";
+import { computeInvestmentHistory } from "./investmentHistory.ts";
+import { getPersistedFxRate, getPersistedFxRateOn } from "./market/fx.ts";
+import { computeNetWorthHistory } from "./netWorthHistory.ts";
+import { computeNetWorth } from "./valuation.ts";
+import {
+  FINANCIAL_FORECAST_HORIZON_MONTHS,
+  FINANCIAL_FORECAST_LOOKBACK_MONTHS,
+  computeFlowAdjustedMonthlyReturns,
+  countActiveObservationMonths,
+  type FinancialForecastInputs,
+  type InvestmentReturnSummary,
+  type MonthlyAmount,
+  type MonthlyObservation,
+  type RecurringForecastMonth,
+} from "./financialForecast.ts";
+
+const MINIMUM_MARKET_RETURN_OBSERVATIONS = 2;
+
+const monthKey = (date: Date) =>
+  `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-01`;
+
+function monthRange(first: Date, last: Date): string[] {
+  const months: string[] = [];
+  const cursor = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth(), 1));
+  const end = Date.UTC(last.getUTCFullYear(), last.getUTCMonth(), 1);
+  while (cursor.getTime() <= end) {
+    months.push(monthKey(cursor));
+    cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+  }
+  return months;
+}
+
+function compressMonthEnds<T extends { date: string }>(points: T[]): T[] {
+  const ends = new Map<string, T>();
+  for (const point of points) ends.set(point.date.slice(0, 7), point);
+  return [...ends.values()].sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function returnSummary(
+  returns: number[],
+  observationMonths = returns.length,
+): InvestmentReturnSummary {
+  if (returns.length < MINIMUM_MARKET_RETURN_OBSERVATIONS) {
+    return {
+      observationMonths,
+      cagr: null,
+      annualizedArithmeticReturn: null,
+      annualizedVolatility: null,
+      fallback: "NO_RELIABLE_MARKET_HISTORY",
+    };
+  }
+  const mean = returns.reduce((sum, value) => sum + value, 0) / returns.length;
+  const variance =
+    returns.reduce((sum, value) => sum + (value - mean) ** 2, 0) / returns.length;
+  const compounded = returns.reduce((factor, value) => factor * (1 + value), 1);
+  return {
+    observationMonths: returns.length,
+    cagr: compounded > 0 ? compounded ** (12 / returns.length) - 1 : null,
+    annualizedArithmeticReturn: mean * 12,
+    annualizedVolatility: Math.sqrt(variance) * Math.sqrt(12),
+    fallback: null,
+  };
+}
+
+/** Missing prices leave zero-valued history that must not become a -99% market return. */
+export function buildInvestmentReturnModel(
+  monthEnds: { date: string; value: number; netContributions: number }[],
+): { returns: number[]; summary: InvestmentReturnSummary } {
+  const hasMarketValue = monthEnds.some((point) => point.value > 0 && Number.isFinite(point.value));
+  const observedReturns = hasMarketValue
+    ? computeFlowAdjustedMonthlyReturns(monthEnds).slice(-FINANCIAL_FORECAST_LOOKBACK_MONTHS)
+    : [];
+  const returns =
+    observedReturns.length >= MINIMUM_MARKET_RETURN_OBSERVATIONS ? observedReturns : [];
+  return { returns, summary: returnSummary(returns, observedReturns.length) };
+}
+
+/** Splits current investment value by whether persisted provider prices support market returns. */
+export function partitionInvestmentHoldings(
+  holdings: { tickerId: string; provider: string; priceDate: string | null; value: number }[],
+  supportedTickerIds: ReadonlySet<string>,
+) {
+  const marketInvestments = holdings.reduce(
+    (total, holding) =>
+      holding.provider !== "manual" &&
+      holding.priceDate &&
+      supportedTickerIds.has(holding.tickerId)
+        ? total + Math.max(0, holding.value)
+        : total,
+    0,
+  );
+  const totalInvestments = holdings.reduce(
+    (total, holding) => total + Math.max(0, holding.value),
+    0,
+  );
+  return {
+    marketInvestments,
+    fallbackInvestments: Math.max(0, totalInvestments - marketInvestments),
+  };
+}
+
+const calendarMonth = (date: Date) => date.getUTCFullYear() * 12 + date.getUTCMonth();
+
+/**
+ * Returns current tickers whose own ledger and persisted prices cover at least
+ * two consecutive held-month returns. Prices that start after the first trade
+ * cannot reconstruct the opening holding value and are deliberately excluded.
+ */
+export function supportedInvestmentTickerIds(
+  transactions: { tickerId: string; date: Date }[],
+  prices: { tickerId: string; date: Date }[],
+): Set<string> {
+  const firstTransactionByTicker = new Map<string, Date>();
+  for (const transaction of transactions) {
+    const first = firstTransactionByTicker.get(transaction.tickerId);
+    if (!first || transaction.date < first) {
+      firstTransactionByTicker.set(transaction.tickerId, transaction.date);
+    }
+  }
+
+  const pricesByTicker = new Map<string, Date[]>();
+  for (const price of prices) {
+    const tickerPrices = pricesByTicker.get(price.tickerId) ?? [];
+    tickerPrices.push(price.date);
+    pricesByTicker.set(price.tickerId, tickerPrices);
+  }
+
+  const supported = new Set<string>();
+  for (const [tickerId, firstTransaction] of firstTransactionByTicker) {
+    const tickerPrices = pricesByTicker.get(tickerId) ?? [];
+    if (!tickerPrices.some((date) => date <= firstTransaction)) continue;
+    const heldMonth = calendarMonth(firstTransaction);
+    const observedMonths = new Set(
+      tickerPrices
+        .map(calendarMonth)
+        .filter((month) => month >= heldMonth),
+    );
+    for (const month of observedMonths) {
+      if (observedMonths.has(month + 1) && observedMonths.has(month + 2)) {
+        supported.add(tickerId);
+        break;
+      }
+    }
+  }
+  return supported;
+}
+
+type ForecastCashflowTransaction = {
+  date: Date;
+  direction: "INCOME" | "EXPENSE";
+  amount: unknown;
+  recurringExpenseId: string | null;
+  category?: { name: string } | null;
+};
+
+export type InvestmentContributionFlow = {
+  date: Date;
+  /** Buy cash outflow, including fees, used only to match categorized transfers. */
+  buyAmount: number;
+  /** Signed gross principal moved into or out of the portfolio. */
+  principalAmount: number;
+  /** Cash cost that must reduce net worth instead of becoming portfolio principal. */
+  feeAmount: number;
+};
+
+export function investmentLedgerContribution(
+  transaction: {
+    date: Date;
+    side: "BUY" | "SELL";
+    quantity: unknown;
+    price: unknown;
+    fee: unknown;
+  },
+  baseCurrencyRate: number,
+): InvestmentContributionFlow {
+  const gross = Number(transaction.quantity) * Number(transaction.price);
+  const fee = Number(transaction.fee);
+  const buyAmount =
+    transaction.side === "BUY" ? (gross + fee) * baseCurrencyRate : 0;
+  const principalAmount =
+    (transaction.side === "BUY" ? gross : -gross) * baseCurrencyRate;
+  return {
+    date: transaction.date,
+    buyAmount,
+    principalAmount,
+    feeAmount: fee * baseCurrencyRate,
+  };
+}
+
+/** Combines categorized transfers with the authoritative investment ledger. */
+export function aggregateForecastCashflows(
+  transactions: ForecastCashflowTransaction[],
+  investmentFlows: InvestmentContributionFlow[],
+  cutoff: Date,
+) {
+  const firstDate = [...transactions, ...investmentFlows]
+    .filter(({ date }) => date.getTime() <= cutoff.getTime())
+    .reduce<Date | null>((first, row) => (!first || row.date < first ? row.date : first), null);
+  if (!firstDate) {
+    return {
+      observations: [] as MonthlyObservation[],
+      income: [] as MonthlyAmount[],
+      expenses: [] as MonthlyAmount[],
+      contributions: [] as MonthlyAmount[],
+    };
+  }
+  const months = monthRange(firstDate, cutoff);
+  const total = new Map(
+    months.map((month) => [
+      month,
+      { income: 0, expenses: 0, investmentContributions: 0, investmentFees: 0 },
+    ]),
+  );
+  const variable = new Map(
+    months.map((month) => [
+      month,
+      { income: 0, expenses: 0, investmentContributions: 0, investmentFees: 0 },
+    ]),
+  );
+  const categorized = new Map(months.map((month) => [month, 0]));
+  const variableCategorized = new Map(months.map((month) => [month, 0]));
+  const recurringCategorized = new Map(months.map((month) => [month, 0]));
+  const ledgerBuys = new Map(months.map((month) => [month, 0]));
+  const ledgerBuyPrincipal = new Map(months.map((month) => [month, 0]));
+  const ledgerSellPrincipal = new Map(months.map((month) => [month, 0]));
+  const ledgerBuyFees = new Map(months.map((month) => [month, 0]));
+  const ledgerSellFees = new Map(months.map((month) => [month, 0]));
+  for (const transaction of transactions) {
+    if (transaction.date.getTime() > cutoff.getTime()) continue;
+    const key = monthKey(transaction.date);
+    const all = total.get(key);
+    const stochastic = variable.get(key);
+    if (!all || !stochastic) continue;
+    const target = transaction.recurringExpenseId ? null : stochastic;
+    const investment =
+      transaction.direction === "EXPENSE" &&
+      isInvestmentCategoryName(transaction.category?.name);
+    if (transaction.direction === "INCOME") {
+      all.income += Number(transaction.amount);
+      if (target) target.income += Number(transaction.amount);
+    } else if (investment) {
+      const amount = Number(transaction.amount);
+      categorized.set(key, categorized.get(key)! + amount);
+      if (target) variableCategorized.set(key, variableCategorized.get(key)! + amount);
+      else recurringCategorized.set(key, recurringCategorized.get(key)! + amount);
+    } else {
+      all.expenses += Number(transaction.amount);
+      if (target) target.expenses += Number(transaction.amount);
+    }
+  }
+  for (const flow of investmentFlows) {
+    if (flow.date.getTime() > cutoff.getTime()) continue;
+    const key = monthKey(flow.date);
+    if (!ledgerBuys.has(key)) continue;
+    ledgerBuys.set(key, ledgerBuys.get(key)! + flow.buyAmount);
+    const principalTarget = flow.principalAmount >= 0 ? ledgerBuyPrincipal : ledgerSellPrincipal;
+    principalTarget.set(key, principalTarget.get(key)! + flow.principalAmount);
+    const feeTarget = flow.buyAmount > 0 ? ledgerBuyFees : ledgerSellFees;
+    feeTarget.set(key, feeTarget.get(key)! + flow.feeAmount);
+  }
+  for (const month of months) {
+    const buys = ledgerBuys.get(month)!;
+    const buyPrincipal = ledgerBuyPrincipal.get(month)!;
+    const sellPrincipal = ledgerSellPrincipal.get(month)!;
+    const totalContributions =
+      buyPrincipal + sellPrincipal + Math.max(0, categorized.get(month)! - buys);
+    const unmatchedLedgerBuyCash = Math.max(0, buys - recurringCategorized.get(month)!);
+    const unmatchedLedgerBuyRatio = buys > 0 ? unmatchedLedgerBuyCash / buys : 0;
+    const unmatchedLedgerBuyPrincipal = buyPrincipal * unmatchedLedgerBuyRatio;
+    const variableContributions =
+      sellPrincipal +
+      unmatchedLedgerBuyPrincipal +
+      Math.max(0, variableCategorized.get(month)! - unmatchedLedgerBuyCash);
+    total.get(month)!.investmentContributions = totalContributions;
+    variable.get(month)!.investmentContributions = variableContributions;
+    total.get(month)!.investmentFees = ledgerBuyFees.get(month)! + ledgerSellFees.get(month)!;
+    variable.get(month)!.investmentFees =
+      ledgerBuyFees.get(month)! * unmatchedLedgerBuyRatio + ledgerSellFees.get(month)!;
+  }
+  const lookback = months.slice(-FINANCIAL_FORECAST_LOOKBACK_MONTHS);
+  return {
+    observations: lookback.map((month) => ({ month, ...variable.get(month)! })),
+    income: months.map((date) => ({ date, value: total.get(date)!.income })),
+    expenses: months.map((date) => ({ date, value: total.get(date)!.expenses })),
+    contributions: months.map((date) => ({
+      date,
+      value: total.get(date)!.investmentContributions,
+    })),
+  };
+}
+
+type InvestmentContributionTransaction = {
+  date: Date;
+  side: "BUY" | "SELL";
+  quantity: unknown;
+  price: unknown;
+  fee: unknown;
+  ticker: { currency: string };
+};
+
+type HistoricalFxRateResolver = (
+  base: string,
+  quote: string,
+  date: Date,
+) => Promise<number>;
+
+export async function investmentContributionFlows(
+  transactions: InvestmentContributionTransaction[],
+  baseCurrency: string,
+  resolveFxRate: HistoricalFxRateResolver = getPersistedFxRateOn,
+): Promise<InvestmentContributionFlow[]> {
+  const rateByCurrencyAndDay = new Map<string, Promise<number>>();
+  const rateFor = (currency: string, date: Date) => {
+    const key = `${currency}:${date.toISOString().slice(0, 10)}`;
+    let rate = rateByCurrencyAndDay.get(key);
+    if (!rate) {
+      rate = resolveFxRate(currency, baseCurrency, date);
+      rateByCurrencyAndDay.set(key, rate);
+    }
+    return rate;
+  };
+  return Promise.all(
+    transactions.map(async (transaction) => {
+      const rate = await rateFor(transaction.ticker.currency, transaction.date);
+      return investmentLedgerContribution(transaction, rate);
+    }),
+  );
+}
+
+type RecurringRow = Awaited<ReturnType<typeof recurringExpenseRepository.list>>[number];
+
+function recurringForecast(
+  rules: RecurringRow[],
+  cutoff: Date,
+): RecurringForecastMonth[] {
+  const months = Array.from({ length: FINANCIAL_FORECAST_HORIZON_MONTHS }, (_, index) => {
+    const date = new Date(Date.UTC(cutoff.getUTCFullYear(), cutoff.getUTCMonth() + index + 1, 1));
+    return { month: monthKey(date), income: 0, expenses: 0, investmentContributions: 0, investmentFees: 0 };
+  });
+  const byMonth = new Map(months.map((month) => [month.month.slice(0, 7), month]));
+  const end = new Date(Date.UTC(cutoff.getUTCFullYear(), cutoff.getUTCMonth() + 241, 0));
+  for (const rule of rules) {
+    if (!rule.enabled) continue;
+    let occurrence = new Date(rule.nextRunDate);
+    let count = rule.occurrencesCount;
+    while (occurrence.getTime() <= end.getTime()) {
+      const pastLimit =
+        rule.endMode === "AFTER_OCCURRENCES" &&
+        rule.maxOccurrences != null &&
+        count >= rule.maxOccurrences;
+      const pastDate =
+        rule.endMode === "ON_DATE" &&
+        rule.endDate != null &&
+        occurrence.getTime() > rule.endDate.getTime();
+      if (pastLimit || pastDate) break;
+      if (occurrence.getTime() > cutoff.getTime()) {
+        const target = byMonth.get(monthKey(occurrence).slice(0, 7));
+        if (target) {
+          const value = Number(rule.amount);
+          const investment =
+            rule.direction === "EXPENSE" && isInvestmentCategoryName(rule.category?.name);
+          if (rule.direction === "INCOME") target.income += value;
+          else if (investment) target.investmentContributions += value;
+          else target.expenses += value;
+        }
+      }
+      count += 1;
+      occurrence = computeNextDate(occurrence, rule.intervalUnit, rule.intervalCount);
+    }
+  }
+  return months;
+}
+
+/** Loads and aggregates the authoritative persisted inputs for one user. */
+export async function loadFinancialForecastInputs(userId: string, cutoff = new Date()) {
+  const day = new Date(Date.UTC(cutoff.getUTCFullYear(), cutoff.getUTCMonth(), cutoff.getUTCDate()));
+  const current = await computeNetWorth(userId, getPersistedFxRate);
+  const currentTickerIds = current.holdings.map((holding) => holding.tickerId);
+  const [settings, netWorthHistory, transactions, investmentTransactions, recurring, prices] =
+    await Promise.all([
+      settingsRepository.get(userId),
+      computeNetWorthHistory(userId, getPersistedFxRate),
+      transactionRepository.listAll(userId),
+      investmentTransactionRepository.listAll(userId),
+      recurringExpenseRepository.list(userId),
+      priceRepository.seriesByTickerIds(currentTickerIds),
+    ]);
+  const supportedTickerIds = supportedInvestmentTickerIds(investmentTransactions, prices);
+  const marketInvestmentHistory = await computeInvestmentHistory(userId, getPersistedFxRate, {
+    priceBackedOnly: true,
+    tickerIds: [...supportedTickerIds],
+  });
+  const contributionFlows = await investmentContributionFlows(
+    investmentTransactions,
+    settings.baseCurrency,
+  );
+  const cashflow = aggregateForecastCashflows(transactions, contributionFlows, day);
+  const marketInvestmentMonthEnds = compressMonthEnds(marketInvestmentHistory);
+  const investmentReturnModel = buildInvestmentReturnModel(marketInvestmentMonthEnds);
+  const investmentSleeves = partitionInvestmentHoldings(current.holdings, supportedTickerIds);
+  const netWorth = compressMonthEnds(netWorthHistory)
+    .slice(-24)
+    .map((point) => ({ date: point.date, value: point.totalValue }));
+  const investments = compressMonthEnds(
+    netWorthHistory.map((point) => ({ date: point.date, value: point.investments })),
+  )
+    .slice(-24)
+    .map((point) => ({ date: point.date, value: point.value }));
+  const inputs: FinancialForecastInputs = {
+    cutoff: day,
+    baseCurrency: settings.baseCurrency,
+    current: {
+      cash: current.cash,
+      credits: current.credits,
+      otherAssets: current.otherAssets,
+      investments: current.investments,
+      ...investmentSleeves,
+      debts: current.debts,
+      total: current.total,
+      allocation: current.allocation,
+    },
+    monthlyObservations: cashflow.observations,
+    recurringFuture: recurringForecast(recurring, day),
+    investmentReturns: investmentReturnModel.returns,
+    historical: {
+      netWorth,
+      income: cashflow.income.slice(-24),
+      expenses: cashflow.expenses.slice(-24),
+      investments,
+      contributions: cashflow.contributions.slice(-24),
+    },
+    investmentReturn: investmentReturnModel.summary,
+  };
+  const locale: "en" | "it" = settings.locale === "it" ? "it" : "en";
+  return {
+    inputs,
+    locale,
+    effectiveLookbackMonths: Math.min(
+      FINANCIAL_FORECAST_LOOKBACK_MONTHS,
+      cashflow.observations.length,
+    ),
+    observationMonths: countActiveObservationMonths(cashflow.observations),
+  };
+}
