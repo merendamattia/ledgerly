@@ -1,12 +1,14 @@
 import type { ReactNode } from "react";
 
-/** Keeps period insights above the movement/sidebar grid at every viewport. */
+/** Keeps Activity insights above the movement/sidebar grid at every viewport. */
 export function TransactionContentLayout({
   summary,
+  summaryLabel,
   sidebar,
   movements,
 }: {
   summary: ReactNode | null;
+  summaryLabel: string;
   sidebar: ReactNode;
   movements: ReactNode;
 }) {
@@ -16,7 +18,7 @@ export function TransactionContentLayout({
     <div className="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-12">
       {hasSummary ? (
         <section
-          aria-label="Period summary"
+          aria-label={summaryLabel}
           className="min-w-0 lg:col-span-12 lg:col-start-1 lg:row-start-1"
         >
           {summary}

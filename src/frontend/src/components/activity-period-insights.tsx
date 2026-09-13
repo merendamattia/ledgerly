@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { AllocationChart } from "@/components/charts/allocation-chart";
 import { MoneyAmount } from "@/components/money-amount";
 import {
@@ -13,6 +14,8 @@ import {
 import {
   SEGMENTED_CONTROL_ACTIVE_CLASS,
   SEGMENTED_CONTROL_CLASS,
+  SEGMENTED_CONTROL_EQUAL_WIDTH_CLASS,
+  SEGMENTED_CONTROL_EQUAL_WIDTH_ITEM_CLASS,
   SEGMENTED_CONTROL_INACTIVE_CLASS,
   SEGMENTED_CONTROL_ITEM_CLASS,
 } from "@/components/segmented-control";
@@ -26,7 +29,7 @@ const INCOME_COLORS = ["#155e3b", "#1c7a4d", "#3d9668", "#69ad88", "#96c8ad", "#
 const EXPENSE_COLORS = ["#8f3025", "#b94731", "#db5a3c", "#e8765b", "#ee9b87", "#f4c1b5"];
 type CategoryMode = "expenses" | "income";
 
-/** Shows bounded-period totals and category composition for Activity. */
+/** Shows filtered totals and category composition for Activity. */
 export function ActivityPeriodInsights({
   summary,
   rows,
@@ -40,18 +43,19 @@ export function ActivityPeriodInsights({
   periodLabel: string;
   isLoading: boolean;
 }) {
+  const tr = useTranslations("transactionsPage");
   const [mode, setMode] = useState<CategoryMode>("expenses");
-  const categories = summarizeTransactionCategories(rows);
+  const categories = summarizeTransactionCategories(rows, tr("uncategorized"));
   const metrics = [
-    { label: "Income", value: summary?.income, color: "#9fd356", signed: true },
+    { label: tr("income"), value: summary?.income, color: "#9fd356", signed: true },
     {
-      label: "Expenses",
+      label: tr("expenses"),
       value: summary ? -summary.expenses : undefined,
       color: "#e8765b",
       signed: false,
     },
     {
-      label: "Net",
+      label: tr("net"),
       value: summary?.net,
       color: summary && summary.net < 0 ? "#e8765b" : "var(--primary)",
       signed: true,
@@ -63,7 +67,9 @@ export function ActivityPeriodInsights({
     <div className="grid min-w-0 gap-5">
       <Card className="gap-0 border-0 bg-sidebar py-0 text-sidebar-accent-foreground ring-0">
         <CardHeader className="gap-0 border-b border-sidebar-border py-5">
-          <CardTitle className="text-sidebar-accent-foreground">Period summary</CardTitle>
+          <CardTitle className="text-sidebar-accent-foreground">
+            {tr("activityInsights")}
+          </CardTitle>
           <CardDescription className="mt-1 text-xs text-sidebar-foreground">
             {periodLabel}
           </CardDescription>
@@ -99,8 +105,8 @@ export function ActivityPeriodInsights({
       <CategoryInsightCard
         mode={mode}
         onModeChange={setMode}
-        title={showingExpenses ? "Expenses by category" : "Income by category"}
-        emptyText={showingExpenses ? "No expenses in this period." : "No income in this period."}
+        title={showingExpenses ? tr("expensesByCategory") : tr("incomeByCategory")}
+        emptyText={showingExpenses ? tr("noExpensesForFilters") : tr("noIncomeForFilters")}
         allocation={showingExpenses ? categories.expenses : categories.income}
         labels={categories.labels}
         currency={currency}
@@ -135,6 +141,8 @@ function CategoryInsightCard({
   isLoading: boolean;
   colors: readonly string[];
 }) {
+  const tr = useTranslations("transactionsPage");
+
   return (
     <Card className="gap-0">
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -142,7 +150,13 @@ function CategoryInsightCard({
           <CardTitle>{title}</CardTitle>
           <CardDescription className="mt-1">{periodLabel}</CardDescription>
         </div>
-        <div className={cn(SEGMENTED_CONTROL_CLASS, "w-full shrink-0 sm:w-auto")}>
+        <div
+          className={cn(
+            SEGMENTED_CONTROL_CLASS,
+            SEGMENTED_CONTROL_EQUAL_WIDTH_CLASS,
+            "shrink-0",
+          )}
+        >
           {(["expenses", "income"] as CategoryMode[]).map((option) => (
             <button
               key={option}
@@ -151,12 +165,13 @@ function CategoryInsightCard({
               onClick={() => onModeChange(option)}
               className={cn(
                 SEGMENTED_CONTROL_ITEM_CLASS,
+                SEGMENTED_CONTROL_EQUAL_WIDTH_ITEM_CLASS,
                 mode === option
                   ? SEGMENTED_CONTROL_ACTIVE_CLASS
                   : SEGMENTED_CONTROL_INACTIVE_CLASS,
               )}
             >
-              {option === "expenses" ? "Expenses" : "Income"}
+              {option === "expenses" ? tr("expenses") : tr("income")}
             </button>
           ))}
         </div>

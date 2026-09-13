@@ -4,6 +4,7 @@ import {
   loadCompletePages,
   resolveTransactionRange,
   shouldLoadCompleteTransactionResults,
+  shouldShowTransactionInsights,
   summarizeTransactionCategories,
   summarizeTransactionRows,
 } from "./transaction-period";
@@ -66,6 +67,13 @@ test("keeps All time paginated and loads every bounded-period page", async () =>
   ]);
 });
 
+test("shows complete insights for tags and bounded periods", () => {
+  expect(shouldShowTransactionInsights("all", false)).toBe(false);
+  expect(shouldShowTransactionInsights("all", true)).toBe(true);
+  expect(shouldShowTransactionInsights("2026-08", false)).toBe(true);
+  expect(shouldShowTransactionInsights(CUSTOM_TRANSACTION_PERIOD, true)).toBe(true);
+});
+
 test("calculates income, expenses, and net for the effective filtered rows", () => {
   expect(
     summarizeTransactionRows([
@@ -89,4 +97,11 @@ test("groups filtered income and expenses by category", () => {
     expenses: { food: 55 },
     labels: { food: "Food", salary: "Salary", uncategorized: "Uncategorized" },
   });
+
+  expect(
+    summarizeTransactionCategories(
+      [{ direction: "INCOME", amount: 25, category: null }],
+      "Senza categoria",
+    ).labels,
+  ).toEqual({ uncategorized: "Senza categoria" });
 });

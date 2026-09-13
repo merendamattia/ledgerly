@@ -5,6 +5,7 @@ import { TransactionContentLayout } from "./transaction-content-layout";
 test("keeps sidebar widgets after movements when no period summary is active", () => {
   const layout = TransactionContentLayout({
     summary: null,
+    summaryLabel: "Activity insights",
     sidebar: createElement("span", null, "sidebar"),
     movements: createElement("span", null, "movements"),
   });
@@ -18,9 +19,10 @@ test("keeps sidebar widgets after movements when no period summary is active", (
   expect(sidebar.props.className).toContain("lg:sticky lg:top-4");
 });
 
-test("emits the bounded-period summary before movements in DOM order", () => {
+test("emits Activity insights before movements in DOM order", () => {
   const layout = TransactionContentLayout({
     summary: createElement("span", null, "summary"),
+    summaryLabel: "Activity insights",
     sidebar: createElement("span", null, "sidebar"),
     movements: createElement("span", null, "movements"),
   });
@@ -29,6 +31,7 @@ test("emits the bounded-period summary before movements in DOM order", () => {
 
   expect(children.map((child) => child.type)).toEqual(["section", "div", "aside"]);
   expect(summary.type).toBe("section");
+  expect(summary.props["aria-label"]).toBe("Activity insights");
   expect(sidebar.type).toBe("aside");
   expect(summary.props.className).toContain("lg:col-span-12");
   expect(summary.props.className).toContain("lg:col-start-1");
