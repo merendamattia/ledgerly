@@ -9,7 +9,6 @@ import { toast } from "sonner";
 import { MonthYearPicker } from "@/components/month-year-picker";
 import { ActivityPeriodInsights } from "@/components/activity-period-insights";
 import { MoneyAmount } from "@/components/money-amount";
-import { StatCard } from "@/components/stat-card";
 import { TransactionContentLayout } from "@/components/transaction-content-layout";
 import {
   TRANSACTION_DATE_INPUT_CLASS,
@@ -52,8 +51,7 @@ import { useLocaleLabels } from "@/hooks/use-locale-labels";
 import {
   CUSTOM_TRANSACTION_PERIOD,
   resolveTransactionRange,
-  shouldLoadCompleteTransactionResults,
-  summarizeTransactionRows,
+  shouldShowTransactionInsights,
 } from "@/lib/transaction-period";
 import { cn } from "@/lib/utils";
 import {
@@ -179,11 +177,12 @@ export default function TransactionsPage() {
         : undefined,
   };
 
-  const completePeriod = shouldLoadCompleteTransactionResults(period);
-  const completeResults = filter !== "INVESTMENT" && (completePeriod || tagActive);
+  const insightsActive =
+    filter !== "INVESTMENT" && shouldShowTransactionInsights(period, tagActive);
+  const completeResults = insightsActive;
   const paginatedTransactions = useExpenses({ ...filters, limit }, !completeResults);
   const completeTransactions = useCompleteExpenses(filters, completeResults);
-  const periodSummary = useExpenseSummary(filters, completePeriod && filter !== "INVESTMENT");
+  const periodSummary = useExpenseSummary(filters, insightsActive);
   const data = completeResults ? completeTransactions.data : paginatedTransactions.data;
   const isLoading = completeResults
     ? completeTransactions.isLoading
@@ -216,10 +215,6 @@ export default function TransactionsPage() {
     return data ?? [];
   }, [data, filter]);
 
-  // Net balance of the currently-shown rows — surfaced when a tag is active so a
-  // tag (e.g. a trip city) reads as a single signed total.
-  const tagNet = useMemo(() => summarizeTransactionRows(rows).net, [rows]);
-
   const investmentRows = useMemo(() => {
     if (filter !== "INVESTMENT") return [];
     const q = query.trim().toLowerCase();
@@ -233,8 +228,6 @@ export default function TransactionsPage() {
   }, [investments.data, query, filter]);
 
   const hasMore = !completeResults && filter !== "INVESTMENT" && !!data && data.length === limit;
-  const showPeriodSummary = completePeriod && filter !== "INVESTMENT";
-
   // Keep the open detail dialogs bound to LIVE query data (looked up by id) rather
   // than the snapshot captured on click, so an inline edit (date, amount, …)
   // reflects immediately without closing and reopening the popup. Falls back to
@@ -413,8 +406,9 @@ export default function TransactionsPage() {
       ) : null}
 
       <TransactionContentLayout
+        summaryLabel={tr("activityInsights")}
         summary={
-          showPeriodSummary ? (
+          insightsActive ? (
             <ActivityPeriodInsights
               summary={periodSummary.data}
               rows={rows}
@@ -426,14 +420,6 @@ export default function TransactionsPage() {
         }
         sidebar={
           <div className="flex flex-col gap-5">
-            {tagActive && activeTag ? (
-              <StatCard
-                label={tr("tag", { tag: activeTag })}
-                value={<MoneyAmount value={tagNet} currency={currency} colored signed />}
-                accent={tagNet < 0 ? "negative" : "positive"}
-                delta={{ label: tr("movementCount", { count: rows.length }) }}
-              />
-            ) : null}
             <UpcomingMovement currency={currency} onTransactionClick={setDetailTx} />
             <RecurringList currency={currency} />
           </div>
@@ -542,7 +528,7 @@ export default function TransactionsPage() {
                         {t.note ? (
                           <span className="truncate text-xs text-muted-foreground">{t.note}</span>
                         ) : null}
-                        <TagChips note={t.note} onTagClick={(tag) => setQuery(`#${tag}`)} />
+                        <TagChips note={t.note} onTagClick={applyTag} />
                       </div>
                       <MoneyAmount
                         value={t.direction === "EXPENSE" ? -t.amount : t.amount}

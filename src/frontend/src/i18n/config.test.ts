@@ -13,3 +13,10 @@ test("only registered locales are accepted", () => {
   expect(isLocale("it")).toBe(true);
   expect(isLocale("fr")).toBe(false);
 });
+
+test("Activity insights copy is available in both catalogs", () => {
+  expect(getMessages("en").transactionsPage.activityInsights).toBe("Activity insights");
+  expect(getMessages("en").transactionsPage.incomeByCategory).toBe("Income by category");
+  expect(getMessages("it").transactionsPage.activityInsights).toBe("Analisi attività");
+  expect(getMessages("it").transactionsPage.incomeByCategory).toBe("Entrate per categoria");
+});
