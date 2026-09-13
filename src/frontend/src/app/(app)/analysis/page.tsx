@@ -36,6 +36,7 @@ import {
   HORIZON_OPTIONS,
   buildForecastChartRows,
   buildNetWorthExplanation,
+  forecastUnavailableState,
   sliceForecastSeries,
   visibleAiInterpretation,
   type ForecastChartRow,
@@ -218,6 +219,17 @@ function qualityLabel(forecast: Forecast, translate: ReturnType<typeof useTransl
   return translate("qualityNone");
 }
 
+function GenerationFailureAlert() {
+  const t = useTranslations("analysis");
+  return (
+    <Alert variant="destructive">
+      <TriangleAlert />
+      <AlertTitle>{t("simulationFailed")}</AlertTitle>
+      <AlertDescription>{t("simulationFailedDescription")}</AlertDescription>
+    </Alert>
+  );
+}
+
 /** Renders persisted forecast distributions; horizon changes are cache-only slices. */
 export default function AnalysisPage() {
   const t = useTranslations("analysis");
@@ -227,6 +239,7 @@ export default function AnalysisPage() {
   const notifiedFailure = useRef<string | null>(null);
   const data = query.data;
   const forecast = data?.forecast ?? null;
+  const generationFailed = data?.generation?.status === "FAILED";
   const generationActive =
     data?.generation?.status === "PENDING" || data?.generation?.status === "RUNNING";
   const refreshPending = refresh.isPending || generationActive;
@@ -318,19 +331,22 @@ export default function AnalysisPage() {
   );
 
   if (!forecast) {
+    const unavailable = forecastUnavailableState(data?.generation?.status);
     return (
       <Card className="min-h-[360px]">
         <CardHeader>
-          <CardTitle>{t("pendingTitle")}</CardTitle>
+          <CardTitle>{t(unavailable.titleKey)}</CardTitle>
           <CardDescription>{t("description")}</CardDescription>
           <CardAction>{refreshButton}</CardAction>
         </CardHeader>
         <CardContent className="flex flex-1">
           <Empty>
             <EmptyHeader>
-              <EmptyMedia variant="icon"><ChartNoAxesCombined /></EmptyMedia>
-              <EmptyTitle>{t("pendingTitle")}</EmptyTitle>
-              <EmptyDescription>{t("pendingDescription")}</EmptyDescription>
+              <EmptyMedia variant="icon">
+                {unavailable.failed ? <TriangleAlert /> : <ChartNoAxesCombined />}
+              </EmptyMedia>
+              <EmptyTitle>{t(unavailable.titleKey)}</EmptyTitle>
+              <EmptyDescription>{t(unavailable.descriptionKey)}</EmptyDescription>
             </EmptyHeader>
             <EmptyContent>
               <Button type="button" onClick={runRefresh} disabled={refreshPending}>
@@ -346,21 +362,24 @@ export default function AnalysisPage() {
 
   if (!forecast.payload.hasData) {
     return (
-      <Card className="min-h-[360px]">
-        <CardHeader>
-          <CardTitle>{t("noDataTitle")}</CardTitle>
-          <CardAction>{refreshButton}</CardAction>
-        </CardHeader>
-        <CardContent className="flex flex-1">
-          <Empty>
-            <EmptyHeader>
-              <EmptyMedia variant="icon"><ChartNoAxesCombined /></EmptyMedia>
-              <EmptyTitle>{t("noDataTitle")}</EmptyTitle>
-              <EmptyDescription>{t("noDataDescription")}</EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        </CardContent>
-      </Card>
+      <div className="flex flex-col gap-4">
+        {generationFailed ? <GenerationFailureAlert /> : null}
+        <Card className="min-h-[360px]">
+          <CardHeader>
+            <CardTitle>{t("noDataTitle")}</CardTitle>
+            <CardAction>{refreshButton}</CardAction>
+          </CardHeader>
+          <CardContent className="flex flex-1">
+            <Empty>
+              <EmptyHeader>
+                <EmptyMedia variant="icon"><ChartNoAxesCombined /></EmptyMedia>
+                <EmptyTitle>{t("noDataTitle")}</EmptyTitle>
+                <EmptyDescription>{t("noDataDescription")}</EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
@@ -435,13 +454,7 @@ export default function AnalysisPage() {
         </Alert>
       ) : null}
 
-      {data?.generation?.status === "FAILED" ? (
-        <Alert variant="destructive">
-          <TriangleAlert />
-          <AlertTitle>{t("simulationFailed")}</AlertTitle>
-          <AlertDescription>{t("simulationFailedDescription")}</AlertDescription>
-        </Alert>
-      ) : null}
+      {generationFailed ? <GenerationFailureAlert /> : null}
 
       {years >= 10 ? (
         <Alert>

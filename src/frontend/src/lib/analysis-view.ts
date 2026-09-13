@@ -29,6 +29,22 @@ export type NetWorthContributionPoint = {
 
 export const horizonMonths = (years: number) => years * 12;
 
+/** Selects status-specific copy for the first generation, before a snapshot exists. */
+export function forecastUnavailableState(status: string | null | undefined) {
+  if (status === "FAILED") {
+    return {
+      titleKey: "simulationFailed" as const,
+      descriptionKey: "simulationFailedDescription" as const,
+      failed: true,
+    };
+  }
+  return {
+    titleKey: "pendingTitle" as const,
+    descriptionKey: "pendingDescription" as const,
+    failed: false,
+  };
+}
+
 /** Prevents unstructured AI prose from bypassing numeric privacy masking. */
 export function visibleAiInterpretation<T>(
   interpretation: T | null | undefined,

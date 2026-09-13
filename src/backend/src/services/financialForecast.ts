@@ -214,10 +214,12 @@ export function computeFlowAdjustedMonthlyReturns(
   for (let index = 1; index < ordered.length; index++) {
     const start = ordered[index - 1];
     const end = ordered[index];
+    const openingCapital = finite(start.value);
+    if (openingCapital <= 0) continue;
     const flow = finite(end.netContributions - start.netContributions);
-    const denominator = start.value + flow * 0.5;
+    const denominator = openingCapital + flow * 0.5;
     if (denominator <= 0) continue;
-    const value = (end.value - start.value - flow) / denominator;
+    const value = (end.value - openingCapital - flow) / denominator;
     returns.push(Math.max(-0.99, finite(value)));
   }
   return returns;

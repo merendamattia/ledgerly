@@ -3,6 +3,7 @@ import {
   HORIZON_OPTIONS,
   buildForecastChartRows,
   buildNetWorthExplanation,
+  forecastUnavailableState,
   horizonMonths,
   sliceForecastSeries,
   visibleAiInterpretation,
@@ -31,6 +32,19 @@ test("changing horizon slices the loaded series without changing its source", ()
   expect(sliceForecastSeries(source, 1)).toHaveLength(12);
   expect(sliceForecastSeries(source, 20)).toHaveLength(240);
   expect(source).toHaveLength(240);
+});
+
+test("a failed first generation is presented as failed and retryable", () => {
+  expect(forecastUnavailableState("FAILED")).toEqual({
+    titleKey: "simulationFailed",
+    descriptionKey: "simulationFailedDescription",
+    failed: true,
+  });
+  expect(forecastUnavailableState("PENDING")).toEqual({
+    titleKey: "pendingTitle",
+    descriptionKey: "pendingDescription",
+    failed: false,
+  });
 });
 
 test("Net Worth explanation uses the selected horizon savings and market-return contributions", () => {

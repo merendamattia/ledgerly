@@ -126,6 +126,26 @@ test("missing portfolio prices use the zero-return fallback instead of treating 
   });
 });
 
+test("zero opening capital cannot manufacture a market return from contributions", () => {
+  const model = buildInvestmentReturnModel([
+    { date: "2026-01-31", value: 0, netContributions: 0 },
+    { date: "2026-02-28", value: 0, netContributions: 100 },
+    { date: "2026-03-31", value: 100, netContributions: 100 },
+    { date: "2026-04-30", value: 99, netContributions: 100 },
+  ]);
+
+  expect(model).toEqual({
+    returns: [],
+    summary: {
+      observationMonths: 1,
+      cagr: null,
+      annualizedArithmeticReturn: null,
+      annualizedVolatility: null,
+      fallback: "NO_RELIABLE_MARKET_HISTORY",
+    },
+  });
+});
+
 test("one observed market return falls back to zero instead of repeating it for 20 years", () => {
   const model = buildInvestmentReturnModel([
     { date: "2026-01-31", value: 100, netContributions: 100 },
