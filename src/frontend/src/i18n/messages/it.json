@@ -460,7 +460,7 @@
     "forecastUncertainty": "Incertezza della previsione (P10–P90)",
     "forecastAssumptions": "Ipotesi della previsione",
     "marketReturnAssumption": "I rendimenti campionati si applicano solo agli investimenti con prezzi forniti da un provider.",
-    "investmentFallbackAssumption": "Gli investimenti manuali o senza prezzo restano invariati.",
+    "investmentFallbackAssumption": "Gli investimenti manuali, senza prezzo o con storico insufficiente restano invariati.",
     "averageContributions": "Contributi mensili storici",
     "portfolioReturn": "Rendimento storico composto",
     "portfolioReturnPeriod": "Basato su {months, plural, one {# mese corretto per i flussi} other {# mesi corretti per i flussi}}",

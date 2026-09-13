@@ -6,6 +6,7 @@ import {
   investmentContributionFlows,
   investmentLedgerContribution,
   partitionInvestmentHoldings,
+  supportedInvestmentTickerIds,
 } from "./financialForecastInputs.ts";
 
 const cutoff = new Date("2026-02-28T00:00:00.000Z");
@@ -260,14 +261,67 @@ test("one observed market return falls back to zero instead of repeating it for 
 test("current holdings partition manual and unpriced values into a flat fallback sleeve", () => {
   expect(
     partitionInvestmentHoldings([
-      { provider: "yahoo", priceDate: "2026-02-27", value: 100 },
-      { provider: "manual", priceDate: "2026-02-28", value: 60 },
-      { provider: "yahoo", priceDate: null, value: 40 },
-    ]),
+      { tickerId: "supported", provider: "yahoo", priceDate: "2026-02-27", value: 100 },
+      { tickerId: "manual", provider: "manual", priceDate: "2026-02-28", value: 60 },
+      { tickerId: "unpriced", provider: "yahoo", priceDate: null, value: 40 },
+    ], new Set(["supported"])),
   ).toEqual({
     marketInvestments: 100,
     fallbackInvestments: 100,
   });
+});
+
+test("a current provider holding without investment-ledger history stays flat", () => {
+  const supportedTickerIds = supportedInvestmentTickerIds(
+    [{ tickerId: "supported", date: new Date("2025-12-15T00:00:00.000Z") }],
+    [
+      { tickerId: "supported", date: new Date("2025-12-01T00:00:00.000Z") },
+      { tickerId: "supported", date: new Date("2026-01-01T00:00:00.000Z") },
+      { tickerId: "supported", date: new Date("2026-02-01T00:00:00.000Z") },
+      { tickerId: "no-ledger", date: new Date("2025-12-01T00:00:00.000Z") },
+      { tickerId: "no-ledger", date: new Date("2026-01-01T00:00:00.000Z") },
+      { tickerId: "no-ledger", date: new Date("2026-02-01T00:00:00.000Z") },
+    ],
+  );
+
+  expect(supportedTickerIds).toEqual(new Set(["supported"]));
+  expect(
+    partitionInvestmentHoldings(
+      [
+        { tickerId: "supported", provider: "yahoo", priceDate: "2026-02-01", value: 100 },
+        { tickerId: "no-ledger", provider: "yahoo", priceDate: "2026-02-01", value: 100 },
+      ],
+      supportedTickerIds,
+    ),
+  ).toEqual({ marketInvestments: 100, fallbackInvestments: 100 });
+});
+
+test("price history that starts after purchase or skips months is insufficient coverage", () => {
+  const supportedTickerIds = supportedInvestmentTickerIds(
+    [
+      { tickerId: "late", date: new Date("2025-11-15T00:00:00.000Z") },
+      { tickerId: "sparse", date: new Date("2025-11-15T00:00:00.000Z") },
+    ],
+    [
+      { tickerId: "late", date: new Date("2025-12-01T00:00:00.000Z") },
+      { tickerId: "late", date: new Date("2026-01-01T00:00:00.000Z") },
+      { tickerId: "late", date: new Date("2026-02-01T00:00:00.000Z") },
+      { tickerId: "sparse", date: new Date("2025-11-01T00:00:00.000Z") },
+      { tickerId: "sparse", date: new Date("2026-01-01T00:00:00.000Z") },
+      { tickerId: "sparse", date: new Date("2026-02-01T00:00:00.000Z") },
+    ],
+  );
+
+  expect(supportedTickerIds).toEqual(new Set());
+  expect(
+    partitionInvestmentHoldings(
+      [
+        { tickerId: "late", provider: "yahoo", priceDate: "2026-02-01", value: 60 },
+        { tickerId: "sparse", provider: "yahoo", priceDate: "2026-02-01", value: 40 },
+      ],
+      supportedTickerIds,
+    ),
+  ).toEqual({ marketInvestments: 0, fallbackInvestments: 100 });
 });
 
 test("profitable liquidation and fees stay outside portfolio market returns", () => {

@@ -1,5 +1,6 @@
 import { recurringExpenseRepository } from "../repositories/recurringExpense.ts";
 import { investmentTransactionRepository } from "../repositories/investmentTransaction.ts";
+import { priceRepository } from "../repositories/price.ts";
 import { settingsRepository } from "../repositories/settings.ts";
 import { transactionRepository } from "../repositories/transaction.ts";
 import { isInvestmentCategoryName } from "../utils/category.ts";
@@ -83,11 +84,14 @@ export function buildInvestmentReturnModel(
 
 /** Splits current investment value by whether persisted provider prices support market returns. */
 export function partitionInvestmentHoldings(
-  holdings: { provider: string; priceDate: string | null; value: number }[],
+  holdings: { tickerId: string; provider: string; priceDate: string | null; value: number }[],
+  supportedTickerIds: ReadonlySet<string>,
 ) {
   const marketInvestments = holdings.reduce(
     (total, holding) =>
-      holding.provider !== "manual" && holding.priceDate
+      holding.provider !== "manual" &&
+      holding.priceDate &&
+      supportedTickerIds.has(holding.tickerId)
         ? total + Math.max(0, holding.value)
         : total,
     0,
@@ -100,6 +104,52 @@ export function partitionInvestmentHoldings(
     marketInvestments,
     fallbackInvestments: Math.max(0, totalInvestments - marketInvestments),
   };
+}
+
+const calendarMonth = (date: Date) => date.getUTCFullYear() * 12 + date.getUTCMonth();
+
+/**
+ * Returns current tickers whose own ledger and persisted prices cover at least
+ * two consecutive held-month returns. Prices that start after the first trade
+ * cannot reconstruct the opening holding value and are deliberately excluded.
+ */
+export function supportedInvestmentTickerIds(
+  transactions: { tickerId: string; date: Date }[],
+  prices: { tickerId: string; date: Date }[],
+): Set<string> {
+  const firstTransactionByTicker = new Map<string, Date>();
+  for (const transaction of transactions) {
+    const first = firstTransactionByTicker.get(transaction.tickerId);
+    if (!first || transaction.date < first) {
+      firstTransactionByTicker.set(transaction.tickerId, transaction.date);
+    }
+  }
+
+  const pricesByTicker = new Map<string, Date[]>();
+  for (const price of prices) {
+    const tickerPrices = pricesByTicker.get(price.tickerId) ?? [];
+    tickerPrices.push(price.date);
+    pricesByTicker.set(price.tickerId, tickerPrices);
+  }
+
+  const supported = new Set<string>();
+  for (const [tickerId, firstTransaction] of firstTransactionByTicker) {
+    const tickerPrices = pricesByTicker.get(tickerId) ?? [];
+    if (!tickerPrices.some((date) => date <= firstTransaction)) continue;
+    const heldMonth = calendarMonth(firstTransaction);
+    const observedMonths = new Set(
+      tickerPrices
+        .map(calendarMonth)
+        .filter((month) => month >= heldMonth),
+    );
+    for (const month of observedMonths) {
+      if (observedMonths.has(month + 1) && observedMonths.has(month + 2)) {
+        supported.add(tickerId);
+        break;
+      }
+    }
+  }
+  return supported;
 }
 
 type ForecastCashflowTransaction = {
@@ -332,18 +382,21 @@ function recurringForecast(
 export async function loadFinancialForecastInputs(userId: string, cutoff = new Date()) {
   const day = new Date(Date.UTC(cutoff.getUTCFullYear(), cutoff.getUTCMonth(), cutoff.getUTCDate()));
   const current = await computeNetWorth(userId, getPersistedFxRate);
-  const [settings, netWorthHistory, marketInvestmentHistory, transactions, investmentTransactions, recurring] =
+  const currentTickerIds = current.holdings.map((holding) => holding.tickerId);
+  const [settings, netWorthHistory, transactions, investmentTransactions, recurring, prices] =
     await Promise.all([
       settingsRepository.get(userId),
       computeNetWorthHistory(userId, getPersistedFxRate),
-      computeInvestmentHistory(userId, getPersistedFxRate, {
-        priceBackedOnly: true,
-        tickerIds: current.holdings.map((holding) => holding.tickerId),
-      }),
       transactionRepository.listAll(userId),
       investmentTransactionRepository.listAll(userId),
       recurringExpenseRepository.list(userId),
+      priceRepository.seriesByTickerIds(currentTickerIds),
     ]);
+  const supportedTickerIds = supportedInvestmentTickerIds(investmentTransactions, prices);
+  const marketInvestmentHistory = await computeInvestmentHistory(userId, getPersistedFxRate, {
+    priceBackedOnly: true,
+    tickerIds: [...supportedTickerIds],
+  });
   const contributionFlows = await investmentContributionFlows(
     investmentTransactions,
     settings.baseCurrency,
@@ -351,7 +404,7 @@ export async function loadFinancialForecastInputs(userId: string, cutoff = new D
   const cashflow = aggregateForecastCashflows(transactions, contributionFlows, day);
   const marketInvestmentMonthEnds = compressMonthEnds(marketInvestmentHistory);
   const investmentReturnModel = buildInvestmentReturnModel(marketInvestmentMonthEnds);
-  const investmentSleeves = partitionInvestmentHoldings(current.holdings);
+  const investmentSleeves = partitionInvestmentHoldings(current.holdings, supportedTickerIds);
   const netWorth = compressMonthEnds(netWorthHistory)
     .slice(-24)
     .map((point) => ({ date: point.date, value: point.totalValue }));

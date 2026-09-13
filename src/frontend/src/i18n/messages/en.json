@@ -461,7 +461,7 @@
     "forecastUncertainty": "Forecast uncertainty (P10–P90)",
     "forecastAssumptions": "Forecast assumptions",
     "marketReturnAssumption": "Sampled returns apply only to priced provider-backed investments.",
-    "investmentFallbackAssumption": "Manual or unpriced investments are held flat.",
+    "investmentFallbackAssumption": "Manual, unpriced or insufficiently supported investments are held flat.",
     "averageContributions": "Historical monthly contributions",
     "portfolioReturn": "Historical compounded return",
     "portfolioReturnPeriod": "Based on {months, plural, one {# flow-adjusted month} other {# flow-adjusted months}}",
