@@ -137,6 +137,29 @@ function standardDeviation(values: number[]): number {
   return Math.sqrt(average(values.map((value) => (value - mean) ** 2)));
 }
 
+function hasMeaningfulFinancialData(input: FinancialForecastInputs): boolean {
+  const currentValues = [
+    input.current.cash,
+    input.current.credits,
+    input.current.otherAssets,
+    input.current.investments,
+    input.current.marketInvestments,
+    input.current.fallbackInvestments,
+    input.current.debts,
+  ];
+  const hasCurrentValue = currentValues.some((value) => Number.isFinite(value) && value !== 0);
+  const hasHistoricalValue = Object.values(input.historical).some((series) =>
+    series.some(({ value }) => Number.isFinite(value) && value !== 0),
+  );
+  const hasObservedActivity = input.monthlyObservations.some(
+    ({ income, expenses, investmentContributions, investmentFees }) =>
+      [income, expenses, investmentContributions, investmentFees].some(
+        (value) => Number.isFinite(value) && value !== 0,
+      ),
+  );
+  return hasCurrentValue || hasHistoricalValue || hasObservedActivity;
+}
+
 function addUtcMonths(date: Date, months: number): string {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + months, 1))
     .toISOString()
@@ -314,10 +337,7 @@ export function buildFinancialForecast(
   const observedContributions = input.historical.contributions
     .slice(-lookbackMonths)
     .map((month) => month.value);
-  const hasData =
-    input.historical.netWorth.length > 0 ||
-    input.monthlyObservations.length > 0 ||
-    input.current.total !== 0;
+  const hasData = hasMeaningfulFinancialData(input);
 
   return {
     hasData,

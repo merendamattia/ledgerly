@@ -264,6 +264,67 @@ test("forecast remains finite with no investments and sparse cash-flow history",
   expect(forecast.series.netWorth.every((point) => Number.isFinite(point.p50))).toBe(true);
 });
 
+test("a zero-balance account without activity is treated as no financial data", () => {
+  const forecast = buildFinancialForecast(
+    inputs({
+      current: {
+        cash: 0,
+        credits: 0,
+        otherAssets: 0,
+        investments: 0,
+        marketInvestments: 0,
+        fallbackInvestments: 0,
+        debts: 0,
+        total: 0,
+      },
+      monthlyObservations: [],
+      investmentReturns: [],
+      historical: {
+        netWorth: [{ date: "2026-01-31", value: 0 }],
+        income: [],
+        expenses: [],
+        investments: [{ date: "2026-01-31", value: 0 }],
+        contributions: [],
+      },
+    }),
+    { horizonMonths: 240, simulationCount: 2, random: () => 0 },
+  );
+
+  expect(forecast.hasData).toBe(false);
+  expect(forecast.assumptions.dataQuality).toBe("NONE");
+  expect(forecast.series.netWorth).toHaveLength(240);
+  expect(forecast.series.netWorth.every((point) => point.p50 === 0)).toBe(true);
+});
+
+test("offsetting asset and debt balances still count as meaningful financial data", () => {
+  const forecast = buildFinancialForecast(
+    inputs({
+      current: {
+        cash: 100,
+        credits: 0,
+        otherAssets: 0,
+        investments: 0,
+        marketInvestments: 0,
+        fallbackInvestments: 0,
+        debts: 100,
+        total: 0,
+      },
+      monthlyObservations: [],
+      investmentReturns: [],
+      historical: {
+        netWorth: [{ date: "2026-01-31", value: 0 }],
+        income: [],
+        expenses: [],
+        investments: [],
+        contributions: [],
+      },
+    }),
+    { horizonMonths: 1, simulationCount: 2, random: () => 0 },
+  );
+
+  expect(forecast.hasData).toBe(true);
+});
+
 test("flow-adjusted returns treat contributions as flows, not performance", () => {
   const returns = computeFlowAdjustedMonthlyReturns([
     { date: "2026-01-31", value: 100, netContributions: 100 },

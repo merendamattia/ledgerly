@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { buildFinancialForecast } from "./financialForecast.ts";
 import {
   aggregateForecastCashflows,
   buildInvestmentReturnModel,
@@ -125,6 +126,56 @@ test("missing portfolio prices use the zero-return fallback instead of treating 
   });
 });
 
+test("one observed market return falls back to zero instead of repeating it for 20 years", () => {
+  const model = buildInvestmentReturnModel([
+    { date: "2026-01-31", value: 100, netContributions: 100 },
+    { date: "2026-02-28", value: 110, netContributions: 100 },
+  ]);
+
+  expect(model).toEqual({
+    returns: [],
+    summary: {
+      observationMonths: 1,
+      cagr: null,
+      annualizedArithmeticReturn: null,
+      annualizedVolatility: null,
+      fallback: "NO_RELIABLE_MARKET_HISTORY",
+    },
+  });
+
+  const forecast = buildFinancialForecast(
+    {
+      cutoff,
+      baseCurrency: "EUR",
+      current: {
+        cash: 0,
+        credits: 0,
+        otherAssets: 0,
+        investments: 110,
+        marketInvestments: 110,
+        fallbackInvestments: 0,
+        debts: 0,
+        total: 110,
+      },
+      monthlyObservations: [],
+      recurringFuture: [],
+      investmentReturns: model.returns,
+      historical: {
+        netWorth: [{ date: "2026-02-28", value: 110 }],
+        income: [],
+        expenses: [],
+        investments: [{ date: "2026-02-28", value: 110 }],
+        contributions: [],
+      },
+      investmentReturn: model.summary,
+    },
+    { horizonMonths: 240, simulationCount: 2, random: () => 0 },
+  );
+
+  expect(forecast.series.investments.every((point) => point.p50 === 110)).toBe(true);
+  expect(forecast.series.netWorth.every((point) => point.p50 === 110)).toBe(true);
+});
+
 test("current holdings partition manual and unpriced values into a flat fallback sleeve", () => {
   expect(
     partitionInvestmentHoldings([
@@ -156,10 +207,15 @@ test("profitable liquidation and fees stay outside portfolio market returns", ()
       value: 50,
       netContributions: 100 + sale.principalAmount,
     },
+    {
+      date: "2026-03-31",
+      value: 50,
+      netContributions: 100 + sale.principalAmount,
+    },
   ]);
 
   expect(sale).toMatchObject({ principalAmount: -150, feeAmount: 5 });
-  expect(model.returns).toEqual([0]);
+  expect(model.returns).toEqual([0, 0]);
   expect(model.summary.annualizedArithmeticReturn).toBe(0);
 });
 

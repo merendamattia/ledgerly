@@ -19,6 +19,8 @@ import {
   type RecurringForecastMonth,
 } from "./financialForecast.ts";
 
+const MINIMUM_MARKET_RETURN_OBSERVATIONS = 2;
+
 const monthKey = (date: Date) =>
   `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-01`;
 
@@ -39,10 +41,13 @@ function compressMonthEnds<T extends { date: string }>(points: T[]): T[] {
   return [...ends.values()].sort((a, b) => a.date.localeCompare(b.date));
 }
 
-function returnSummary(returns: number[]): InvestmentReturnSummary {
-  if (returns.length === 0) {
+function returnSummary(
+  returns: number[],
+  observationMonths = returns.length,
+): InvestmentReturnSummary {
+  if (returns.length < MINIMUM_MARKET_RETURN_OBSERVATIONS) {
     return {
-      observationMonths: 0,
+      observationMonths,
       cagr: null,
       annualizedArithmeticReturn: null,
       annualizedVolatility: null,
@@ -67,10 +72,12 @@ export function buildInvestmentReturnModel(
   monthEnds: { date: string; value: number; netContributions: number }[],
 ): { returns: number[]; summary: InvestmentReturnSummary } {
   const hasMarketValue = monthEnds.some((point) => point.value > 0 && Number.isFinite(point.value));
-  const returns = hasMarketValue
+  const observedReturns = hasMarketValue
     ? computeFlowAdjustedMonthlyReturns(monthEnds).slice(-FINANCIAL_FORECAST_LOOKBACK_MONTHS)
     : [];
-  return { returns, summary: returnSummary(returns) };
+  const returns =
+    observedReturns.length >= MINIMUM_MARKET_RETURN_OBSERVATIONS ? observedReturns : [];
+  return { returns, summary: returnSummary(returns, observedReturns.length) };
 }
 
 /** Splits current investment value by whether persisted provider prices support market returns. */
