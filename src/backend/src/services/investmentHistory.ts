@@ -4,7 +4,10 @@ import { priceRepository } from "../repositories/price.ts";
 import { getFxRate } from "./market/fx.ts";
 
 type FxRateResolver = (base: string, quote: string) => Promise<number>;
-type InvestmentHistoryOptions = { priceBackedOnly?: boolean };
+type InvestmentHistoryOptions = {
+  priceBackedOnly?: boolean;
+  tickerIds?: readonly string[];
+};
 
 export interface PortfolioPoint {
   date: string; // yyyy-mm-dd
@@ -35,9 +38,12 @@ export async function computeInvestmentHistory(
     investmentTransactionRepository.listAll(userId),
     settingsRepository.baseCurrency(userId),
   ]);
-  const candidateTransactions = options.priceBackedOnly
-    ? allTransactions.filter((transaction) => transaction.ticker.provider !== "manual")
-    : allTransactions;
+  const includedTickerIds = options.tickerIds ? new Set(options.tickerIds) : null;
+  const candidateTransactions = allTransactions.filter(
+    (transaction) =>
+      (!includedTickerIds || includedTickerIds.has(transaction.tickerId)) &&
+      (!options.priceBackedOnly || transaction.ticker.provider !== "manual"),
+  );
   if (candidateTransactions.length === 0) return [];
 
   const candidateTickerIds = [

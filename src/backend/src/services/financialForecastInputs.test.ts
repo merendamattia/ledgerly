@@ -108,6 +108,67 @@ test("categorized investment expenses already represented by ledger buys are not
   expect(result.contributions[0].value).toBe(200);
 });
 
+test("old activity followed by twelve empty months has reduced forecast confidence", () => {
+  const result = aggregateForecastCashflows(
+    [
+      {
+        date: new Date("2025-01-10T00:00:00.000Z"),
+        direction: "INCOME",
+        amount: 100,
+        recurringExpenseId: null,
+      },
+    ],
+    [],
+    cutoff,
+  );
+
+  expect(result.observations).toHaveLength(12);
+  expect(result.observations.every(({ income, expenses }) => income === 0 && expenses === 0)).toBe(
+    true,
+  );
+
+  const forecast = buildFinancialForecast(
+    {
+      cutoff,
+      baseCurrency: "EUR",
+      current: {
+        cash: 0,
+        credits: 0,
+        otherAssets: 0,
+        investments: 0,
+        marketInvestments: 0,
+        fallbackInvestments: 0,
+        debts: 0,
+        total: 0,
+      },
+      monthlyObservations: result.observations,
+      recurringFuture: [],
+      investmentReturns: [],
+      historical: {
+        netWorth: [],
+        income: result.income,
+        expenses: result.expenses,
+        investments: [],
+        contributions: result.contributions,
+      },
+      investmentReturn: {
+        observationMonths: 0,
+        cagr: null,
+        annualizedArithmeticReturn: null,
+        annualizedVolatility: null,
+        fallback: "NO_RELIABLE_MARKET_HISTORY",
+      },
+    },
+    { horizonMonths: 1, simulationCount: 2, random: () => 0 },
+  );
+
+  expect(forecast.assumptions).toMatchObject({
+    effectiveLookbackMonths: 12,
+    observationMonths: 0,
+    dataQuality: "REDUCED",
+  });
+});
+
 test("missing portfolio prices use the zero-return fallback instead of treating contributions as losses", () => {
   const model = buildInvestmentReturnModel([
     { date: "2026-01-31", value: 0, netContributions: 100 },

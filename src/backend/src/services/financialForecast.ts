@@ -137,6 +137,15 @@ function standardDeviation(values: number[]): number {
   return Math.sqrt(average(values.map((value) => (value - mean) ** 2)));
 }
 
+/** Counts calendar months with usable stochastic cash-flow activity. */
+export function countActiveObservationMonths(observations: MonthlyObservation[]): number {
+  return observations.filter(({ income, expenses, investmentContributions, investmentFees }) =>
+    [income, expenses, investmentContributions, investmentFees].some(
+      (value) => Number.isFinite(value) && value !== 0,
+    ),
+  ).length;
+}
+
 function hasMeaningfulFinancialData(input: FinancialForecastInputs): boolean {
   const currentValues = [
     input.current.cash,
@@ -151,12 +160,7 @@ function hasMeaningfulFinancialData(input: FinancialForecastInputs): boolean {
   const hasHistoricalValue = Object.values(input.historical).some((series) =>
     series.some(({ value }) => Number.isFinite(value) && value !== 0),
   );
-  const hasObservedActivity = input.monthlyObservations.some(
-    ({ income, expenses, investmentContributions, investmentFees }) =>
-      [income, expenses, investmentContributions, investmentFees].some(
-        (value) => Number.isFinite(value) && value !== 0,
-      ),
-  );
+  const hasObservedActivity = countActiveObservationMonths(input.monthlyObservations) > 0;
   return hasCurrentValue || hasHistoricalValue || hasObservedActivity;
 }
 
@@ -340,6 +344,7 @@ export function buildFinancialForecast(
     .slice(-lookbackMonths)
     .map((month) => month.value);
   const hasData = hasMeaningfulFinancialData(input);
+  const observationMonths = countActiveObservationMonths(input.monthlyObservations);
 
   return {
     hasData,
@@ -358,10 +363,10 @@ export function buildFinancialForecast(
     },
     assumptions: {
       effectiveLookbackMonths: lookbackMonths,
-      observationMonths: input.monthlyObservations.length,
+      observationMonths,
       dataQuality: !hasData
         ? "NONE"
-        : input.monthlyObservations.length < FINANCIAL_FORECAST_LOOKBACK_MONTHS
+        : observationMonths < FINANCIAL_FORECAST_LOOKBACK_MONTHS
           ? "REDUCED"
           : "STANDARD",
       recurringMovementsIncluded: input.recurringFuture.some(

@@ -12,6 +12,7 @@ import {
   FINANCIAL_FORECAST_HORIZON_MONTHS,
   FINANCIAL_FORECAST_LOOKBACK_MONTHS,
   computeFlowAdjustedMonthlyReturns,
+  countActiveObservationMonths,
   type FinancialForecastInputs,
   type InvestmentReturnSummary,
   type MonthlyAmount,
@@ -330,12 +331,15 @@ function recurringForecast(
 /** Loads and aggregates the authoritative persisted inputs for one user. */
 export async function loadFinancialForecastInputs(userId: string, cutoff = new Date()) {
   const day = new Date(Date.UTC(cutoff.getUTCFullYear(), cutoff.getUTCMonth(), cutoff.getUTCDate()));
-  const [settings, current, netWorthHistory, marketInvestmentHistory, transactions, investmentTransactions, recurring] =
+  const current = await computeNetWorth(userId, getPersistedFxRate);
+  const [settings, netWorthHistory, marketInvestmentHistory, transactions, investmentTransactions, recurring] =
     await Promise.all([
       settingsRepository.get(userId),
-      computeNetWorth(userId, getPersistedFxRate),
       computeNetWorthHistory(userId, getPersistedFxRate),
-      computeInvestmentHistory(userId, getPersistedFxRate, { priceBackedOnly: true }),
+      computeInvestmentHistory(userId, getPersistedFxRate, {
+        priceBackedOnly: true,
+        tickerIds: current.holdings.map((holding) => holding.tickerId),
+      }),
       transactionRepository.listAll(userId),
       investmentTransactionRepository.listAll(userId),
       recurringExpenseRepository.list(userId),
@@ -389,6 +393,6 @@ export async function loadFinancialForecastInputs(userId: string, cutoff = new D
       FINANCIAL_FORECAST_LOOKBACK_MONTHS,
       cashflow.observations.length,
     ),
-    observationMonths: cashflow.observations.length,
+    observationMonths: countActiveObservationMonths(cashflow.observations),
   };
 }
