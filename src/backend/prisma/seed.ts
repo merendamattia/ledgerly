@@ -32,6 +32,12 @@ const CRON_JOBS: { key: string; name: string; description: string; schedule: str
     schedule: "10 1 * * *",
   },
   {
+    key: "weekly-financial-forecast",
+    name: "Weekly financial forecast",
+    description: "Queues one maximum 20-year Monte Carlo forecast for every user.",
+    schedule: "0 4 * * 1",
+  },
+  {
     key: "backfill",
     name: "Asset backfill",
     description: "One-shot full price history repair for every provider-backed asset.",

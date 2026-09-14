@@ -27,6 +27,8 @@ const envSchema = z.object({
   OPENAI_MODEL: z.string().trim().min(1).default("gpt-5.6-luna"),
   OPENAI_REASONING_EFFORT: z.string().trim().min(1).default("low"),
   APPLE_PAY_WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(20).default(1),
+  FINANCIAL_FORECAST_WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(4).default(1),
+  FINANCIAL_ANALYSIS_WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(4).default(1),
   VAPID_PUBLIC_KEY: optionalNonEmpty,
   VAPID_PRIVATE_KEY: optionalNonEmpty,
   // Apple rejects VAPID JWTs whose subject points at a local-only host.
@@ -52,3 +54,5 @@ if (!parsed.success) {
 export const config = parsed.data;
 export type Config = typeof config;
 export const appleWalletQueueName = `ledgerly-${config.APP_ENV}-apple-wallet-imports`;
+export const financialForecastQueueName = `ledgerly-${config.APP_ENV}-financial-forecasts`;
+export const financialInterpretationQueueName = `ledgerly-${config.APP_ENV}-financial-interpretations`;

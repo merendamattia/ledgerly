@@ -6,6 +6,8 @@ import { debtRepository } from "../repositories/debt.ts";
 import { getFxRate } from "./market/fx.ts";
 import { computeInvestmentHistory } from "./investmentHistory.ts";
 
+type FxRateResolver = (base: string, quote: string) => Promise<number>;
+
 export interface NetWorthPoint {
   date: string; // yyyy-mm-dd
   cash: number;
@@ -28,10 +30,13 @@ function isoDay(d: Date): string {
  * today. Investments come from price history; cash and debts are step functions
  * driven by their dated snapshots (a value applies from its snapshot day onward).
  */
-export async function computeNetWorthHistory(userId: string): Promise<NetWorthPoint[]> {
+export async function computeNetWorthHistory(
+  userId: string,
+  resolveFxRate: FxRateResolver = getFxRate,
+): Promise<NetWorthPoint[]> {
   const [baseCurrency, inv, cashSnaps, debtSnaps, accounts, debtsRows] = await Promise.all([
     settingsRepository.baseCurrency(userId),
-    computeInvestmentHistory(userId),
+    computeInvestmentHistory(userId, resolveFxRate),
     cashSnapshotRepository.history(userId),
     debtSnapshotRepository.history(userId),
     cashAccountRepository.list(userId),
@@ -49,7 +54,7 @@ export async function computeNetWorthHistory(userId: string): Promise<NetWorthPo
     await Promise.all(
       [...currencies].map(async (currency) => [
         currency,
-        await getFxRate(currency, baseCurrency),
+        await resolveFxRate(currency, baseCurrency),
       ] as const),
     ),
   );

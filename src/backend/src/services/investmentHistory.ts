@@ -3,10 +3,17 @@ import { investmentTransactionRepository } from "../repositories/investmentTrans
 import { priceRepository } from "../repositories/price.ts";
 import { getFxRate } from "./market/fx.ts";
 
+type FxRateResolver = (base: string, quote: string) => Promise<number>;
+type InvestmentHistoryOptions = {
+  priceBackedOnly?: boolean;
+  tickerIds?: readonly string[];
+};
+
 export interface PortfolioPoint {
   date: string; // yyyy-mm-dd
   value: number; // market value in base currency
   invested: number; // cumulative net cost basis in base currency
+  netContributions: number; // cumulative signed gross principal flows in base currency
 }
 
 /**
@@ -22,14 +29,33 @@ function isoDay(d: Date): string {
  * cumulative buys − sells up to that day; the price is the latest close ≤ day.
  * FX uses the current rate (historical FX is not modelled here).
  */
-export async function computeInvestmentHistory(userId: string): Promise<PortfolioPoint[]> {
-  const [txs, baseCurrency] = await Promise.all([
+export async function computeInvestmentHistory(
+  userId: string,
+  resolveFxRate: FxRateResolver = getFxRate,
+  options: InvestmentHistoryOptions = {},
+): Promise<PortfolioPoint[]> {
+  const [allTransactions, baseCurrency] = await Promise.all([
     investmentTransactionRepository.listAll(userId),
     settingsRepository.baseCurrency(userId),
   ]);
-  if (txs.length === 0) return [];
+  const includedTickerIds = options.tickerIds ? new Set(options.tickerIds) : null;
+  const candidateTransactions = allTransactions.filter(
+    (transaction) =>
+      (!includedTickerIds || includedTickerIds.has(transaction.tickerId)) &&
+      (!options.priceBackedOnly || transaction.ticker.provider !== "manual"),
+  );
+  if (candidateTransactions.length === 0) return [];
 
-  const tickerIds = [...new Set(txs.map((t) => t.tickerId))];
+  const candidateTickerIds = [
+    ...new Set(candidateTransactions.map((transaction) => transaction.tickerId)),
+  ];
+  const prices = await priceRepository.seriesByTickerIds(candidateTickerIds);
+  const pricedTickerIds = new Set(prices.map((price) => price.tickerId));
+  const txs = options.priceBackedOnly
+    ? candidateTransactions.filter((transaction) => pricedTickerIds.has(transaction.tickerId))
+    : candidateTransactions;
+  if (txs.length === 0) return [];
+  const tickerIds = [...new Set(txs.map((transaction) => transaction.tickerId))];
 
   // ticker -> currency, and current FX per currency.
   const currencyOf = new Map<string, string>();
@@ -37,23 +63,22 @@ export async function computeInvestmentHistory(userId: string): Promise<Portfoli
   const currencies = [...new Set(currencyOf.values())];
 
   // Ascending price series per ticker.
-  const [prices, fxEntries] = await Promise.all([
-    Promise.all(
-      tickerIds.map(async (tickerId) =>
-        (await priceRepository.series(tickerId)).map((point) => ({ ...point, tickerId })),
-      ),
-    ).then((series) => series.flat()),
-    Promise.all(currencies.map(async (cur) => [cur, await getFxRate(cur, baseCurrency)] as const)),
-  ]);
+  const fxEntries = await Promise.all(
+    currencies.map(async (cur) => [cur, await resolveFxRate(cur, baseCurrency)] as const),
+  );
   const fxByCurrency = new Map<string, number>(fxEntries);
   const priceByTicker = new Map<string, { date: number; close: number }[]>();
   // Ascending signed-quantity events per ticker.
-  const txByTicker = new Map<string, { date: number; qty: number; cost: number }[]>();
+  const txByTicker = new Map<
+    string,
+    { date: number; qty: number; cost: number; netContribution: number }[]
+  >();
   for (const id of tickerIds) {
     priceByTicker.set(id, []);
     txByTicker.set(id, []);
   }
   for (const p of prices) {
+    if (!priceByTicker.has(p.tickerId)) continue;
     priceByTicker.get(p.tickerId)!.push({ date: p.date.getTime(), close: Number(p.close) });
   }
   for (const t of txs) {
@@ -62,7 +87,15 @@ export async function computeInvestmentHistory(userId: string): Promise<Portfoli
     // Net invested: + (qty*price+fee) on buy, − (qty*price−fee) on sell.
     const gross = Number(t.quantity) * Number(t.price);
     const cost = (t.side === "BUY" ? gross + Number(t.fee) : -(gross - Number(t.fee))) * fx;
-    txByTicker.get(t.tickerId)!.push({ date: t.date.getTime(), qty: signedQty, cost });
+    // Market flows use signed gross principal. Fees affect net worth separately
+    // and must never be mistaken for portfolio performance.
+    const netContribution = (t.side === "BUY" ? gross : -gross) * fx;
+    txByTicker.get(t.tickerId)!.push({
+      date: t.date.getTime(),
+      qty: signedQty,
+      cost,
+      netContribution,
+    });
   }
 
   const startMs = txs[0].date.getTime();
@@ -80,6 +113,7 @@ export async function computeInvestmentHistory(userId: string): Promise<Portfoli
     heldQty.set(id, 0);
   }
   let invested = 0;
+  let netContributions = 0;
 
   const points: PortfolioPoint[] = [];
   const day = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate()));
@@ -94,6 +128,7 @@ export async function computeInvestmentHistory(userId: string): Promise<Portfoli
       while (tp < events.length && events[tp].date <= dayMs) {
         q += events[tp].qty;
         invested += events[tp].cost;
+        netContributions += events[tp].netContribution;
         tp++;
       }
       txPtr.set(id, tp);
@@ -110,7 +145,12 @@ export async function computeInvestmentHistory(userId: string): Promise<Portfoli
         value += q * ph[pp].close * fx;
       }
     }
-    points.push({ date: isoDay(day), value, invested: Math.max(0, invested) });
+    points.push({
+      date: isoDay(day),
+      value,
+      invested: Math.max(0, invested),
+      netContributions,
+    });
   }
   return points;
 }

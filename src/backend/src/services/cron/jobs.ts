@@ -9,6 +9,7 @@ import { backfillFx } from "../market/fx.ts";
 import { createDailySnapshot, createDailyBalanceSnapshots } from "../snapshot.ts";
 import { generateDue } from "../recurring.ts";
 import { userRepository } from "../../repositories/user.ts";
+import { queueFinancialForecast } from "../financialForecastGeneration.ts";
 
 /**
  * Nightly price job: for every tracked ticker, fetch the missing daily closes.
@@ -146,6 +147,25 @@ export async function runRecurring(): Promise<number> {
   return counts.reduce((total, count) => total + count, 0);
 }
 
+/** Queues one forecast per user in strict sequence to bound weekly load. */
+export async function queueForecastsSequentially(
+  users: { id: string }[],
+  queue: (userId: string) => Promise<{ status: "QUEUED" | "ALREADY_RUNNING" }> =
+    queueFinancialForecast,
+): Promise<number> {
+  let queued = 0;
+  for (const { id } of users) {
+    const result = await queue(id);
+    if (result.status === "QUEUED") queued += 1;
+  }
+  return queued;
+}
+
+/** Weekly producer; workers alone claim and execute the durable forecast jobs. */
+export async function runWeeklyFinancialForecast(): Promise<number> {
+  return queueForecastsSequentially(await userRepository.listIds());
+}
+
 // Jobs that can be triggered by key via POST /api/cron/:key/run.
 export const cronHandlers: Record<string, () => Promise<number>> = {
   "nightly-prices": runNightlyPrices,
@@ -153,4 +173,5 @@ export const cronHandlers: Record<string, () => Promise<number>> = {
   "fx-rates": runFxRates,
   snapshots: runSnapshots,
   "recurring-expenses": runRecurring,
+  "weekly-financial-forecast": runWeeklyFinancialForecast,
 };

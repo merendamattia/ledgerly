@@ -5,6 +5,8 @@ import { holdingRepository } from "../repositories/holding.ts";
 import { getFxRate } from "./market/fx.ts";
 import { latestPrices } from "./market/quotes.ts";
 
+type FxRateResolver = (base: string, quote: string) => Promise<number>;
+
 export interface HoldingValuation {
   holdingId: string;
   tickerId: string;
@@ -40,7 +42,10 @@ export interface NetWorth {
  * market value of all holdings. Prices and FX are read cache-first (no provider
  * calls on this path).
  */
-export async function computeNetWorth(userId: string): Promise<NetWorth> {
+export async function computeNetWorth(
+  userId: string,
+  resolveFxRate: FxRateResolver = getFxRate,
+): Promise<NetWorth> {
   const [baseCurrency, accounts, holdings, debtRows] = await Promise.all([
     settingsRepository.baseCurrency(userId),
     cashAccountRepository.list(userId),
@@ -57,7 +62,7 @@ export async function computeNetWorth(userId: string): Promise<NetWorth> {
     await Promise.all(
       [...currencies].map(async (currency) => [
         currency,
-        await getFxRate(currency, baseCurrency),
+        await resolveFxRate(currency, baseCurrency),
       ] as const),
     ),
   );

@@ -32,6 +32,11 @@ export function shouldLoadCompleteTransactionResults(period: string): boolean {
   return period !== "all";
 }
 
+/** Returns whether Activity should load and render complete filtered insights. */
+export function shouldShowTransactionInsights(period: string, tagActive: boolean): boolean {
+  return shouldLoadCompleteTransactionResults(period) || tagActive;
+}
+
 /** Loads every page from an offset-based endpoint without exceeding its page limit. */
 export async function loadCompletePages<T>(
   fetchPage: (offset: number, limit: number) => Promise<T[]>,
@@ -59,14 +64,15 @@ export function summarizeTransactionRows(rows: readonly TransactionSummaryRows[]
   return { income, expenses, net: income - expenses };
 }
 
-/** Groups filtered transactions into the category totals consumed by the period donut switch. */
+/** Groups filtered transactions into the category totals consumed by the Activity chart switch. */
 export function summarizeTransactionCategories(
   rows: readonly TransactionCategoryRow[],
+  uncategorizedLabel = "Uncategorized",
 ): TransactionCategorySummary {
   const summary: TransactionCategorySummary = { income: {}, expenses: {}, labels: {} };
   for (const row of rows) {
     const key = row.category?.id ?? "uncategorized";
-    summary.labels[key] = row.category?.name || "Uncategorized";
+    summary.labels[key] = row.category?.name || uncategorizedLabel;
     const target = row.direction === "INCOME" ? summary.income : summary.expenses;
     target[key] = (target[key] ?? 0) + row.amount;
   }

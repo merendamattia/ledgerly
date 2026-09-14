@@ -28,6 +28,7 @@ import { databaseRoutes } from "./routes/database.ts";
 import { usersRoutes } from "./routes/users.ts";
 import { integrationsRoutes } from "./routes/integrations.ts";
 import { notificationsRoutes } from "./routes/notifications.ts";
+import { analysisRoutes } from "./routes/analysis.ts";
 
 // The Hono app is the backend's only HTTP surface. Routes are transport-only:
 // they validate input, delegate to services, and shape responses. All domain
@@ -132,6 +133,7 @@ const routes = app
   .route("/pillars", pillarsRoutes)
   .route("/cron", cronRoutes)
   .route("/dashboard", dashboardRoutes)
+  .route("/analysis", analysisRoutes)
   .route("/database", databaseRoutes);
 
 export { app };
