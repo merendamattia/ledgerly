@@ -1,3 +1,28 @@
+# [2.5.0](https://github.com/merendamattia/ledgerly/compare/v2.4.0...v2.5.0) (2026-09-14)
+
+
+### Bug Fixes
+
+* **analysis:** correct fees, recovery, and privacy ([6b6e5bf](https://github.com/merendamattia/ledgerly/commit/6b6e5bf77d98849ef64b0ded20702cbed406310f))
+* **analysis:** correct forecast inputs and chart series ([3e74188](https://github.com/merendamattia/ledgerly/commit/3e741882ffcb5b353909779d5b76e263f18c19dd))
+* **analysis:** gate market returns by coverage ([8a9f685](https://github.com/merendamattia/ledgerly/commit/8a9f685e65f0a093578470a6839df4b0e0043db2))
+* **analysis:** handle invalid returns and failed generation ([1669f5d](https://github.com/merendamattia/ledgerly/commit/1669f5d375514b0d2680e3d5300373b8d961bebc))
+* **analysis:** preserve returns and completed claims ([d257ae9](https://github.com/merendamattia/ledgerly/commit/d257ae986a08065332c4e5e2e2067b8433090822))
+* **analysis:** recover forecast jobs and contributions ([962e3be](https://github.com/merendamattia/ledgerly/commit/962e3becc0fae9c58ea4fe4ecd93e5a0daf08d57))
+* **analysis:** reject misleading sparse forecasts ([eacb3f8](https://github.com/merendamattia/ledgerly/commit/eacb3f8700436beef0379263093909d2f7d9059f))
+* **analysis:** scope forecast evidence to current data ([459199d](https://github.com/merendamattia/ledgerly/commit/459199d6eafb0b2b09d93fe79cc9aa86e7d403eb))
+* **analysis:** separate fallback investment returns ([d40b126](https://github.com/merendamattia/ledgerly/commit/d40b126a2a610c78f6a175f3f071d0d1f70dfc9f))
+* **integrations:** accept copied bearer token ([2b79297](https://github.com/merendamattia/ledgerly/commit/2b79297a80546eedcf8959314680fc88226bf4b2))
+* **integrations:** add role-neutral Wallet diagnostics ([0596759](https://github.com/merendamattia/ledgerly/commit/05967595e12ccd79f057c7e1b1e27df70829a049))
+* **integrations:** classify malformed Wallet JSON ([e3d1e34](https://github.com/merendamattia/ledgerly/commit/e3d1e349465ae81df68a6080aa9842c3d71c438b))
+
+
+### Features
+
+* **activity:** show insights for tag filters ([4c7cf5e](https://github.com/merendamattia/ledgerly/commit/4c7cf5e28b855963f92082fa3502e4bacb1f2f4b))
+* **analysis:** add proactive financial forecasting ([8227d08](https://github.com/merendamattia/ledgerly/commit/8227d08a4dddcc5bdd4c9ec2dc68badefa61f4e4))
+* **wallet:** convert foreign Wallet amounts ([38ab106](https://github.com/merendamattia/ledgerly/commit/38ab1067c9e6b826631c4b275622b156f1e6c9f7)), closes [#62](https://github.com/merendamattia/ledgerly/issues/62)
+
 # [2.4.0](https://github.com/merendamattia/ledgerly/compare/v2.3.2...v2.4.0) (2026-09-09)
 
 
