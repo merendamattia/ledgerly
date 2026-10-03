@@ -71,11 +71,13 @@ function returnSummary(
 
 /** Missing prices leave zero-valued history that must not become a -99% market return. */
 export function buildInvestmentReturnModel(
-  monthEnds: { date: string; value: number; netContributions: number }[],
+  dailyHistory: { date: string; value: number; netContributions: number }[],
 ): { returns: number[]; summary: InvestmentReturnSummary } {
-  const hasMarketValue = monthEnds.some((point) => point.value > 0 && Number.isFinite(point.value));
+  const hasMarketValue = dailyHistory.some(
+    (point) => point.value > 0 && Number.isFinite(point.value),
+  );
   const observedReturns = hasMarketValue
-    ? computeFlowAdjustedMonthlyReturns(monthEnds).slice(-FINANCIAL_FORECAST_LOOKBACK_MONTHS)
+    ? computeFlowAdjustedMonthlyReturns(dailyHistory).slice(-FINANCIAL_FORECAST_LOOKBACK_MONTHS)
     : [];
   const returns =
     observedReturns.length >= MINIMUM_MARKET_RETURN_OBSERVATIONS ? observedReturns : [];
@@ -402,8 +404,7 @@ export async function loadFinancialForecastInputs(userId: string, cutoff = new D
     settings.baseCurrency,
   );
   const cashflow = aggregateForecastCashflows(transactions, contributionFlows, day);
-  const marketInvestmentMonthEnds = compressMonthEnds(marketInvestmentHistory);
-  const investmentReturnModel = buildInvestmentReturnModel(marketInvestmentMonthEnds);
+  const investmentReturnModel = buildInvestmentReturnModel(marketInvestmentHistory);
   const investmentSleeves = partitionInvestmentHoldings(current.holdings, supportedTickerIds);
   const netWorth = compressMonthEnds(netWorthHistory)
     .slice(-24)
@@ -434,7 +435,7 @@ export async function loadFinancialForecastInputs(userId: string, cutoff = new D
       income: cashflow.income.slice(-24),
       expenses: cashflow.expenses.slice(-24),
       investments,
-      contributions: cashflow.contributions.slice(-24),
+      contributions: cashflow.contributions,
     },
     investmentReturn: investmentReturnModel.summary,
   };

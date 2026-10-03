@@ -96,9 +96,13 @@ export function buildForecastChartRows({
   cutoff: string;
   currentValue: number;
 }): ForecastChartRow[] {
-  const overlayByMonth = new Map(
-    historicalOverlay?.map((point) => [point.date.slice(0, 7), point.value]) ?? [],
-  );
+  const overlayByMonth = new Map<string, number>();
+  let cumulativeContributions = 0;
+  for (const point of [...(historicalOverlay ?? [])].sort((a, b) => a.date.localeCompare(b.date))) {
+    const month = point.date.slice(0, 7);
+    cumulativeContributions += point.value;
+    overlayByMonth.set(month, cumulativeContributions);
+  }
   const actual = history
     .filter((point) => point.date !== cutoff)
     .slice(-24)
@@ -119,7 +123,9 @@ export function buildForecastChartRows({
   const boundary: ForecastChartRow = {
     date: cutoff,
     actual: currentValue,
-    historicalOverlay: null,
+    historicalOverlay: [...overlayByMonth.entries()]
+      .filter(([month]) => month <= cutoff.slice(0, 7))
+      .at(-1)?.[1] ?? null,
     today: true,
     mean: currentValue,
     p10: currentValue,
