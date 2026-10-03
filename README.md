@@ -146,9 +146,10 @@ user and keeps the last valid snapshot visible while the replacement runs. Per-u
 prevents overlapping simulations.
 
 The model treats investment-category transactions as contributions rather than consumption. It
-removes net contributions from month-to-month portfolio value changes before sampling market
-returns, then compounds sampled returns on the provider-backed portfolio sleeve with sufficient
-ledger and price coverage and its share of subsequent contributions. Manual, unpriced, or
+removes net contributions from daily portfolio value changes, links those flow-adjusted returns
+geometrically into monthly rates, then compounds sampled returns on the provider-backed portfolio
+sleeve with sufficient ledger and price coverage. New monthly flows are treated as arriving halfway
+through the month, so they receive an estimated half-month of returns. Manual, unpriced, or
 insufficiently supported investment value stays flat. Credits, other
 manually managed assets and debts also stay flat unless their effect appears in cash-flow history.
 Forecasts are estimates, not guarantees or financial advice; long-horizon ranges are illustrative

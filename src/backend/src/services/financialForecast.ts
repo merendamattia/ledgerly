@@ -203,18 +203,16 @@ export function mulberry32(seed: number): () => number {
 }
 
 /**
- * Builds aggregate monthly time-weighted returns. The change in cumulative net
- * invested capital is removed from the market-value change, so buys and sells
- * are never interpreted as performance. A half-period flow weight is the
- * Modified Dietz fallback when exact intramonth flow timing is unavailable.
+ * Links daily flow-adjusted returns into monthly returns. The change in
+ * cumulative net invested capital is removed from each daily market-value
+ * change, so buys and sells are not interpreted as performance. When an
+ * intraday flow time is unavailable, a half-day Modified Dietz weight is used.
  */
 export function computeFlowAdjustedMonthlyReturns(
   points: { date: string; value: number; netContributions: number }[],
 ): number[] {
-  const monthEnds = new Map<string, (typeof points)[number]>();
-  for (const point of points) monthEnds.set(point.date.slice(0, 7), point);
-  const ordered = [...monthEnds.values()].sort((a, b) => a.date.localeCompare(b.date));
-  const returns: number[] = [];
+  const ordered = [...points].sort((a, b) => a.date.localeCompare(b.date));
+  const monthlyGrowth = new Map<string, number>();
   for (let index = 1; index < ordered.length; index++) {
     const start = ordered[index - 1];
     const end = ordered[index];
@@ -223,10 +221,16 @@ export function computeFlowAdjustedMonthlyReturns(
     const flow = finite(end.netContributions - start.netContributions);
     const denominator = openingCapital + flow * 0.5;
     if (denominator <= 0) continue;
-    const value = (end.value - openingCapital - flow) / denominator;
-    returns.push(Math.max(-0.99, finite(value)));
+    const dailyReturn = Math.max(
+      -0.99,
+      finite((end.value - openingCapital - flow) / denominator),
+    );
+    const month = end.date.slice(0, 7);
+    monthlyGrowth.set(month, (monthlyGrowth.get(month) ?? 1) * (1 + dailyReturn));
   }
-  return returns;
+  return [...monthlyGrowth.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([, growth]) => Math.max(-0.99, finite(growth - 1)));
 }
 
 /** Bootstrap Monte Carlo engine. All historical/request I/O stays outside it. */
@@ -289,9 +293,12 @@ export function buildFinancialForecast(
         finite(sampled.investmentFees + known.investmentFees),
       );
       const marketReturn = Math.max(-0.99, finite(returns[randomIndex(returns.length, random)]));
+      const halfPeriodReturn = Math.sqrt(1 + marketReturn) - 1;
       cash = finite(cash + income - expenses - investmentFees - contribution);
       const marketPrincipal = Math.max(0, finite(marketInvestments + marketContribution));
-      const marketReturnAmount = finite(marketPrincipal * marketReturn);
+      const marketReturnAmount = finite(
+        marketInvestments * marketReturn + marketContribution * halfPeriodReturn,
+      );
       marketInvestments = Math.max(0, finite(marketPrincipal + marketReturnAmount));
       fallbackInvestments = Math.max(0, finite(fallbackInvestments + fallbackContribution));
       const investments = marketInvestments + fallbackInvestments;
