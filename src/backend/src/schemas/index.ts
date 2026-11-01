@@ -275,7 +275,10 @@ export const createRecurringSchema = recurringBaseSchema
     path: ["endDate"],
   });
 
-export const updateRecurringSchema = recurringBaseSchema.partial();
+// A partial edit must not apply the create-only NEVER default.
+export const updateRecurringSchema = recurringBaseSchema.partial().extend({
+  endMode: recurEndModeSchema.optional(),
+});
 
 export const transactionFiltersSchema = z.object({
   search: z.string().trim().max(280).optional(),
