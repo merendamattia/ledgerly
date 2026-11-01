@@ -1,3 +1,11 @@
+## [2.5.2](https://github.com/merendamattia/ledgerly/compare/v2.5.1...v2.5.2) (2026-11-01)
+
+
+### Bug Fixes
+
+* **matrix:** prevent sticky header bleed-through ([52eb4ca](https://github.com/merendamattia/ledgerly/commit/52eb4ca2fdb975e15dda2991813a1f0fac5dc9ac)), closes [#79](https://github.com/merendamattia/ledgerly/issues/79)
+* **recurring:** preserve booked history ([0facbd1](https://github.com/merendamattia/ledgerly/commit/0facbd15bd31a8df995913ec79f8484bcaac63b9)), closes [#81](https://github.com/merendamattia/ledgerly/issues/81)
+
 ## [2.5.1](https://github.com/merendamattia/ledgerly/compare/v2.5.0...v2.5.1) (2026-10-03)
 
 
