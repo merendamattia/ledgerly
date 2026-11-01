@@ -1,6 +1,7 @@
-import type { RecurInterval, RecurringExpense } from "@prisma/client";
+import type { z } from "zod";
+import type { updateRecurringSchema } from "../schemas/index.ts";
+import type { Prisma, RecurInterval, RecurringExpense } from "@prisma/client";
 import { recurringExpenseRepository } from "../repositories/recurringExpense.ts";
-import { transactionRepository } from "../repositories/transaction.ts";
 import { isRecurringEnded } from "../utils/recurring-status.ts";
 
 // Safety cap on how many movements a single rule can generate in one run, to
@@ -61,6 +62,45 @@ export function occurrenceDates(rule: OccurrenceRule, limit: number): Date[] {
   return dates;
 }
 
+type RecurInput = z.infer<typeof updateRecurringSchema>;
+
+/** Ordinary edits preserve progress; rescheduling and resuming skip elapsed dates. */
+function toData(input: RecurInput, existing: RecurringExpense, today: Date): Prisma.RecurringExpenseUpdateInput {
+  const data: Prisma.RecurringExpenseUpdateInput = {};
+  if (input.amount !== undefined) data.amount = input.amount;
+  if (input.direction !== undefined) data.direction = input.direction;
+  if (input.note !== undefined) data.note = input.note;
+  if (input.intervalUnit !== undefined) data.intervalUnit = input.intervalUnit;
+  if (input.intervalCount !== undefined) data.intervalCount = input.intervalCount;
+  if (input.startDate !== undefined) data.startDate = input.startDate;
+  if (input.endMode !== undefined) data.endMode = input.endMode;
+  if (input.maxOccurrences !== undefined) data.maxOccurrences = input.maxOccurrences;
+  if (input.endDate !== undefined) data.endDate = input.endDate;
+  if (input.enabled !== undefined) data.enabled = input.enabled;
+  if (input.categoryId !== undefined) {
+    data.category = input.categoryId ? { connect: { id: input.categoryId } } : { disconnect: true };
+  }
+  const rule = { ...existing, ...input };
+  const scheduleChanged = utcDay(rule.startDate).getTime() !== existing.startDate.getTime()
+    || rule.intervalUnit !== existing.intervalUnit || rule.intervalCount !== existing.intervalCount;
+  if (scheduleChanged || (input.enabled === true && !existing.enabled)) {
+    // Never move behind the next unbooked date, even when changing the anchor.
+    const floor = Math.max(utcDay(today).getTime(), existing.nextRunDate.getTime());
+    let next = utcDay(scheduleChanged ? rule.startDate : existing.nextRunDate);
+    while (next.getTime() < floor) {
+      next = computeNextDate(next, rule.intervalUnit, rule.intervalCount);
+    }
+    data.nextRunDate = next;
+    rule.nextRunDate = next;
+  }
+  if (isRecurringEnded(rule)) data.enabled = false;
+  return data;
+}
+
+export function updateRecurring(userId: string, id: string, input: RecurInput, today = new Date()) {
+  return recurringExpenseRepository.update(userId, id, (existing) => toData(input, existing, today));
+}
+
 /**
  * Book a Transaction for every due occurrence of every enabled rule, advancing
  * `nextRunDate`/`occurrencesCount` and disabling rules that reach their end
@@ -71,42 +111,31 @@ export async function generateDue(userId: string, today: Date): Promise<number> 
   const rules = await recurringExpenseRepository.listDue(userId, cutoff);
   let created = 0;
 
-  for (const rule of rules) {
-    let occurrencesCount = rule.occurrencesCount;
-    let nextRunDate = utcDay(rule.nextRunDate);
-    const endDate = rule.endDate ? utcDay(rule.endDate) : null;
+  for (const dueRule of rules) {
+    created += await recurringExpenseRepository.bookDue(userId, dueRule.id, (rule) => {
+      const dates: Date[] = [];
+      let occurrencesCount = rule.occurrencesCount;
+      let nextRunDate = utcDay(rule.nextRunDate);
+      const endDate = rule.endDate ? utcDay(rule.endDate) : null;
 
-    for (let i = 0; i < MAX_ITERATIONS; i++) {
-      if (nextRunDate.getTime() > cutoff.getTime()) break;
-      if (rule.endMode === "ON_DATE" && endDate && nextRunDate.getTime() > endDate.getTime()) break;
-      if (
-        rule.endMode === "AFTER_OCCURRENCES" &&
-        rule.maxOccurrences != null &&
-        occurrencesCount >= rule.maxOccurrences
-      )
-        break;
+      for (let i = 0; i < MAX_ITERATIONS; i++) {
+        if (nextRunDate.getTime() > cutoff.getTime()) break;
+        if (rule.endMode === "ON_DATE" && endDate && nextRunDate.getTime() > endDate.getTime()) break;
+        if (
+          rule.endMode === "AFTER_OCCURRENCES" &&
+          rule.maxOccurrences != null &&
+          occurrencesCount >= rule.maxOccurrences
+        )
+          break;
 
-      await transactionRepository.create(userId, {
-        date: nextRunDate,
-        amount: rule.amount,
-        direction: rule.direction,
-        note: rule.note,
-        category: rule.categoryId ? { connect: { id: rule.categoryId } } : undefined,
-        recurringExpense: { connect: { id: rule.id } },
-      });
-      created++;
-      occurrencesCount++;
-      nextRunDate = computeNextDate(nextRunDate, rule.intervalUnit, rule.intervalCount);
-    }
+        dates.push(nextRunDate);
+        occurrencesCount++;
+        nextRunDate = computeNextDate(nextRunDate, rule.intervalUnit, rule.intervalCount);
+      }
 
-    const updated = { ...rule, occurrencesCount, nextRunDate };
-    await recurringExpenseRepository.updateProgress(
-      userId,
-      rule.id,
-      occurrencesCount,
-      nextRunDate,
-      isRecurringEnded(updated) ? false : rule.enabled,
-    );
+      const updated = { ...rule, occurrencesCount, nextRunDate };
+      return { dates, occurrencesCount, nextRunDate, enabled: !isRecurringEnded(updated) };
+    });
   }
 
   return created;
