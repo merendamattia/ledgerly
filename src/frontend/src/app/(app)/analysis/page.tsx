@@ -160,6 +160,20 @@ function AiInterpretation({ data }: { data: AnalysisData }) {
     data.generation?.status === "PENDING" || data.generation?.status === "RUNNING";
   const showingPrevious =
     (!!content && generationActive) || (current?.status !== "COMPLETED" && !!previous?.content);
+  const analysisSections = content
+    ? [
+        { heading: t("netWorthTitle"), text: content.netWorthAnalysis },
+        { heading: t("cashFlowAnalysisTitle"), text: content.cashFlowAnalysis },
+        { heading: t("investmentsTitle"), text: content.investmentAnalysis },
+      ]
+    : [];
+  const reportSections = content
+    ? [
+        { heading: t("keyDrivers"), items: content.keyDrivers },
+        { heading: t("risks"), items: content.risksAndUncertainty },
+        { heading: t("assumptions"), items: content.assumptions },
+      ]
+    : [];
 
   return (
     <Card>
@@ -176,28 +190,32 @@ function AiInterpretation({ data }: { data: AnalysisData }) {
           <CardDescription>{t("aiFailed")}</CardDescription>
         ) : null}
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex flex-col gap-5">
         {shouldHidePrivateNumbers ? (
           <p className="text-sm text-muted-foreground">{t("aiPrivacyHidden")}</p>
         ) : content ? (
-          <div className="flex max-w-[76ch] flex-col gap-4 text-sm leading-relaxed">
-            <p>{content.summary}</p>
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-              <p>{content.netWorthAnalysis}</p>
-              <p>{content.cashFlowAnalysis}</p>
-              <p>{content.investmentAnalysis}</p>
+          <div className="flex w-full flex-col gap-5 text-sm leading-relaxed">
+            <p className="max-w-[72ch] text-base leading-7">{content.summary}</p>
+            <div className="grid grid-cols-1 divide-y divide-border lg:grid-cols-3 lg:divide-x lg:divide-y-0">
+              {analysisSections.map(({ heading, text }) => (
+                <section
+                  key={heading}
+                  className="min-w-0 py-4 first:pt-0 last:pb-0 lg:px-5 lg:py-0 lg:first:pl-0 lg:last:pr-0"
+                >
+                  <h3 className="mb-2 text-sm font-semibold">{heading}</h3>
+                  <p className="max-w-[68ch] text-sm leading-relaxed text-muted-foreground">
+                    {text}
+                  </p>
+                </section>
+              ))}
             </div>
             <Separator />
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              {[
-                [t("keyDrivers"), content.keyDrivers],
-                [t("risks"), content.risksAndUncertainty],
-                [t("assumptions"), content.assumptions],
-              ].map(([heading, items]) => (
-                <section key={String(heading)}>
-                  <h3 className="mb-2 text-sm font-semibold">{String(heading)}</h3>
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+              {reportSections.map(({ heading, items }) => (
+                <section key={heading} className="min-w-0">
+                  <h3 className="mb-2 text-sm font-semibold">{heading}</h3>
                   <ul className="flex list-disc flex-col gap-1 pl-4 text-muted-foreground">
-                    {(items as string[]).map((item) => <li key={item}>{item}</li>)}
+                    {items.map((item, index) => <li key={`${index}-${item}`}>{item}</li>)}
                   </ul>
                 </section>
               ))}
@@ -543,7 +561,7 @@ export default function AnalysisPage() {
           currency={currency}
           color="var(--chart-4)"
           labels={{ ...commonLabels(t("investmentsTitle")), actual: t("portfolioValue") }}
-          historicalOverlayLabel={t("contributions")}
+          historicalOverlayLabel={t("cumulativeContributions")}
           explanationRows={[
             { label: t("startingValue"), value: money(payload.current.investments) },
             { label: t("medianAtHorizon", { years }), value: money(investmentEnd.p50) },
@@ -557,9 +575,14 @@ export default function AnalysisPage() {
             },
           ]}
           note={
-            returnSummary.cagr == null
-              ? `${t("returnUnavailable")} ${t("contributionSeparation")}`
-              : `${t("portfolioReturnPeriod", { months: returnSummary.observationMonths })} ${t("contributionSeparation")}`
+            [
+              returnSummary.cagr == null
+                ? t("returnUnavailable")
+                : t("portfolioReturnPeriod", { months: returnSummary.observationMonths }),
+              t("contributionSeparation"),
+              t("cumulativeContributionsDescription"),
+              t("contributionTimingAssumption"),
+            ].join(" ")
           }
         />
       </div>

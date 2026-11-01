@@ -198,6 +198,29 @@ export function ForecastFanChart({
                 .join(""),
             });
           }
+          if (row.today) {
+            const entries = [
+              [actualLabel, row.actual ?? row.p50, "actual"],
+              ...(historicalOverlayLabel && row.historicalOverlay != null
+                ? [[historicalOverlayLabel, row.historicalOverlay, "historicalOverlay"]]
+                : []),
+            ] as [string, number, string][];
+            return tooltipShell({
+              label: todayLabel,
+              roundness: "xl",
+              variant: "default",
+              body: entries
+                .map(([label, value, key]) =>
+                  tooltipRow({
+                    indicatorHtml: tooltipIndicatorHtml(key, 1),
+                    labelText: label,
+                    valueText: privateText(formatMoney(value, currency)),
+                    dimmed: "",
+                  }),
+                )
+                .join(""),
+            });
+          }
           const entries = [
             [medianLabel, row.p50, "forecast"],
             [meanLabel, row.mean, "mean"],

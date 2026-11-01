@@ -64,7 +64,7 @@ test("percentile interpolates a sorted financial distribution", () => {
   expect(percentile([], 0.5)).toBe(0);
 });
 
-test("forecast compounds the existing portfolio without double-counting contributions", () => {
+test("forecast compounds the existing portfolio and gives monthly contributions half-period returns", () => {
   const forecast = buildFinancialForecast(inputs(), {
     horizonMonths: 2,
     simulationCount: 4,
@@ -72,15 +72,13 @@ test("forecast compounds the existing portfolio without double-counting contribu
   });
 
   expect(forecast.series.netWorth).toHaveLength(2);
-  expect(forecast.series.netWorth[0].p50).toBeCloseTo(2_160);
-  expect(forecast.series.netWorth[1].p50).toBeCloseTo(2_341);
-  expect(forecast.series.investments[0].p50).toBeCloseTo(1_210);
-  expect(forecast.series.investments[1].p50).toBeCloseTo(1_441);
+  expect(forecast.series.netWorth[0].p50).toBeCloseTo(2_154.88, 2);
+  expect(forecast.series.netWorth[1].p50).toBeCloseTo(2_330.25, 2);
+  expect(forecast.series.investments[0].p50).toBeCloseTo(1_204.88, 2);
+  expect(forecast.series.investments[1].p50).toBeCloseTo(1_430.25, 2);
   expect(forecast.series.surplus[0].p50).toBe(50);
-  expect(forecast.contributions.netWorth[1]).toMatchObject({
-    savings: 100,
-    marketReturn: 241,
-  });
+  expect(forecast.contributions.netWorth[1].savings).toBe(100);
+  expect(forecast.contributions.netWorth[1].marketReturn).toBeCloseTo(230.25, 2);
 });
 
 test("market returns compound only the priced sleeve of a mixed portfolio", () => {
@@ -328,9 +326,14 @@ test("offsetting asset and debt balances still count as meaningful financial dat
 test("flow-adjusted returns treat contributions as flows, not performance", () => {
   const returns = computeFlowAdjustedMonthlyReturns([
     { date: "2026-01-31", value: 100, netContributions: 100 },
-    { date: "2026-02-28", value: 150, netContributions: 150 },
-    { date: "2026-03-31", value: 165, netContributions: 150 },
+    { date: "2026-02-01", value: 101, netContributions: 100 },
+    { date: "2026-02-15", value: 151, netContributions: 150 },
+    { date: "2026-02-28", value: 154.02, netContributions: 150 },
+    { date: "2026-03-01", value: 154.02, netContributions: 150 },
+    { date: "2026-03-31", value: 169.422, netContributions: 150 },
   ]);
 
-  expect(returns).toEqual([0, 0.1]);
+  expect(returns).toHaveLength(2);
+  expect(returns[0]).toBeCloseTo(0.0302, 10);
+  expect(returns[1]).toBeCloseTo(0.1, 10);
 });

@@ -1,3 +1,10 @@
+## [2.5.1](https://github.com/merendamattia/ledgerly/compare/v2.5.0...v2.5.1) (2026-10-03)
+
+
+### Bug Fixes
+
+* **analysis:** correct returns and contributions ([69d1675](https://github.com/merendamattia/ledgerly/commit/69d16754a77630603b41574b99e35f9e29d2d78c))
+
 # [2.5.0](https://github.com/merendamattia/ledgerly/compare/v2.4.0...v2.5.0) (2026-09-14)
 
 

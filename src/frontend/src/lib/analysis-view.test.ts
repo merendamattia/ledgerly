@@ -90,7 +90,7 @@ test("chart rows connect solid actuals to the dashed median at the Today boundar
   expect(rows[25]).toMatchObject({ date: "2026-02-01", actual: null, p50: 40 });
 });
 
-test("investment chart rows align historical contributions by month without changing future values", () => {
+test("investment chart rows show cumulative historical contributions through Today", () => {
   const rows = buildForecastChartRows({
     history: [
       { date: "2025-12-31", value: 900 },
@@ -113,7 +113,7 @@ test("investment chart rows align historical contributions by month without chan
   expect(rows[1]).toMatchObject({
     date: "2026-01-31",
     actual: 1_000,
-    historicalOverlay: null,
+    historicalOverlay: 175,
     today: true,
   });
   expect(rows[2]).toMatchObject({
