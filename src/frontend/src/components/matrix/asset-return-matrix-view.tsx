@@ -206,9 +206,9 @@ function ReturnMatrixTable({ data }: { data: AssetReturnMatrix }) {
                       <td colSpan={16} className="h-8 bg-card p-0" />
                     </tr>
                   ) : null}
-                  <tr className="bg-muted/80 text-[11px] font-bold uppercase text-foreground">
-                    <th className={cn(ASSET, "border-y border-r border-border bg-muted/80")}>Asset</th>
-                    <th className={cn(TICKER, "border-y border-r border-border bg-muted/80")}>Ticker</th>
+                  <tr className="bg-muted text-[11px] font-bold uppercase text-foreground">
+                    <th className={cn(ASSET, "z-30 border-y border-r border-border bg-muted")}>Asset</th>
+                    <th className={cn(TICKER, "z-30 border-y border-r border-border bg-muted")}>Ticker</th>
                     <th className={cn(VALUE, "border-y border-r border-border text-foreground")}>
                       {yearBlock.year - 1}
                     </th>
