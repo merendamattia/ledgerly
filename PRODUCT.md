@@ -1,20 +1,26 @@
 # Product
 
-Ledgerly is a **self-hosted, single-user personal finance console** — one authenticated owner
-tracking their own net worth, investments and cash flow on their own server.
+Ledgerly is a **self-hosted personal finance console**. Each authenticated user tracks their
+own net worth, investments and cash flow on an instance maintained by an administrator.
+
+This file records product and design intent. See the [README](README.md) for the current feature
+overview, [user guide](docs/getting-started.md) for first use and [DESIGN.md](DESIGN.md) for the
+interface design system.
 
 ## User
 
-One person: the owner running their own instance. Technical, fast, and already fluent in the
-financial domain — they don't need hand-holding, they need their numbers accurate and instant.
+A person managing their own finances, either running an instance or using a member login
+provided by its administrator. They need accurate numbers and clear controls without requiring
+knowledge of the underlying software.
 
 Context of use: opened on a phone in the pocket and on a desktop tab that stays pinned, returned to
 throughout the day. They scan dense lists of holdings, transactions and expenses, drill into one
 record, act, and move on. Nobody is here to be entertained — the goal is zero-friction access to an
 honest picture of their money.
 
-There is no team, no roles, no multi-tenant workspace: a single admin account is seeded on first
-start and owns everything.
+The initial administrator is created on first backend start. Public registration is disabled.
+Administrators create member logins; each has independent financial data, categories and settings.
+This is personal finance tracking per user, rather than a shared team accounting workspace.
 
 ## Product Purpose
 
@@ -27,7 +33,7 @@ It provides a single place to understand the current state of assets, spot chang
 attention, monitor movements, and make informed decisions.
 
 Success is measured in speed of analysis and clarity of financial state, not time-on-page. A good
-screen lets the owner grasp the position of every investment in one glance, see risks or
+screen lets the user grasp the position of every investment in one glance, see risks or
 opportunities, and act without searching through multiple systems.
 
 The interface is infrastructure, not a presentation layer.
